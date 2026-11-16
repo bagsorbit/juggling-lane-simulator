@@ -104,6 +104,85 @@
         }
       }
     }
+    /* ---------- zips ---------- */
+    const expected = await (await fetch('zip-timings.json')).json();
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const place = pl => pl.lane ? 'L' + pl.lane : 'M' + pl.mid;
+    let zipChecks = 0;
+    const zipPatterns = Object.keys(expected);
+    for (const text of zipPatterns) {
+      const pat = JLS.parse(text);
+      if (!pat.ok || !pat.zip) { fail('zip pattern ' + text + ' does not parse'); continue; }
+      for (const n of [1, 3, 5]) {
+        const tag = text + ' with ' + n + ': ';
+        const plan = JLS.zipPlan(pat, n);
+        if (!plan) { fail(tag + 'no timing found'); continue; }
+        if (!same(plan.vals, expected[text][n])) fail(tag + 'timing ' + plan.vals + ' but the search script says ' + expected[text][n]);
+        const tm = JLS.timing(n);
+        const prev = new Map(), L = pat.seq.length, order = [];
+        for (let k = 0; k * 0.01 < 3 * L + 6; k++) {
+          const u = 0.0031 + k * 0.01;
+          const bs = JLS.zipBalls(u, plan, tm), hs = JLS.zipHands(u, plan, tm);
+          zipChecks++;
+          if (bs.length !== n) { fail(tag + bs.length + ' balls at u=' + u); break; }
+          if (new Set(bs.map(b => b.id)).size !== n || bs.some(b => !(b.id >= 0 && b.id < n))) { fail(tag + 'bad ball ids at u=' + u); break; }
+          let bad = false;
+          for (let h = 0; h < 2; h++) {
+            const held = bs.filter(b => b.state === 'held' && b.hand === h);
+            if (held.length > 1) { fail(tag + 'hand ' + h + ' holds ' + held.length + ' balls at u=' + u); bad = true; break; }
+            if (hs[h].holding !== (held.length === 1)) { fail(tag + 'hand ' + h + ' and its ball disagree at u=' + u); bad = true; break; }
+            if (held.length && (place(held[0].from) !== place(hs[h].from) || place(held[0].to) !== place(hs[h].to) || Math.abs(held[0].p - hs[h].p) > 1e-6)) { fail(tag + 'hand ' + h + ' is not where its ball is at u=' + u); bad = true; break; }
+            if (!(hs[h].p >= -1e-9 && hs[h].p <= 1 + 1e-9)) { fail(tag + 'hand ' + h + ' progress ' + hs[h].p); bad = true; break; }
+          }
+          if (bad) break;
+          // balls in one lane must stay in the order they were rolled
+          const inLane = {};
+          for (const b of bs) if (b.state === 'roll') (inLane[b.lane] = inLane[b.lane] || []).push(b);
+          for (const b of bs) {
+            const was = prev.get(b.id);
+            if (b.state === 'roll' && pat.hand[b.lane] !== b.hand) fail(tag + 'lane rolled by the wrong hand');
+            if (was) {
+              if (was.state === 'roll' && b.state === 'held' && place(b.from) !== 'L' + was.lane) fail(tag + 'ball ' + b.id + ' jumped when caught');
+              if (was.state === 'held' && b.state === 'roll') {
+                if (place(was.to) !== 'L' + b.lane || was.hand !== b.hand) fail(tag + 'ball ' + b.id + ' jumped when rolled');
+                order.push(b.lane);
+              }
+              if (was.state === 'held' && b.state === 'held' && was.hand !== b.hand) {
+                if (place(was.to) !== place(b.from) || !b.from.mid) fail(tag + 'ball ' + b.id + ' changed hands away from a zip');
+                order.push('z');
+              }
+              if (was.state === 'roll' && b.state === 'roll' && (b.lane !== was.lane || b.p < was.p)) fail(tag + 'ball ' + b.id + ' moved wrongly in its lane');
+              if (was.state === 'roll' && b.state === 'roll') {
+                for (const o of inLane[b.lane]) { const ow = prev.get(o.id); if (o !== b && ow && ow.state === 'roll' && ow.lane === b.lane && (ow.p - was.p) * (o.p - b.p) < 0) fail(tag + 'a ball overtook another in lane ' + b.lane); }
+              }
+            }
+            prev.set(b.id, b);
+          }
+        }
+        // throws must come in the order of the pattern, zips included
+        const got = order.join(''), twice = text + text;
+        let ok = false;
+        for (let o = 0; o < L; o++) if (got.startsWith(twice.slice(o, o + L))) ok = true;
+        if (!ok) fail(tag + 'throws came in the order ' + got.slice(0, 2 * L));
+      }
+    }
+    // with no zips, the zip engine must agree with the ordinary one
+    for (const text of ['1234', '121434', '12341432', '1234565432']) {
+      const pat = JLS.parse(text);
+      for (const n of [1, 3, 5, 7, 9]) {
+        const plan = JLS.zipPlan(pat, n), tm = JLS.timing(n);
+        if (!plan || plan.vals.some(v => v !== n)) { fail(text + ' with ' + n + ': plain pattern got timing ' + (plan && plan.vals)); continue; }
+        for (let k = 0; k < 400; k++) {
+          const u = 0.0017 + k * 0.037;
+          const a = JLS.balls(u, pat, n, tm).map(b => b.state === 'roll' ? 'r' + b.lane + b.hand + b.p.toFixed(5) : 'h' + b.hand + 'L' + b.from + 'L' + b.to + b.p.toFixed(5)).sort();
+          const b2 = JLS.zipBalls(u, plan, tm).map(b => b.state === 'roll' ? 'r' + b.lane + b.hand + b.p.toFixed(5) : 'h' + b.hand + place(b.from) + place(b.to) + b.p.toFixed(5)).sort();
+          if (!same(a, b2)) { fail(text + ' with ' + n + ': the two engines disagree at u=' + u); break; }
+        }
+      }
+    }
+    if (JLS.parse('12z').ok || JLS.parse('zz').ok || !JLS.parse('121Z').ok) fail('zip parsing rules');
+    if (JLS.zipPlan(JLS.parse('121z'), 4)) fail('zips should not work with an even ball count');
+    lines.push(zipPatterns.length + ' zip patterns, ' + zipChecks + ' moments checked');
     lines.push(failures ? failures + ' FAILURES' : 'ALL PASSED');
     lines.push(patterns.length + ' patterns, ' + checks + ' moments checked');
   } catch (e) {

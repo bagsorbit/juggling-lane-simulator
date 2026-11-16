@@ -137,3 +137,41 @@ if __name__ == "__main__":
     text = f"{grand} zip patterns in all (every one works with 1 ball)\nThe numbers after each pattern are how many beats later each ball is thrown again.\n" + "\n".join(out)
     open("zip-patterns.txt", "w").write(text + "\n")
     print("\n".join(l for l in text.split("\n") if not l.startswith("  ")))
+
+
+def embed(path="index.html"):
+    """Rewrite the zip lists inside index.html and the expected timings used by the tests."""
+    import json, re
+    html = open(path, encoding="utf-8").read()
+    everything, short, timings = {}, [], {}
+    for k in range(1, 5):
+        by_len = defaultdict(list)
+        for disp, tm in search(k).values():
+            by_len[len(disp)].append(show(disp))
+            timings[show(disp)] = {str(b): list(v) for b, v in tm.items() if v}
+        everything[str(k)] = {str(n): " ".join(sorted(v, key=lambda s: s.replace("z", "~"))) for n, v in sorted(by_len.items())}
+        for n, v in sorted(by_len.items()):
+            if n <= 6 and k <= 3:
+                short.append({"group": f"{k} lane{'s' if k > 1 else ''}, {n} beats", "items": everything[str(k)][str(n)].split()})
+    # a few 4-lane ones: well-known patterns with their last roll swapped for a zip
+    picks = []
+    listed = set(everything["4"]["6"].split()) | set(everything["4"]["8"].split())
+    for base in ("121343", "121434", "121314", "132343", "12341432", "12134243"):
+        for pos in range(len(base) - 1, 0, -1):
+            seq = tuple(Z if i == pos else int(c) for i, c in enumerate(base))
+            if valid_shape(seq, 4):
+                disp = show(min((s for s in images(seq, 4) if s[0] == 1), key=key))
+                if disp in listed and disp not in picks:
+                    picks.append(disp)
+                    break
+    short.append({"group": "4 lanes, a few to try", "items": picks})
+    block = ('<script id="zip-patterns">\nconst ZIP_LIST = ' + json.dumps(short, separators=(",", ":")) +
+             ';\nconst ALL_ZIPS = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')
+    html, n = re.subn(r'<script id="zip-patterns">.*?</script>', lambda m: block, html, flags=re.S)
+    assert n == 1
+    open(path, "w", encoding="utf-8").write(html)
+    json.dump(timings, open("tests/zip-timings.json", "w"), separators=(",", ":"))
+    print("short list:", sum(len(g["items"]) for g in short), "picks:", picks)
+
+if __name__ == "__main__" and "--embed" in sys.argv:
+    embed()

@@ -76,6 +76,12 @@ h1 {
   pointer-events: none;
 }
 .badge:empty { display: none; }
+.zipbtn {
+  position: absolute; top: 8px; left: 8px; z-index: 1;
+  height: 34px; margin: 0; padding: 0 12px;
+  font-size: 14px; border-radius: 17px;
+}
+.zipbtn[aria-pressed="true"] { background: #c0eb75; }
 .badge svg { width: 80%; height: 80%; display: block; }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
@@ -103,6 +109,8 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 }
 .tile.r { background: var(--red-soft); }
 .tile.b { background: var(--blue-soft); }
+.tile.z { background: #c0eb75; font-style: italic; }
+.tile.tap { cursor: pointer; user-select: none; -webkit-user-select: none; }
 .tile.on { background: var(--sun); transform: translateY(-4px); box-shadow: 0 4px 0 var(--ink); }
 
 .info {
@@ -202,6 +210,7 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   #openWall, #play { font-size: 14px; padding: 0 2px; }
   #custom { font-size: 16px; padding-left: 9px; background-position: 9px calc(100% - 8px); }
   .badge { width: 46px; height: 46px; top: 6px; right: 6px; }
+  .zipbtn { top: 6px; left: 6px; height: 30px; padding: 0 9px; font-size: 13px; }
   .seg button { font-size: 14px; }
   .info { font-size: 13px; }
   .tile { width: 27px; height: 31px; font-size: 17px; }
@@ -245,7 +254,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
 <main class="app">
   <h1>Juggling Lane Simulator</h1>
 
-  <div class="stage" id="stage"><div class="badge" id="badge" aria-hidden="true"></div><canvas id="board" role="img" aria-label="Animation of balls rolling across lanes and being carried between them by two hands"></canvas></div>
+  <div class="stage" id="stage"><button type="button" class="zipbtn" id="zipMode" aria-pressed="false">Zips off</button><div class="badge" id="badge" aria-hidden="true"></div><canvas id="board" role="img" aria-label="Animation of balls rolling across lanes and being carried between them by two hands"></canvas></div>
 
   <div class="strip" id="strip" aria-label="Pattern, one number per roll"></div>
   <p class="info" id="info" role="status"></p>
@@ -284,7 +293,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
 
 <dialog id="wall" aria-labelledby="wallTitle">
   <div class="wall-head"><h2 id="wallTitle">All patterns</h2><button type="button" id="wallClose">Close</button></div>
-  <p class="wall-note">Every pattern of up to 8 rolls in which no hand move happens twice. Tap one to play it. The underlined ones have names in the pattern list. Patterns that only differ by where they start, by being upside down or by being a mirror image are listed once.</p>
+  <p class="wall-note" id="wallNote"></p>
   <div id="wallBody"></div>
 </dialog>
 
@@ -308,6 +317,7 @@ const JLS = (function () {
   const MAX_LANES = 6;
   const MAX_BEATS = 24;
   const MAX_BALLS = 9;
+  const MAX_ZIP_BEATS = 10;
 
   // [name, pattern]. Names that end in a number share one picture.
   const CATALOGUE = [
@@ -334,24 +344,29 @@ const JLS = (function () {
 
   function mod(a, m) { return ((a % m) + m) % m; }
 
-  /* Turn typed text into a pattern, or explain in plain words why it can't work. */
+  /* Turn typed text into a pattern, or explain in plain words why it can't work.
+   * A zip (z) is stored as lane 0. */
   function parse(text) {
-    const s = String(text == null ? '' : text).replace(/[\s,.\-]/g, '');
+    const s = String(text == null ? '' : text).replace(/[\s,.\-]/g, '').toLowerCase();
     if (!s) return { ok: false, error: 'Type some lane numbers, like 1234.' };
-    if (/[^1-6]/.test(s)) return { ok: false, error: 'Use only the digits 1 to ' + MAX_LANES + ', one for each roll.' };
-    if (s.length > MAX_BEATS) return { ok: false, error: 'That is too long. Keep it to ' + MAX_BEATS + ' rolls or fewer.' };
+    if (/[^1-6z]/.test(s)) return { ok: false, error: 'Use only the digits 1 to ' + MAX_LANES + ' (and z for a zip), one for each roll.' };
+    const zip = s.indexOf('z') !== -1;
+    const most = zip ? MAX_ZIP_BEATS : MAX_BEATS;
+    if (s.length > most) return { ok: false, error: 'That is too long. Keep it to ' + most + ' rolls or fewer.' };
     if (s.length % 2) return { ok: false, error: 'A pattern needs an even number of rolls, because the hands take turns.' };
-    const seq = Array.from(s, Number);
+    const seq = Array.from(s, function (c) { return c === 'z' ? 0 : Number(c); });
     const lanes = Math.max.apply(null, seq);
+    if (!lanes) return { ok: false, error: 'A pattern needs at least one roll as well as its zips.' };
     const hand = new Array(lanes + 1).fill(-1);   // hand[lane] = 0 or 1: which hand rolls that lane
     for (let i = 0; i < seq.length; i++) {
+      if (!seq[i]) continue;
       const h = i % 2;
       if (hand[seq[i]] === -1) hand[seq[i]] = h;
       else if (hand[seq[i]] !== h) {
         return { ok: false, error: 'Lane ' + seq[i] + ' is rolled by both hands, so it would have to run both ways.' };
       }
     }
-    return { ok: true, text: s, seq: seq, lanes: lanes, hand: hand };
+    return { ok: true, text: s, seq: seq, lanes: lanes, hand: hand, zip: zip };
   }
 
   /* How long things take with n balls.
@@ -431,8 +446,157 @@ const JLS = (function () {
     return [mod(2 * j, L), mod(2 * j + 1, L)];
   }
 
+  /* ================= zips =================
+   * A zip is a handoff: the hand passes its ball straight to the other hand, which
+   * rolls it on the very next beat. That ball jumps the queue, so the rolls can no
+   * longer all take the same time. Each throw gets a "value": how many beats later
+   * that ball is thrown again. A zip is 1. A roll is an odd number (the ball has
+   * changed sides), at least 3 once there is more than one ball. Hands take turns,
+   * so zips only work with an odd number of balls.
+   */
+
+  /* The most even set of values that works, or null if nothing does. */
+  function solveTiming(seq, n) {
+    const L = seq.length, low = n === 1 ? 1 : 3, cap = 2 * L + n;
+    const vals = new Array(L).fill(0), used = new Array(L).fill(false), rolls = [];
+    let fixed = 0;
+    for (let i = 0; i < L; i++) {
+      if (seq[i]) { rolls.push(i); continue; }
+      vals[i] = 1; fixed++;
+      if (used[(i + 1) % L]) return null;
+      used[(i + 1) % L] = true;
+    }
+    let best = null, bestScore = null;
+    // a ball must never overtake another one in the same lane
+    function laneOk(i) {
+      for (const j of rolls) {
+        if (j === i || !vals[j] || seq[j] !== seq[i]) continue;
+        const a = Math.min(i, j), b = Math.max(i, j), gap = b - a;
+        if (!(vals[a] - vals[b] < gap && vals[b] - vals[a] < L - gap)) return false;
+      }
+      return true;
+    }
+    function better(score, v) {
+      if (!bestScore) return true;
+      if (score[0] !== bestScore[0]) return score[0] < bestScore[0];
+      if (score[1] !== bestScore[1]) return score[1] < bestScore[1];
+      for (let i = 0; i < L; i++) if (v[i] !== best[i]) return v[i] < best[i];
+      return false;
+    }
+    function go(idx, left) {
+      if (idx === rolls.length) {
+        if (left !== 0) return;
+        let lo = Infinity, hi = 0, sq = 0;
+        for (const i of rolls) { lo = Math.min(lo, vals[i]); hi = Math.max(hi, vals[i]); sq += vals[i] * vals[i]; }
+        const score = [hi - lo, sq];
+        if (better(score, vals)) { bestScore = score; best = vals.slice(); }
+        return;
+      }
+      const i = rolls[idx], remaining = rolls.length - idx - 1;
+      for (let v = low; v <= cap; v += 2) {
+        if (left - v < remaining * low) break;
+        const slot = (i + v) % L;
+        if (used[slot]) continue;
+        vals[i] = v;
+        if (laneOk(i)) { used[slot] = true; go(idx + 1, left - v); used[slot] = false; }
+        vals[i] = 0;
+      }
+    }
+    go(0, n * L - fixed);
+    return best;
+  }
+
+  /* Everything needed to play a pattern with zips, or null if it can't be played with n balls. */
+  function zipPlan(pat, n) {
+    if (n % 2 === 0) return null;
+    const vals = solveTiming(pat.seq, n);
+    if (!vals) return null;
+    const L = pat.seq.length, srcVal = new Array(L);
+    let maxV = 1;
+    for (let i = 0; i < L; i++) { srcVal[mod(i + vals[i], L)] = vals[i]; maxV = Math.max(maxV, vals[i]); }
+    const landings = [];
+    for (let b = -maxV; b < 0; b++) if (b + vals[mod(b, L)] >= 0) landings.push(b + vals[mod(b, L)]);
+    landings.sort(function (x, y) { return x - y; });
+    return { seq: pat.seq, L: L, n: n, lanes: pat.lanes, vals: vals, srcVal: srcVal, maxV: maxV, landings: landings, ids: new Map() };
+  }
+  function zSym(plan, t) { return plan.seq[mod(t, plan.L)]; }
+  function zVal(plan, t) { return plan.vals[mod(t, plan.L)]; }
+  function zSrc(plan, t) { return t - plan.srcVal[mod(t, plan.L)]; }        // the beat this ball was last thrown at
+
+  /* Where the hands meet for the zip at beat t: in the gap between lanes nearest to where the hands already are.
+     { mid: 2.5 } means between lanes 2 and 3. */
+  function zMid(plan, t) {
+    const near = [];
+    if (zSym(plan, zSrc(plan, t))) near.push(zSym(plan, zSrc(plan, t)));    // the lane the giving hand caught from
+    if (zSym(plan, t + 1)) near.push(zSym(plan, t + 1));                    // the lane the taking hand rolls into next
+    let m = (plan.lanes + 1) / 2;
+    if (near.length) m = near.reduce(function (x, y) { return x + y; }, 0) / near.length;
+    return { mid: (m * 2) % 2 === 1 ? m : m - 0.5 };
+  }
+  function zThrowPlace(plan, t) { return zSym(plan, t) ? { lane: zSym(plan, t) } : zMid(plan, t); }
+  function zCatchPlace(plan, t) { const i = zSrc(plan, t); return zSym(plan, i) ? { lane: zSym(plan, i) } : zMid(plan, i); }
+
+  function zBallId(plan, t) {
+    const chain = [];
+    let b = t, id;
+    while (b + zVal(plan, b) < 0) b += zVal(plan, b);
+    for (;;) {
+      id = plan.ids.get(b);
+      if (id !== undefined) break;
+      chain.push(b);
+      if (b < 0) { id = plan.landings.indexOf(b + zVal(plan, b)); break; }
+      b = zSrc(plan, b);
+    }
+    if (plan.ids.size > 5000) plan.ids.clear();
+    for (const c of chain) plan.ids.set(c, id);
+    return id;
+  }
+
+  /* Where every ball is at time u.
+   * state 'roll': crossing lane `lane`, rolled by `hand`, `p` of the way across.
+   * state 'held': in `hand`, `p` of the way from place `from` to place `to`.
+   * A place is { lane: 3 } (the end of that lane on the hand's side) or { mid: 2.5 } (see zMid). */
+  function zipBalls(u, plan, tm) {
+    const out = [], top = Math.floor(2 * u);
+    for (let t = top; t > top - plan.maxV; t--) {
+      const v = zVal(plan, t);
+      if (u >= (t + v) / 2) continue;
+      const age = u - t / 2, hand = mod(t, 2), id = zBallId(plan, t);
+      if (!zSym(plan, t)) {
+        out.push({ id: id, state: 'held', hand: 1 - hand, from: zMid(plan, t), to: zThrowPlace(plan, t + 1), p: Math.min(1, age / 0.5) });
+        continue;
+      }
+      const dur = v / 2 - tm.hold;
+      if (age < dur) out.push({ id: id, state: 'roll', lane: zSym(plan, t), hand: hand, p: age / dur });
+      else out.push({ id: id, state: 'held', hand: 1 - hand, from: { lane: zSym(plan, t) }, to: zThrowPlace(plan, t + v), p: Math.min(1, (age - dur) / tm.hold) });
+    }
+    return out;
+  }
+
+  /* What each hand is doing at time u: moving from place `from` to place `to`, `p` of the way, `holding` a ball or not. */
+  function zipHands(u, plan, tm) {
+    const out = [];
+    for (let h = 0; h < 2; h++) {
+      const t = 2 * (Math.floor(u - h / 2) + 1) + h;          // this hand's next throw
+      const T = t / 2;
+      const byZip = !zSym(plan, zSrc(plan, t));
+      const got = byZip ? T - 0.5 : T - tm.hold;              // when the ball for that throw reaches the hand
+      if (u < got) out.push({ hand: h, holding: false, from: zThrowPlace(plan, t - 2), to: zCatchPlace(plan, t), p: (u - (T - 1)) / (got - (T - 1)) });
+      else out.push({ hand: h, holding: true, from: zCatchPlace(plan, t), to: zThrowPlace(plan, t), p: (u - got) / (T - got) });
+    }
+    return out;
+  }
+
+  /* Every path a hand carries a ball along, for drawing the loops. */
+  function zipPaths(plan) {
+    const out = [];
+    for (let t = 0; t < plan.L; t++) out.push({ hand: t % 2, from: zCatchPlace(plan, t), to: zThrowPlace(plan, t) });
+    return out;
+  }
+
   return { MAX_LANES: MAX_LANES, MAX_BEATS: MAX_BEATS, MAX_BALLS: MAX_BALLS, CATALOGUE: CATALOGUE,
-           parse: parse, timing: timing, nextRoll: nextRoll, balls: balls, hands: hands, active: active };
+           parse: parse, timing: timing, nextRoll: nextRoll,
+           solveTiming: solveTiming, zipPlan: zipPlan, zipBalls: zipBalls, zipHands: zipHands, zipPaths: zipPaths, balls: balls, hands: hands, active: active };
 })();
 </script>
 
@@ -502,6 +666,11 @@ function iconSvg(name) {
 }
 </script>
 
+<script id="zip-patterns">
+const ZIP_LIST = [{"group":"1 lane, 2 beats","items":["1z"]},{"group":"2 lanes, 4 beats","items":["121z","12zz"]},{"group":"2 lanes, 6 beats","items":["12z21z"]},{"group":"3 lanes, 4 beats","items":["123z","12z3","13z2"]},{"group":"3 lanes, 6 beats","items":["12131z","1213z3","1213zz","121z13","121zz3","12321z","1232z2","1232zz","123zz2","12z213","12z23z","12z31z","12zz13","131zz2","13z21z"]},{"group":"4 lanes, a few to try","items":["12134z","12143z","1213z4","13234z","1234143z","1213424z"]}];
+const ALL_ZIPS = {"1":{"2":"1z"},"2":{"4":"121z 12zz","6":"12z21z"},"3":{"4":"123z 12z3 13z2","6":"12131z 1213z3 1213zz 121z13 121zz3 12321z 1232z2 1232zz 123zz2 12z213 12z23z 12z31z 12zz13 131zz2 13z21z","8":"1213z31z 121z13z3 1232z21z 123z32z2 12z2131z 12z21z13"},"4":{"6":"12134z 1213z4 12143z 1214z3 121z34 121z43 12324z 1232z4 12341z 12343z 1234z2 1234z4 1234zz 123z14 123z34 123z42 123zz4 12423z 1242z3 12431z 1243z2 1243z3 1243zz 124z13 124z32 124zz3 12z234 12z314 12z342 12z34z 12z413 12z43z 12zz34 13142z 1314z2 131z24 131z42 13234z 1323z4 13241z 13242z 1324z3 1324z4 1324zz 132z14 132z24 132zz4 13421z 1342z2 1342z3 1342zz 134z23 134zz2 13z214 13z24z 13z324 13z42z 13zz24 141z23 141z32 14z232 14z23z 14z323 14z32z 14zz23 14zz32 1z24z3 1z34z2","8":"1213141z 121314z4 121314zz 12131z14 12131zz4 1213424z 121342z3 121342zz 1213431z 121343z3 121343zz 12134z43 12134zz3 1213z243 1213z24z 1213z314 1213z343 1213z34z 1213z41z 1213zz14 1213zz43 1214131z 121413z3 121413zz 12141z13 12141zz3 1214323z 121432z4 121432zz 1214341z 121434z4 121434zz 12143z34 12143zz4 1214z234 1214z23z 1214z31z 1214z413 1214z43z 1214zz13 1214zz34 121z1314 121z1343 121z13z4 121z1413 121z14z3 121z3234 121z32z4 121z34z4 121z4243 121z42z3 121z43z3 121zz234 121zz243 121zz314 121zz343 121zz413 1232141z 1232143z 123214z4 123214zz 12321z14 12321z34 12321zz4 1232421z 123242z2 123242zz 12324z42 12324zz2 1232z214 1232z242 1232z24z 1232z41z 1232z43z 1232zz14 1232zz34 1232zz42 1234143z 123414z2 123414zz 12341z32 12341zz2 1234321z 123432z2 123432z4 123432zz 12343z14 12343z32 12343zz2 12343zz4 1234z214 1234z21z 1234z41z 1234z43z 1234zz14 1234zz32 123z14z2 123z14z4 123z3214 123z3242 123z32z4 123z34z2 123z34z4 123z42z2 123zz214 123zz242 1242131z 1242134z 124213z3 124213zz 12421z13 12421z43 12421zz3 1242321z 124232z2 124232zz 12423z32 12423zz2 1242z213 1242z232 1242z23z 1242z31z 1242z343 1242z34z 1242zz13 1242zz32 1242zz43 12431z42 12431zz2 1243z213 1243z21z 1243z31z 1243z342 1243z34z 1243zz13 1243zz42 124z1342 124z13z2 124z13z3 124z32z2 124z4213 124z4232 124z42z3 124z43z2 124z43z3 124zz213 124zz232 124zz342 12z21314 12z2134z 12z21413 12z2143z 12z21z34 12z23214 12z23242 12z2324z 12z2341z 12z2343z 12z23z14 12z23z34 12z23z42 12z24213 12z24232 12z2423z 12z24z13 12z24z32 12z31342 12z3134z 12z3141z 12z31z14 12z31z42 12z34213 12z3421z 12z3424z 12z34z13 12z34z42 12z4131z 12z4143z 12z41z13 12z41z32 12zz1314 12zz1342 12zz1413 12zz3214 12zz3234 12zz3242 12zz4213 12zz4232 13141zz2 1314232z 131423z4 131423zz 1314241z 131424z4 131424zz 13142z24 13142zz4 1314z21z 1314z324 1314z32z 1314z42z 1314zz24 131z14z2 131z2324 131z23z4 131z24z4 131z42z2 131zz214 131zz242 131zz324 131zz342 1323141z 1323142z 132314z4 132314zz 13231z14 13231z24 13231zz4 13234zz3 1323z314 1323z34z 1323z41z 1323z42z 1323zz14 1323zz24 1324142z 132414z3 132414zz 13241z23 13241zz3 1324231z 132423z3 132423z4 132423zz 13242z14 13242z23 13242zz3 13242zz4 1324z314 1324z31z 1324z41z 1324z42z 1324zz14 1324zz23 132z14z3 132z14z4 132z2314 132z23z4 132z24z3 132z24z4 132zz314 13421zz3 1342z21z 1342z24z 1342z31z 134z23z3 134z42z2 134z42z3 134zz323 13z2141z 13z21z14 13z3142z 13z31z24 13z32314 13z3234z 13z3241z 13z3242z 13z32z14 13z32z24 13z34z23 13z4142z 13z41z23 13zz2314 13zz2324 141z23z3 141z24z3 141z32z2 141z34z2 141zz232 141zz323 14z2321z 14z2341z 14z23z32 14z3231z 14z3241z 14z32z23 1z2324z3 1z3234z2"}};
+</script>
+
 <script id="all-patterns">
 const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1324","6":"121314 121343 121434 123432 131242 131424 132343 132423 141232 141323","8":"12134243 12143234 12341432 12421343 13142324 13241423"},"5":{"6":"121345 121354 121435 123245 123254 123415 123435 123452 123514 123534 123542 124235 124253 124315 124352 124353 124513 125234 125243 125314 125343 125354 131425 132415 132425 132514 132524 134253 134325 142325","8":"12131415 12131454 12131514 12131545 12134245 12134253 12134315 12134353 12134543 12135254 12135314 12135453 12141315 12141535 12143235 12143254 12143415 12143454 12143534 12145354 12153245 12153435 12154345 12321415 12321435 12321454 12324215 12324252 12324535 12324542 12325214 12325242 12325434 12341435 12341452 12341532 12341535 12343215 12343252 12343254 12343514 12343532 12345214 12345432 12351434 12351534 12351542 12353214 12353242 12353245 12353415 12354215 12354245 12421315 12421353 12421535 12423252 12425213 12425343 12425352 12431352 12431542 12434215 12434252 12434253 12435213 12435253 12435342 12451343 12453542 12521314 12521343 12521354 12521434 12524353 12531354 12531452 12534243 12534352 12535214 12535243 12535413 13141525 13142325 13142415 13142524 13152425 13231415 13231425 13234315 13234353 13235314 13235343 13241425 13241523 13241525 13242315 13242353 13242514 13242523 13251424 13251524 13252314 13252343 13252415 13424315 13425243 13431525 13432353 13524253 13525314 14152325 14232415 14232524 14243415 14323415 14325234"},"6":{"6":"123456 123465 123546 123564 123645 123654 124356 124365 124536 124635 124653 125346 125364 125436 125463 125634 125643 126345 126354 126435 126453 132546 132645 134526 134625 135246 135264 135426 136245 136254 142536 142635 143526 143625 145236 145326 153426 154326","8":"12131456 12131465 12131546 12131564 12131645 12131654 12134256 12134265 12134356 12134365 12134516 12134546 12134563 12134565 12134615 12134645 12134653 12134656 12135246 12135264 12135346 12135364 12135416 12135456 12135463 12135464 12135614 12135646 12135654 12136245 12136254 12136345 12136354 12136415 12136454 12136465 12136514 12136545 12136564 12141356 12141365 12141536 12141635 12143256 12143265 12143456 12143465 12143516 12143536 12143564 12143565 12143615 12143635 12143654 12143656 12145236 12145316 12145356 12145364 12145436 12145636 12146235 12146315 12146365 12146435 12146535 12151346 12151436 12153246 12153416 12153436 12153465 12153546 12153645 12153646 12154236 12154316 12154346 12154365 12154536 12154636 12163456 12163546 12164356 12321456 12321465 12321546 12324256 12324265 12324516 12324536 12324546 12324562 12324565 12324615 12324635 12324645 12324652 12325246 12325264 12325416 12325436 12325456 12325462 12325464 12325614 12325634 12325642 12325646 12325654 12326245 12326254 12326415 12326435 12326452 12326454 12326465 12326514 12326534 12326542 12326545 12341456 12341465 12341516 12341536 12341562 12341565 12341615 12341635 12341652 12343256 12343265 12343516 12343536 12343562 12343564 12343565 12343615 12343635 12343652 12343654 12345216 12345256 12345262 12345264 12345416 12345436 12345462 12345464 12345614 12345632 12345652 12346215 12346252 12346254 12346265 12346415 12346435 12346452 12346454 12346514 12346532 12346535 12351416 12351436 12351462 12351464 12351546 12351564 12351614 12351634 12351642 12351646 12353246 12353264 12353416 12353436 12353462 12353464 12353465 12353614 12353634 12353642 12353645 12353646 12354216 12354246 12354262 12354265 12354516 12354536 12354615 12354632 12354636 12354642 12354645 12356214 12356242 12356245 12356264 12356415 12356434 12356462 12356465 12356514 12356534 12356542 12361415 12361435 12361452 12361454 12361514 12361534 12361542 12361545 12361645 12361654 12363245 12363254 12363415 12363435 12363452 12363454 12363514 12363534 12363542 12363545 12363546 12364215 12364245 12364252 12364256 12364516 12364535 12364542 12364546 12364615 12364635 12364652 12365214 12365242 12365246 12365254 12421356 12421365 12421536 12423256 12423265 12423516 12423536 12423546 12423562 12423565 12423615 12423635 12423645 12423652 12425236 12425263 12425316 12425346 12425356 12425362 12425363 12425613 12425636 12425643 12425653 12426235 12426253 12426315 12426345 12426352 12426353 12426365 12426513 12426535 12431356 12431365 12431516 12431546 12431562 12431565 12431615 12431645 12431652 12434256 12434265 12434516 12434546 12434615 12434645 12434652 12434653 12435216 12435256 12435262 12435263 12435316 12435346 12435362 12435363 12435613 12435642 12435652 12436215 12436252 12436253 12436265 12436315 12436345 12436352 12436353 12436513 12451316 12451346 12451362 12451363 12451536 12451563 12451613 12451636 12451643 12453236 12453262 12453265 12453516 12453546 12453615 12453635 12453642 12453646 12454236 12454263 12454316 12454346 12454362 12454363 12454365 12454613 12454635 12454636 12454643 12461315 12461345 12461352 12461353 12461513 12461535 12461543 12461635 12461653 12463235 12463252 12463256 12463516 12463536 12463545 12463615 12463645 12463652 12464235 12464253 12464315 12464345 12464352 12464353 12464513 12464535 12464536 12464543 12465213 12465236 12465253 12521346 12521364 12521436 12523246 12523264 12523416 12523436 12523462 12523464 12523614 12523634 12523646 12524236 12524263 12524316 12524346 12524362 12524363 12524613 12524636 12524643 12526234 12526243 12526314 12526343 12526354 12526364 12526413 12526434 12526453 12526463 12531346 12531364 12531416 12531462 12531464 12531614 12531646 12534246 12534262 12534263 12534316 12534362 12534363 12534613 12534643 12534652 12535246 12535264 12535416 12535462 12535463 12535464 12536214 12536243 12536264 12536314 12536343 12536354 12536413 12536452 12536454 12536462 12536463 12541316 12541362 12541363 12541436 12541463 12541613 12541636 12543236 12543262 12543264 12543416 12543462 12543464 12543614 12543634 12543652 12545236 12545263 12545316 12545362 12545363 12545364 12546213 12546234 12546263 12546314 12546353 12546362 12546364 12546413 12546434 12546453 12561314 12561343 12561354 12561413 12561434 12561453 12561634 12561643 12563234 12563614 12564243 12564613 12621345 12621354 12621435 12623245 12623254 12623415 12623435 12623454 12623465 12623514 12623534 12623545 12624235 12624253 12624315 12624345 12624353 12624365 12624513 12624535 12624543 12625234 12625243 12625314 12625343 12625354 12625364 12625413 12625434 12625453 12625463 12631345 12631354 12631415 12631454 12631465 12631514 12631545 12631564 12634245 12634253 12634315 12634353 12634365 12634513 12634543 12635243 12635254 12635314 12635343 12635364 12635413 12635453 12635462 12635464 12636245 12636254 12636415 12636453 12636454 12636465 12636514 12641315 12641353 12641365 12641435 12641453 12641513 12641535 12643235 12643254 12643415 12643454 12643465 12643514 12643534 12645234 12645253 12645314 12645354 12645363 12645413 12645434 12645463 12646235 12646253 12646315 12646353 12646354 12646365 12646513 13141526 13141625 13142516 13142526 13142615 13142625 13145264 13145326 13145426 13146325 13146425 13151426 13152346 13152416 13152426 13152546 13152645 13152646 13154246 13154326 13154526 13154626 13162546 13231546 13234516 13234526 13234546 13234615 13234625 13234645 13235346 13235364 13235416 13235426 13235463 13235464 13236345 13236354 13236415 13236425 13236453 13236454 13241516 13241526 13241615 13241625 13242516 13242526 13242615 13242625 13245316 13245363 13245364 13245416 13245426 13246315 13246353 13246354 13246415 13246425 13246453 13251416 13251426 13251463 13251464 13251546 13251614 13251624 13251643 13252346 13252364 13252416 13252426 13252463 13252464 13252614 13252624 13252643 13252645 13254316 13254346 13254363 13254516 13254526 13254615 13254623 13254643 13261415 13261425 13261453 13261454 13261514 13261524 13261543 13261545 13261645 13262345 13262354 13262415 13262425 13262453 13262454 13262514 13262524 13262543 13262545 13264315 13264345 13264353 13424516 13424615 13425246 13425263 13425316 13425363 13426245 13426253 13426315 13426353 13431526 13432516 13432526 13432615 13432625 13435246 13435263 13435326 13436245 13436253 13436325 13451526 13451626 13452326 13452363 13452516 13452615 13452625 13452643 13454246 13454263 13454326 13461525 13461625 13462325 13462353 13462615 13464253 13524263 13524363 13525364 13525416 13526254 13526314 13526364 13531426 13532364 13532416 13532426 13532463 13532464 13532614 13532624 13534246 13534263 13534326 13536254 13536264 13536324 13536424 13541426 13541626 13542326 13542363 13542364 13542416 13542614 13542624 13545263 13545264 13545326 13624345 13625264 13625354 13626345 13626354 13626415 13631425 13632345 13632354 13632415 13632425 13632454 13632514 13632524 13632545 13634245 13634325 13634525 13635254 13635264 13635324 13635424 14152326 14152436 14152536 14152635 14152636 14153236 14153426 14153526 14153626 14162536 14232516 14232526 14232615 14232625 14235326 14235416 14236325 14236354 14241536 14243516 14243526 14243536 14243615 14243625 14243635 14245326 14245436 14251536 14251634 14252326 14252436 14252634 14252635 14253416 14253436 14253516 14253526 14253615 14253624 14253634 14261534 14261535 14261635 14262325 14262354 14262435 14262534 14262535 14263415 14263435 14263454 14323516 14323615 14325236 14325416 14326235 14326254 14341526 14342516 14342526 14342615 14342625 14345236 14345426 14351526 14351626 14352426 14352516 14352615 14352625 14352634 14353236 14353426 14361525 14361625 14362425 14362454 14362615 14363254 14532426 14535426 14542326 14543236 14543426 15232426 15234326 15234516 15242326 15243426 15243516 15253426 15254326 15262345 15262435 15324516 15326245 15352426 15452326"}};
 </script>
@@ -519,8 +688,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   const $ = function (id) { return document.getElementById(id); };
   const stage = $('stage'), canvas = $('board'), ctx = canvas.getContext('2d');
-  const strip = $('strip'), info = $('info'), badge = $('badge');
-  const wall = $('wall'), wallBody = $('wallBody');
+  const strip = $('strip'), info = $('info'), badge = $('badge'), zipBtn = $('zipMode');
+  const wall = $('wall'), wallBody = $('wallBody'), wallNote = $('wallNote'), wallTitle = $('wallTitle');
   const selPattern = $('pattern'), inCustom = $('custom');
   const btnLess = $('less'), btnMore = $('more'), outCount = $('count');
   const btnR = $('startR'), btnL = $('startL'), inSpeed = $('speed'), btnPlay = $('play');
@@ -533,44 +702,64 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     n: 3,
     startRight: true,
     speed: 1,
-    playing: !reduceMotion
+    playing: !reduceMotion,
+    zipMode: false
   };
   let tm = JLS.timing(state.n);
+  let plan = null;           // set when the pattern has zips
   let u = 0;                 // time, in hand cycles
   let error = '';
+  let under = [];            // the numbers hidden under zips that were made by tapping
+  let lastRolls = '1234', lastZips = '121z';
+
+  /* Switch to a pattern and ball count. Returns '' if it worked, or the reason it can't be played. */
+  function setPattern(parsed, n) {
+    if (!parsed.ok) return parsed.error;
+    let p = null;
+    if (parsed.zip) {
+      if (n % 2 === 0) n = n < JLS.MAX_BALLS ? n + 1 : n - 1;       // zips need an odd number of balls
+      p = JLS.zipPlan(parsed, n);
+      if (!p) return 'No timing works for that pattern with ' + n + (n === 1 ? ' ball.' : ' balls.');
+    }
+    plan = p; state.pat = parsed; state.n = n; tm = JLS.timing(n);
+    if (parsed.zip) lastZips = parsed.text; else if (!state.zipMode) lastRolls = parsed.text;
+    return '';
+  }
 
   /* ---------- setup from the address bar (handy for sharing a link) ---------- */
   (function readParams() {
-    const p = params.get('p');
-    if (p) { const parsed = JLS.parse(p); if (parsed.ok) state.pat = parsed; }
     const b = parseInt(params.get('b'), 10);
-    if (b >= 1 && b <= JLS.MAX_BALLS) state.n = b;
+    const n = b >= 1 && b <= JLS.MAX_BALLS ? b : state.n;
+    const parsed = JLS.parse(params.get('p') || '');
+    if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) state.zipMode = true;
+    if (setPattern(parsed.ok ? parsed : JLS.parse(state.zipMode ? lastZips : lastRolls), n)) setPattern(JLS.parse('1234'), 3);
     if (params.get('start') === 'left') state.startRight = false;
     const sp = parseFloat(params.get('speed'));
     if (sp >= 0.25 && sp <= 2) state.speed = sp;
     if (params.get('paused') === '1') state.playing = false;
-    tm = JLS.timing(state.n);
     const t = parseFloat(params.get('t'));
     if (isFinite(t)) u = t;
   })();
 
   /* ---------- pattern list ---------- */
-  (function fillPatternList() {
+  function fillPatternList() {
+    selPattern.textContent = '';
     const own = document.createElement('option');
     own.value = ''; own.textContent = 'Your own pattern'; own.hidden = true;
     selPattern.appendChild(own);
-    JLS.CATALOGUE.forEach(function (g) {
+    (state.zipMode ? ZIP_LIST : JLS.CATALOGUE).forEach(function (g) {
       const og = document.createElement('optgroup');
       og.label = g.group;
       g.items.forEach(function (it) {
         const o = document.createElement('option');
-        o.value = it[1];
-        o.textContent = it[0] + '  ·  ' + it[1];
+        o.value = state.zipMode ? it : it[1];
+        o.textContent = state.zipMode ? it : it[0] + '  ·  ' + it[1];
         og.appendChild(o);
       });
       selPattern.appendChild(og);
     });
-  })();
+    wallBody.textContent = '';
+  }
 
   function knownPattern(text) {
     for (const g of JLS.CATALOGUE) for (const it of g.items) if (it[1] === text) return it;
@@ -582,13 +771,17 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   function buildStrip() {
     strip.textContent = '';
-    const pat = state.pat, together = state.n % 2 === 0;
+    const pat = state.pat, together = !plan && state.n % 2 === 0;
     let holder = strip;
     pat.seq.forEach(function (lane, i) {
       if (together && i % 2 === 0) { holder = document.createElement('span'); holder.className = 'pair'; strip.appendChild(holder); }
       const t = document.createElement('span');
-      t.className = 'tile ' + (sideOf(i % 2) === RIGHT ? 'r' : 'b');
-      t.textContent = lane;
+      t.className = 'tile ' + (lane ? (sideOf(i % 2) === RIGHT ? 'r' : 'b') : 'z');
+      t.textContent = lane || 'z';
+      if (state.zipMode) {
+        t.className += ' tap'; t.tabIndex = 0; t.setAttribute('role', 'button'); t.dataset.i = i;
+        t.setAttribute('aria-label', lane ? 'Roll ' + (i + 1) + ', lane ' + lane + '. Tap to make it a zip' : 'Roll ' + (i + 1) + ', a zip. Tap to make it a roll again');
+      }
       holder.appendChild(t);
     });
     lastActive = '';
@@ -596,7 +789,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   let lastActive = '';
   function markStrip() {
-    const act = JLS.active(u, state.pat, state.n);
+    const act = JLS.active(u, state.pat, plan ? 1 : state.n);
     const key = act.join(',');
     if (key === lastActive) return;
     lastActive = key;
@@ -608,24 +801,33 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (error) { info.className = 'info bad'; info.textContent = error; return; }
     const n = state.n;
     info.className = 'info';
-    info.innerHTML =
-      '<span class="nw"><b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + (n % 2 ? 'hands take turns' : 'hands roll together') + '</span>' +
-      '<span class="sep">|</span><span class="nw"><span class="dot r"></span>right hand &larr;</span>' +
-      '<span class="sep">|</span><span class="nw"><span class="dot b"></span>left hand &rarr;</span>';
+    let html = '<span class="nw"><b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + (n % 2 ? 'hands take turns' : 'hands roll together') + '</span>';
+    if (state.zipMode) {
+      html += '<span class="sep">|</span><span class="nw">tap a number to make it a zip</span>';
+    } else {
+      html += '<span class="sep">|</span><span class="nw"><span class="dot r"></span>right hand &larr;</span>' +
+              '<span class="sep">|</span><span class="nw"><span class="dot b"></span>left hand &rarr;</span>';
+    }
+    info.innerHTML = html;
   }
 
+  function ballStep() { return state.pat.zip ? 2 : 1; }
+
   function refresh(restart) {
-    tm = JLS.timing(state.n);
     if (restart) u = 0;
     outCount.textContent = state.n;
-    btnLess.disabled = state.n <= 1;
-    btnMore.disabled = state.n >= JLS.MAX_BALLS;
+    btnLess.disabled = state.n - ballStep() < 1;
+    btnMore.disabled = state.n + ballStep() > JLS.MAX_BALLS;
     btnR.setAttribute('aria-pressed', String(state.startRight));
     btnL.setAttribute('aria-pressed', String(!state.startRight));
     btnPlay.textContent = state.playing ? 'Pause' : 'Play';
+    zipBtn.textContent = state.zipMode ? 'Zips on' : 'Zips off';
+    zipBtn.setAttribute('aria-pressed', String(state.zipMode));
     inSpeed.value = state.speed;
-    const known = knownPattern(state.pat.text);
-    selPattern.value = known ? state.pat.text : '';
+    inCustom.setAttribute('inputmode', state.zipMode ? 'text' : 'numeric');
+    selPattern.value = state.pat.text;
+    if (selPattern.value !== state.pat.text) selPattern.value = '';
+    const known = state.pat.zip ? null : knownPattern(state.pat.text);
     badge.innerHTML = known ? iconSvg(known[0]) : '';
     inCustom.classList.toggle('bad', !!error);
     buildStrip();
@@ -633,46 +835,91 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     kick();
   }
 
+  /* Load a pattern picked from a list, the pop-up, or the mode switch. */
+  function choose(text) {
+    error = setPattern(JLS.parse(text), state.n);
+    under = [];
+    inCustom.value = selPattern.querySelector('option[value="' + text + '"]') ? '' : (error ? inCustom.value : text);
+    refresh(!error);
+  }
+
   /* ---------- controls ---------- */
-  selPattern.addEventListener('change', function () {
-    const parsed = JLS.parse(selPattern.value);
-    if (!parsed.ok) return;
-    state.pat = parsed; error = '';
-    inCustom.value = '';
-    refresh(true);
-  });
+  selPattern.addEventListener('change', function () { if (selPattern.value) choose(selPattern.value); });
   inCustom.addEventListener('input', function () {
     const parsed = JLS.parse(inCustom.value);
-    if (parsed.ok) {
-      const changed = parsed.text !== state.pat.text;
-      state.pat = parsed; error = '';
-      refresh(changed);
-    } else {
-      error = inCustom.value.trim() ? parsed.error : '';
-      inCustom.classList.toggle('bad', !!error);
-      showInfo();
-    }
+    if (!inCustom.value.trim()) { error = ''; inCustom.classList.remove('bad'); showInfo(); return; }
+    if (parsed.ok && parsed.zip && !state.zipMode) { state.zipMode = true; fillPatternList(); }
+    const changed = !parsed.ok || parsed.text !== state.pat.text;
+    error = setPattern(parsed, state.n);
+    if (error) { inCustom.classList.add('bad'); showInfo(); return; }
+    under = [];
+    refresh(changed);
   });
   inCustom.addEventListener('blur', function () {
-    if (!inCustom.value.trim()) { inCustom.value = ''; error = ''; inCustom.classList.remove('bad'); showInfo(); }
+    if (!inCustom.value.trim()) { error = ''; inCustom.classList.remove('bad'); showInfo(); }
   });
-  btnLess.addEventListener('click', function () { if (state.n > 1) { state.n--; refresh(true); } });
-  btnMore.addEventListener('click', function () { if (state.n < JLS.MAX_BALLS) { state.n++; refresh(true); } });
+  function changeBalls(by) {
+    const n = state.n + by * ballStep();
+    if (n < 1 || n > JLS.MAX_BALLS) return;
+    const problem = setPattern(state.pat, n);
+    if (problem) { error = problem; showInfo(); return; }
+    error = '';
+    refresh(true);
+  }
+  btnLess.addEventListener('click', function () { changeBalls(-1); });
+  btnMore.addEventListener('click', function () { changeBalls(1); });
   btnR.addEventListener('click', function () { if (!state.startRight) { state.startRight = true; refresh(true); } });
   btnL.addEventListener('click', function () { if (state.startRight) { state.startRight = false; refresh(true); } });
   inSpeed.addEventListener('input', function () { state.speed = parseFloat(inSpeed.value) || 1; });
   btnPlay.addEventListener('click', function () { state.playing = !state.playing; btnPlay.textContent = state.playing ? 'Pause' : 'Play'; kick(); });
+  zipBtn.addEventListener('click', function () {
+    state.zipMode = !state.zipMode;
+    fillPatternList();
+    choose(state.zipMode ? lastZips : lastRolls);
+  });
+
+  /* In zip mode, tapping a number in the strip turns it into a zip, and tapping the zip turns it back. */
+  function tapTile(i) {
+    const chars = state.pat.text.split('');
+    if (under.length !== chars.length) under = new Array(chars.length).fill('');
+    const before = under.slice();
+    if (chars[i] === 'z') {
+      let lane = under[i];
+      if (!lane) for (let k = 1; k <= state.pat.lanes && !lane; k++) if (state.pat.hand[k] === i % 2) lane = String(k);
+      if (!lane) return;
+      chars[i] = lane;
+    } else {
+      under[i] = chars[i];
+      chars[i] = 'z';
+    }
+    const problem = setPattern(JLS.parse(chars.join('')), state.n);
+    if (problem) { under = before; error = problem; showInfo(); return; }
+    error = '';
+    inCustom.value = selPattern.querySelector('option[value="' + state.pat.text + '"]') ? '' : state.pat.text;
+    refresh(true);
+  }
+  strip.addEventListener('click', function (e) {
+    const t = e.target.closest ? e.target.closest('.tile.tap') : null;
+    if (t) tapTile(Number(t.dataset.i));
+  });
+  strip.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('tap')) { e.preventDefault(); tapTile(Number(e.target.dataset.i)); }
+  });
 
   /* ---------- the pop-up list of every pattern ---------- */
   function buildWall() {
     if (wallBody.firstChild) return;
-    const lanes = Object.keys(ALL_PATTERNS).sort();
-    for (const k of lanes) {
+    const all = state.zipMode ? ALL_ZIPS : ALL_PATTERNS;
+    wallTitle.textContent = state.zipMode ? 'All zip patterns' : 'All patterns';
+    wallNote.textContent = state.zipMode
+      ? 'Every pattern with zips of up to 8 rolls in which no hand move happens twice. A z is a zip: a handoff from one hand to the other. Tap one to play it. Patterns that only differ by where they start, by being upside down or by being a mirror image are listed once.'
+      : 'Every pattern of up to 8 rolls in which no hand move happens twice. Tap one to play it. The underlined ones have names in the pattern list. Patterns that only differ by where they start, by being upside down or by being a mirror image are listed once.';
+    for (const k of Object.keys(all).sort()) {
       const h3 = document.createElement('h3');
-      h3.textContent = k + ' lanes';
+      h3.textContent = k + (k === '1' ? ' lane' : ' lanes');
       wallBody.appendChild(h3);
-      for (const beats of Object.keys(ALL_PATTERNS[k]).sort()) {
-        const list = ALL_PATTERNS[k][beats].split(' ');
+      for (const beats of Object.keys(all[k]).sort()) {
+        const list = all[k][beats].split(' ');
         const h4 = document.createElement('h4');
         h4.textContent = beats + ' rolls (' + list.length + ')';
         wallBody.appendChild(h4);
@@ -681,7 +928,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         for (const text of list) {
           const b = document.createElement('button');
           b.type = 'button'; b.textContent = text;
-          const known = knownPattern(text);
+          const known = state.zipMode ? null : knownPattern(text);
           if (known) { b.className = 'named'; b.title = known[0]; }
           box.appendChild(b);
         }
@@ -698,12 +945,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   wall.addEventListener('click', function (e) {
     if (e.target === wall) { closeWall(); return; }            // a tap on the dimmed area outside
     if (!e.target.closest || !e.target.closest('.wall-list button')) return;
-    const parsed = JLS.parse(e.target.textContent);
-    if (!parsed.ok) return;
-    state.pat = parsed; error = '';
-    inCustom.value = knownPattern(parsed.text) ? '' : parsed.text;
     closeWall();
-    refresh(true);
+    choose(e.target.textContent);
   });
 
   /* ---------- drawing ---------- */
@@ -811,6 +1054,19 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     }
   }
 
+  /* A place a hand can be: the end of a lane on its own side, or the meeting point for a zip. */
+  function placePoint(g, side, place) {
+    if (place.lane) return { x: g.endX(side), y: g.laneY(place.lane) };
+    return { x: (g.bx0 + g.bx1) / 2, y: g.laneY(place.mid) };
+  }
+  /* A hand (or the ball in it) part-way between two places. */
+  function segPoint(g, side, from, to, p, holding) {
+    if (from.lane && to.lane) return holding ? carryPoint(g, side, from.lane, to.lane, p) : reachPoint(g, side, from.lane, to.lane, p);
+    const a = placePoint(g, side, from), b = placePoint(g, side, to);
+    const t = holding ? smooth(p) : smooth(p / 0.85);
+    return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) };
+  }
+
   /* The paths the hands really take with this many balls: one curve for each carry,
      from the lane a ball arrives in to the lane that same ball is rolled into next. */
   function drawLoops(g) {
@@ -818,17 +1074,27 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     ctx.lineCap = 'round';
     ctx.strokeStyle = 'rgba(45,42,74,.5)';
     ctx.lineWidth = clamp(g.rb * 0.17, 1.6, 3);
-    for (let i = 0; i < L; i++) {
-      const from = seq[i], to = seq[JLS.nextRoll(i, state.n) % L];
-      if (done[from + '>' + to]) continue;
-      done[from + '>' + to] = true;
-      const side = sideOf(1 - i % 2);                         // the side the ball arrives at
-      const span = Math.abs(from - to);
-      const reach = lerp(g.minReach, g.maxReach, g.K > 2 ? (span - 1) / (g.K - 2) : 0.5);
-      const x0 = g.endX(side), xc = x0 + side * reach / 0.75;
+    const paths = [];
+    if (plan) {
+      for (const p of JLS.zipPaths(plan)) paths.push({ side: sideOf(p.hand), from: p.from, to: p.to });
+    } else {
+      for (let i = 0; i < L; i++) paths.push({ side: sideOf(1 - i % 2), from: { lane: seq[i] }, to: { lane: seq[JLS.nextRoll(i, state.n) % L] } });
+    }
+    for (const p of paths) {
+      const key = p.side + ':' + (p.from.lane || 'm' + p.from.mid) + '>' + (p.to.lane || 'm' + p.to.mid);
+      if (done[key]) continue;
+      done[key] = true;
+      const a = placePoint(g, p.side, p.from), b = placePoint(g, p.side, p.to);
       ctx.beginPath();
-      ctx.moveTo(x0, g.laneY(from));
-      ctx.bezierCurveTo(xc, g.laneY(from), xc, g.laneY(to), x0, g.laneY(to));
+      ctx.moveTo(a.x, a.y);
+      if (p.from.lane && p.to.lane) {
+        const span = Math.abs(p.from.lane - p.to.lane);
+        const reach = lerp(g.minReach, g.maxReach, g.K > 2 ? (span - 1) / (g.K - 2) : 0.5);
+        const xc = a.x + p.side * reach / 0.75;
+        ctx.bezierCurveTo(xc, a.y, xc, b.y, b.x, b.y);
+      } else {
+        ctx.lineTo(b.x, b.y);
+      }
       ctx.stroke();
     }
   }
@@ -897,14 +1163,23 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     drawBoard(g);
     drawLoops(g);
 
-    const bs = JLS.balls(u, state.pat, state.n, tm);
-    const hs = JLS.hands(u, state.pat, state.n, tm);
-
     // hands first, so a ball always shows on top of the glove that holds it
     const handOffset = g.rb * 0.5;
+    let bs, hs;
+    if (plan) {
+      bs = JLS.zipBalls(u, plan, tm);
+      hs = JLS.zipHands(u, plan, tm);
+    } else {
+      bs = JLS.balls(u, state.pat, state.n, tm).map(function (b) {
+        return b.state === 'roll' ? b : { id: b.id, state: 'held', hand: b.hand, from: { lane: b.from }, to: { lane: b.to }, p: b.p };
+      });
+      hs = JLS.hands(u, state.pat, state.n, tm).map(function (h) {
+        return { hand: h.hand, holding: h.state === 'carry', from: { lane: h.from }, to: { lane: h.to }, p: h.p };
+      });
+    }
     for (const h of hs) {
       const side = sideOf(h.hand);
-      const pt = h.state === 'carry' ? carryPoint(g, side, h.from, h.to, h.p) : reachPoint(g, side, h.from, h.to, h.p);
+      const pt = segPoint(g, side, h.from, h.to, h.p, h.holding);
       drawHand(g, pt.x + side * handOffset, pt.y, side);
     }
     for (const b of bs) {
@@ -912,7 +1187,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         const side = sideOf(b.hand);
         drawBall(g, lerp(g.endX(side), g.endX(-side), b.p), g.laneY(b.lane), b.id);
       } else {
-        const pt = carryPoint(g, sideOf(b.hand), b.from, b.to, b.p);
+        const pt = segPoint(g, sideOf(b.hand), b.from, b.to, b.p, true);
         drawBall(g, pt.x, pt.y, b.id);
       }
     }
@@ -951,7 +1226,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   document.addEventListener('visibilitychange', function () { if (!document.hidden) kick(); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { draw(); });
 
-  inCustom.value = knownPattern(state.pat.text) ? '' : state.pat.text;
+  fillPatternList();
+  inCustom.value = selPattern.querySelector('option[value="' + state.pat.text + '"]') ? '' : state.pat.text;
   const startAt = u;
   refresh(false);
   u = startAt;

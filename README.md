@@ -12,6 +12,10 @@ Open `index.html` in a browser. Pick a pattern from the list or type your own, t
 - The hand order stays the same whatever the number of balls. Each hand always rolls the ball that reached it first, so the paths the balls take change with the ball count.
 - A typed pattern is refused if a lane would have to run in both directions.
 
+### Zips
+
+The "Zips" button switches to patterns with zips. A zip, written `z`, is a handoff: the hand passes its ball straight to the other hand, which rolls it on the next beat. Zips need an odd number of balls. Because a zipped ball jumps the queue, the rolls stop taking equal time; the simulator picks the most even timing that works. In zip mode, tapping a number under the lanes turns it into a zip and back.
+
 A link can open on a chosen pattern, for example `index.html?p=121434&b=3&start=left`.
 
 ## Files
@@ -21,6 +25,7 @@ A link can open on a chosen pattern, for example `index.html?p=121434&b=3&start=
 - `tests/test.html`: checks the rules for every listed pattern with 1 to 9 balls.
 - `tests/icons.html`: shows every pattern picture at once.
 - `tests/filmstrip.html`: freezes a pattern at a row of moments, for checking the motion by eye.
+- `tools/find_zip_patterns.py`: searches for every zip pattern and its timing; `zip-patterns.txt` is its output.
 - `tools/find_patterns.py`: searches for every valid pattern up to a beat limit.
 
 To run the checks, start `python3 -m http.server` in this folder and open `http://localhost:8000/tests/test.html`.

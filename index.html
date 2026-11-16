@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Juggling Lane Simulator</title>
+<meta name="description" content="Watch rolling-ball juggling patterns play out across lanes, with 1 to 9 balls.">
+<style>
+@font-face {
+  font-family: "Fredoka";
+  src: url("fonts/fredoka-latin.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
+:root {
+  --ink: #2d2a4a;
+  --paper: #fff4d6;
+  --card: #fffdf5;
+  --sky: #dcf3ff;
+  --red: #ff7b6e;
+  --red-soft: #ffc4bd;
+  --blue: #4ea8ff;
+  --blue-soft: #b9ddff;
+  --sun: #ffd43b;
+  --warn: #c92a2a;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Fredoka", ui-rounded, "SF Pro Rounded", "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+.app {
+  height: 100%;
+  min-height: 500px;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 10px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 9px;
+}
+h1 {
+  margin: 0;
+  font-size: clamp(20px, 4.4vw, 30px);
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+}
+.stage {
+  flex: 1 1 auto;
+  min-height: 200px;
+  max-height: 600px;
+  position: relative;
+  overflow: hidden;
+  border: 3px solid var(--ink);
+  border-radius: 22px;
+  box-shadow: 0 5px 0 var(--ink);
+  margin-bottom: 5px;
+  background-color: var(--sky);
+  background-image: radial-gradient(rgba(255, 255, 255, .75) 2.5px, transparent 3px);
+  background-size: 26px 26px;
+}
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  min-height: 46px;
+  padding-top: 5px;
+}
+.pair { display: flex; gap: 3px; padding: 3px; border-radius: 13px; background: rgba(45, 42, 74, .13); }
+.tile {
+  width: 30px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 2.5px solid var(--ink);
+  border-radius: 10px;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1;
+  transition: transform .1s ease-out, box-shadow .1s ease-out, background-color .1s;
+}
+.tile.r { background: var(--red-soft); }
+.tile.b { background: var(--blue-soft); }
+.tile.on { background: var(--sun); transform: translateY(-4px); box-shadow: 0 4px 0 var(--ink); }
+
+.info {
+  margin: 0;
+  min-height: 1.3em;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.3;
+}
+.info .dot { display: inline-block; width: .7em; height: .7em; border-radius: 50%; border: 2px solid var(--ink); vertical-align: -.02em; margin-right: .15em; }
+.info .dot.r { background: var(--red); }
+.info .dot.b { background: var(--blue); }
+.info .sep { opacity: .45; margin: 0 .35em; }
+.info.bad { color: var(--warn); font-weight: 600; }
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 8px 10px;
+  align-items: end;
+}
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.field > span { font-size: 13px; font-weight: 600; padding-left: 3px; white-space: nowrap; }
+.f-pattern { grid-column: span 7; }
+.f-custom { grid-column: span 5; }
+.f-balls { grid-column: span 3; }
+.f-start { grid-column: span 4; }
+.f-speed { grid-column: span 3; }
+.f-play { grid-column: span 2; }
+
+select, input[type="text"], button {
+  font: inherit;
+  color: var(--ink);
+  height: 42px;
+  border: 2.5px solid var(--ink);
+  border-radius: 12px;
+  background-color: var(--card);
+  box-shadow: 0 3px 0 var(--ink);
+  margin: 0 0 3px;
+}
+select, input[type="text"] { width: 100%; padding: 0 10px; font-weight: 500; }
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 34px;
+  text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1.5 1.5l5.5 5.5 5.5-5.5' fill='none' stroke='%232d2a4a' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+input[type="text"] { font-size: 18px; font-weight: 600; letter-spacing: .08em; }
+input[type="text"]::placeholder { font-size: 15px; font-weight: 400; letter-spacing: 0; color: rgba(45, 42, 74, .5); }
+input[type="text"].bad { border-color: var(--warn); box-shadow: 0 3px 0 var(--warn); }
+button { cursor: pointer; font-weight: 600; padding: 0 12px; touch-action: manipulation; }
+button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
+button:disabled { opacity: .4; cursor: default; }
+select:focus-visible, input:focus-visible, button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+.stepper { display: flex; align-items: flex-start; gap: 6px; }
+.stepper button { width: 42px; padding: 0; font-size: 24px; line-height: 1; flex: none; }
+.stepper output { flex: 1; min-width: 26px; height: 42px; display: grid; place-items: center; font-size: 24px; font-weight: 700; }
+
+.seg { display: flex; }
+.seg button { flex: 1; padding: 0 6px; white-space: nowrap; }
+.seg button:first-child { border-radius: 12px 0 0 12px; border-right-width: 1.25px; }
+.seg button:last-child { border-radius: 0 12px 12px 0; border-left-width: 1.25px; }
+.seg button[aria-pressed="true"] { background: var(--sun); }
+
+input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: var(--ink); }
+#play { width: 100%; background: var(--sun); }
+
+@media (max-width: 640px) {
+  .app { padding: 8px 10px 10px; gap: 7px; }
+  .controls { gap: 6px 8px; }
+  .f-pattern { grid-column: span 7; }
+  .f-custom { grid-column: span 5; }
+  .f-balls { grid-column: span 5; }
+  .f-start { grid-column: span 7; }
+  .f-speed { grid-column: span 8; }
+  .f-play { grid-column: span 4; }
+  .seg button { font-size: 14px; }
+  .info { font-size: 13px; }
+  .tile { width: 27px; height: 31px; font-size: 17px; }
+}
+@media (max-width: 380px) {
+  .field > span { font-size: 12px; }
+  select, input[type="text"] { padding-left: 8px; }
+  select { font-size: 15px; }
+}
+</style>
+</head>
+<body>
+<main class="app">
+  <h1>Juggling Lane Simulator</h1>
+
+  <div class="stage" id="stage"><canvas id="board" role="img" aria-label="Animation of balls rolling across lanes and being carried between them by two hands"></canvas></div>
+
+  <div class="strip" id="strip" aria-label="Pattern, one number per roll"></div>
+  <p class="info" id="info" role="status"></p>
+
+  <section class="controls" aria-label="Controls">
+    <label class="field f-pattern"><span>Pattern</span>
+      <select id="pattern"></select>
+    </label>
+    <label class="field f-custom"><span>Or type your own</span>
+      <input type="text" id="custom" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30" placeholder="like 121434">
+    </label>
+    <div class="field f-balls"><span id="ballsLabel">Balls</span>
+      <div class="stepper" role="group" aria-labelledby="ballsLabel">
+        <button type="button" id="less" aria-label="One ball fewer">&minus;</button>
+        <output id="count" aria-live="polite">3</output>
+        <button type="button" id="more" aria-label="One ball more">+</button>
+      </div>
+    </div>
+    <div class="field f-start"><span id="startLabel">First roll</span>
+      <div class="seg" role="group" aria-labelledby="startLabel">
+        <button type="button" id="startR" aria-pressed="true">Right hand</button>
+        <button type="button" id="startL" aria-pressed="false">Left hand</button>
+      </div>
+    </div>
+    <label class="field f-speed"><span>Speed</span>
+      <input type="range" id="speed" min="0.25" max="2" step="0.05" value="1">
+    </label>
+    <div class="field f-play"><span>&nbsp;</span>
+      <button type="button" id="play">Pause</button>
+    </div>
+  </section>
+</main>
+
+<script id="engine">
+/* The rules of the simulator, with no drawing in here.
+ *
+ * A pattern is a row of lane numbers and it is the order the HANDS roll in:
+ * the first hand rolls the 1st, 3rd, 5th... numbers and the other hand rolls
+ * the 2nd, 4th, 6th... That order never changes with the number of balls.
+ * Each hand always rolls the ball that reached it first, and every roll takes
+ * the same time, so a ball is rolled again exactly `n` rolls after its last
+ * one. With an odd number of balls the hands take turns; with an even number
+ * both hands roll at the same moment.
+ *
+ * Time is measured in "hand cycles": one cycle is the gap between two rolls by
+ * the same hand. A ball's roll plus the carry that follows lasts n / 2 cycles.
+ */
+const JLS = (function () {
+  'use strict';
+
+  const MAX_LANES = 6;
+  const MAX_BEATS = 24;
+  const MAX_BALLS = 9;
+
+  const CATALOGUE = [
+    { group: '2 lanes', items: [['Two Lanes', '12']] },
+    { group: '3 lanes', items: [['Three-Lane Wave', '1232'], ['Baby Onion', '1213']] },
+    { group: '4 lanes, 4 rolls', items: [['Scarf', '1234'], ['Mobius', '1243'], ['Loop de Loop', '1324']] },
+    { group: '4 lanes, 6 rolls', items: [
+      ['Snowman', '121343'], ['Burger', '121434'], ['Jumble', '131242'], ['Roundabout', '131424'],
+      ['Double Yolk', '141232'], ['Horus', '141323'], ['Helter Skelter', '123432'], ['Twin Moons', '132423'],
+      ['Onion', '121314'], ['Honeypot', '132343']] },
+    { group: '4 lanes, 8 rolls', items: [
+      ['Pancakes 1', '12341432'], ['Pancakes 2', '12343214'], ['Pancakes 3', '12321434'], ['Pancakes 4', '12143234'],
+      ['Crazy Eights 1', '12134243'], ['Crazy Eights 2', '12421343'], ['Crazy Eights 3', '13124342'], ['Crazy Eights 4', '12431342'],
+      ['Loop de Loop de Loop 1', '13142324'], ['Loop de Loop de Loop 2', '14132423'],
+      ['Loop de Loop de Loop 3', '13231424'], ['Loop de Loop de Loop 4', '13241423']] },
+    { group: '5 lanes', items: [['Five-Lane Wave', '12345432']] },
+    { group: '6 lanes', items: [['Six-Lane Wave', '1234565432']] }
+  ];
+
+  function mod(a, m) { return ((a % m) + m) % m; }
+
+  /* Turn typed text into a pattern, or explain in plain words why it can't work. */
+  function parse(text) {
+    const s = String(text == null ? '' : text).replace(/[\s,.\-]/g, '');
+    if (!s) return { ok: false, error: 'Type some lane numbers, like 1234.' };
+    if (/[^1-6]/.test(s)) return { ok: false, error: 'Use only the digits 1 to ' + MAX_LANES + ', one for each roll.' };
+    if (s.length > MAX_BEATS) return { ok: false, error: 'That is too long. Keep it to ' + MAX_BEATS + ' rolls or fewer.' };
+    if (s.length % 2) return { ok: false, error: 'A pattern needs an even number of rolls, because the hands take turns.' };
+    const seq = Array.from(s, Number);
+    const lanes = Math.max.apply(null, seq);
+    const hand = new Array(lanes + 1).fill(-1);   // hand[lane] = 0 or 1: which hand rolls that lane
+    for (let i = 0; i < seq.length; i++) {
+      const h = i % 2;
+      if (hand[seq[i]] === -1) hand[seq[i]] = h;
+      else if (hand[seq[i]] !== h) {
+        return { ok: false, error: 'Lane ' + seq[i] + ' is rolled by both hands, so it would have to run both ways.' };
+      }
+    }
+    return { ok: true, text: s, seq: seq, lanes: lanes, hand: hand };
+  }
+
+  /* How long things take with n balls.
+   * cycle = seconds between two rolls by the same hand, at normal speed.
+   * roll and hold are fractions of a cycle and always add up to n / 2. */
+  function timing(n) {
+    const rollSec = 0.75 + 0.2 * (n - 1);
+    let holdSec = Math.min(0.45, 0.3 + 0.05 * n);
+    let cycle = 2 * (rollSec + holdSec) / n;
+    const MAX_HOLD = 0.55;                       // a hand needs the rest of its cycle to get to the next ball
+    if (holdSec > MAX_HOLD * cycle) {
+      cycle = 2 * rollSec / (n - 2 * MAX_HOLD);
+      holdSec = MAX_HOLD * cycle;
+    }
+    return { cycle: cycle, roll: rollSec / cycle, hold: holdSec / cycle, together: n % 2 === 0 };
+  }
+
+  /* Rolls are numbered 0, 1, 2... in the order of the pattern; roll i is made by hand i % 2. */
+  function rollTime(i, n) { return n % 2 ? i / 2 : Math.floor(i / 2); }
+  function nextRoll(i, n) { return n % 2 ? i + n : (mod(i, 2) === 0 ? i + n + 1 : i + n - 1); }
+  function prevRoll(i, n) { return n % 2 ? i - n : (mod(i, 2) === 0 ? i - n + 1 : i - n - 1); }
+  function ballOf(i, n) {
+    if (n % 2) return mod(i, n);
+    return mod(mod(i, 2) === 0 ? i : i - n - 1, 2 * n) / 2;
+  }
+
+  /* Where every ball is at time u.
+   * state 'roll':  crossing lane `lane`, rolled by `hand`, `p` of the way across.
+   * state 'carry': held by `hand`, `p` of the way from lane `from` to lane `to`. */
+  function balls(u, pat, n, tm) {
+    const L = pat.seq.length;
+    let first, last;
+    if (n % 2) { last = Math.floor(2 * u); first = last - n + 1; }
+    else { const j = Math.floor(u); last = 2 * j + 1; first = 2 * (j - n / 2 + 1); }
+    const out = [];
+    for (let i = first; i <= last; i++) {
+      const age = u - rollTime(i, n);
+      const lane = pat.seq[mod(i, L)];
+      const hand = mod(i, 2);
+      if (age < tm.roll) {
+        out.push({ id: ballOf(i, n), state: 'roll', lane: lane, hand: hand, p: age / tm.roll });
+      } else {
+        out.push({ id: ballOf(i, n), state: 'carry', hand: 1 - hand, from: lane,
+                   to: pat.seq[mod(nextRoll(i, n), L)], p: Math.min(1, (age - tm.roll) / tm.hold) });
+      }
+    }
+    return out;
+  }
+
+  /* What each hand is doing at time u.
+   * state 'reach': empty, `p` of the way from the lane it just rolled (`from`) to the lane it will catch at (`to`).
+   * state 'carry': holding a ball, `p` of the way from the catch lane (`from`) to the lane it rolls next (`to`). */
+  function hands(u, pat, n, tm) {
+    const L = pat.seq.length;
+    const out = [];
+    for (let h = 0; h < 2; h++) {
+      const offset = (n % 2 && h === 1) ? 0.5 : 0;
+      const k = Math.floor(u - offset);
+      const f = u - offset - k;
+      const done = 2 * k + h;
+      const coming = done + 2;
+      const catchLane = pat.seq[mod(prevRoll(coming, n), L)];
+      if (f < 1 - tm.hold) {
+        out.push({ hand: h, state: 'reach', from: pat.seq[mod(done, L)], to: catchLane, p: f / (1 - tm.hold) });
+      } else {
+        out.push({ hand: h, state: 'carry', from: catchLane, to: pat.seq[mod(coming, L)], p: (f - (1 - tm.hold)) / tm.hold });
+      }
+    }
+    return out;
+  }
+
+  /* Which numbers of the pattern were rolled most recently (one, or a pair when hands roll together). */
+  function active(u, pat, n) {
+    const L = pat.seq.length;
+    if (n % 2) return [mod(Math.floor(2 * u), L)];
+    const j = Math.floor(u);
+    return [mod(2 * j, L), mod(2 * j + 1, L)];
+  }
+
+  return { MAX_LANES: MAX_LANES, MAX_BEATS: MAX_BEATS, MAX_BALLS: MAX_BALLS, CATALOGUE: CATALOGUE,
+           parse: parse, timing: timing, balls: balls, hands: hands, active: active };
+})();
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  const INK = '#2d2a4a';
+  const RED = '#ff7b6e', RED_SOFT = '#ffc4bd', BLUE = '#4ea8ff', BLUE_SOFT = '#b9ddff';
+  const BALL_COLOURS = ['#ffd43b', '#f06595', '#22b8cf', '#9775fa', '#ff922b', '#51cf66', '#ffffff', '#fa5252', '#4c6ef5'];
+  const RIGHT = 1, LEFT = -1;
+  const FONT = '"Fredoka", ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif';
+
+  const $ = function (id) { return document.getElementById(id); };
+  const stage = $('stage'), canvas = $('board'), ctx = canvas.getContext('2d');
+  const strip = $('strip'), info = $('info');
+  const selPattern = $('pattern'), inCustom = $('custom');
+  const btnLess = $('less'), btnMore = $('more'), outCount = $('count');
+  const btnR = $('startR'), btnL = $('startL'), inSpeed = $('speed'), btnPlay = $('play');
+
+  const params = new URLSearchParams(location.search);
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const state = {
+    pat: JLS.parse('1234'),
+    n: 3,
+    startRight: true,
+    speed: 1,
+    playing: !reduceMotion
+  };
+  let tm = JLS.timing(state.n);
+  let u = 0;                 // time, in hand cycles
+  let error = '';
+
+  /* ---------- setup from the address bar (handy for sharing a link) ---------- */
+  (function readParams() {
+    const p = params.get('p');
+    if (p) { const parsed = JLS.parse(p); if (parsed.ok) state.pat = parsed; }
+    const b = parseInt(params.get('b'), 10);
+    if (b >= 1 && b <= JLS.MAX_BALLS) state.n = b;
+    if (params.get('start') === 'left') state.startRight = false;
+    const sp = parseFloat(params.get('speed'));
+    if (sp >= 0.25 && sp <= 2) state.speed = sp;
+    if (params.get('paused') === '1') state.playing = false;
+    tm = JLS.timing(state.n);
+    const t = parseFloat(params.get('t'));
+    if (isFinite(t)) u = t;
+  })();
+
+  /* ---------- pattern list ---------- */
+  (function fillPatternList() {
+    const own = document.createElement('option');
+    own.value = ''; own.textContent = 'Your own pattern'; own.hidden = true;
+    selPattern.appendChild(own);
+    JLS.CATALOGUE.forEach(function (g) {
+      const og = document.createElement('optgroup');
+      og.label = g.group;
+      g.items.forEach(function (it) {
+        const o = document.createElement('option');
+        o.value = it[1];
+        o.textContent = it[0] + '  ·  ' + it[1];
+        og.appendChild(o);
+      });
+      selPattern.appendChild(og);
+    });
+  })();
+
+  function knownPattern(text) {
+    for (const g of JLS.CATALOGUE) for (const it of g.items) if (it[1] === text) return true;
+    return false;
+  }
+
+  /* ---------- keeping the page in step with the state ---------- */
+  function sideOf(hand) { return (hand === 0) === state.startRight ? RIGHT : LEFT; }
+
+  function buildStrip() {
+    strip.textContent = '';
+    const pat = state.pat, together = state.n % 2 === 0;
+    let holder = strip;
+    pat.seq.forEach(function (lane, i) {
+      if (together && i % 2 === 0) { holder = document.createElement('span'); holder.className = 'pair'; strip.appendChild(holder); }
+      const t = document.createElement('span');
+      t.className = 'tile ' + (sideOf(i % 2) === RIGHT ? 'r' : 'b');
+      t.textContent = lane;
+      holder.appendChild(t);
+    });
+    lastActive = '';
+  }
+
+  let lastActive = '';
+  function markStrip() {
+    const act = JLS.active(u, state.pat, state.n);
+    const key = act.join(',');
+    if (key === lastActive) return;
+    lastActive = key;
+    const tiles = strip.querySelectorAll('.tile');
+    for (let i = 0; i < tiles.length; i++) tiles[i].classList.toggle('on', act.indexOf(i) !== -1);
+  }
+
+  function showInfo() {
+    if (error) { info.className = 'info bad'; info.textContent = error; return; }
+    const n = state.n;
+    info.className = 'info';
+    info.innerHTML =
+      '<b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + (n % 2 ? 'hands take turns' : 'hands roll together') +
+      '<span class="sep">|</span><span class="dot r"></span>right hand &larr;' +
+      '<span class="sep">|</span><span class="dot b"></span>left hand &rarr;';
+  }
+
+  function refresh(restart) {
+    tm = JLS.timing(state.n);
+    if (restart) u = 0;
+    outCount.textContent = state.n;
+    btnLess.disabled = state.n <= 1;
+    btnMore.disabled = state.n >= JLS.MAX_BALLS;
+    btnR.setAttribute('aria-pressed', String(state.startRight));
+    btnL.setAttribute('aria-pressed', String(!state.startRight));
+    btnPlay.textContent = state.playing ? 'Pause' : 'Play';
+    inSpeed.value = state.speed;
+    selPattern.value = knownPattern(state.pat.text) ? state.pat.text : '';
+    inCustom.classList.toggle('bad', !!error);
+    buildStrip();
+    showInfo();
+    kick();
+  }
+
+  /* ---------- controls ---------- */
+  selPattern.addEventListener('change', function () {
+    const parsed = JLS.parse(selPattern.value);
+    if (!parsed.ok) return;
+    state.pat = parsed; error = '';
+    inCustom.value = parsed.text;
+    refresh(true);
+  });
+  inCustom.addEventListener('input', function () {
+    const parsed = JLS.parse(inCustom.value);
+    if (parsed.ok) {
+      const changed = parsed.text !== state.pat.text;
+      state.pat = parsed; error = '';
+      refresh(changed);
+    } else {
+      error = inCustom.value.trim() ? parsed.error : '';
+      inCustom.classList.toggle('bad', !!error);
+      showInfo();
+    }
+  });
+  inCustom.addEventListener('blur', function () {
+    if (!inCustom.value.trim()) { inCustom.value = state.pat.text; error = ''; inCustom.classList.remove('bad'); showInfo(); }
+  });
+  btnLess.addEventListener('click', function () { if (state.n > 1) { state.n--; refresh(true); } });
+  btnMore.addEventListener('click', function () { if (state.n < JLS.MAX_BALLS) { state.n++; refresh(true); } });
+  btnR.addEventListener('click', function () { if (!state.startRight) { state.startRight = true; refresh(true); } });
+  btnL.addEventListener('click', function () { if (state.startRight) { state.startRight = false; refresh(true); } });
+  inSpeed.addEventListener('input', function () { state.speed = parseFloat(inSpeed.value) || 1; });
+  btnPlay.addEventListener('click', function () { state.playing = !state.playing; btnPlay.textContent = state.playing ? 'Pause' : 'Play'; kick(); });
+
+  /* ---------- drawing ---------- */
+  let W = 0, H = 0, dpr = 1;
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function smooth(t) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
+
+  function geometry() {
+    const K = state.pat.lanes;
+    const handZone = clamp(W * 0.18, 54, 160);
+    const pitch = Math.min((H - 44) / K, 92);
+    const rb = clamp(Math.min(pitch * 0.3, W * 0.04), 6, 20);
+    const trackH = Math.min(pitch - 6, rb * 2 + 12);
+    const bx0 = handZone, bx1 = W - handZone;
+    const bh = K * pitch + 16, by0 = (H - bh) / 2 - 2;
+    const inset = 8 + trackH / 2;
+    const room = handZone + inset;
+    const minReach = inset + rb * 1.3;
+    const maxReach = Math.max(minReach + 4, room - rb * 2.7);
+    return {
+      K: K, pitch: pitch, rb: rb, trackH: trackH, bx0: bx0, bx1: bx1, by0: by0, bh: bh,
+      minReach: minReach, maxReach: maxReach,
+      laneY: function (lane) { return by0 + 8 + (K - lane + 0.5) * pitch; },   // lane 1 is at the bottom
+      endX: function (side) { return side === RIGHT ? bx1 - inset : bx0 + inset; }
+    };
+  }
+
+  /* A ball being carried round the end of the board from one lane to another. */
+  function carryPoint(g, side, from, to, p) {
+    const span = Math.abs(from - to);
+    const reach = lerp(g.minReach, g.maxReach, g.K > 2 ? (span - 1) / (g.K - 2) : 0.5);
+    const x0 = g.endX(side), xc = x0 + side * reach / 0.75;
+    const y0 = g.laneY(from), y1 = g.laneY(to);
+    const t = lerp(p, smooth(p), 0.6), m = 1 - t;
+    return {
+      x: m * m * m * x0 + 3 * m * m * t * xc + 3 * m * t * t * xc + t * t * t * x0,
+      y: m * m * m * y0 + 3 * m * m * t * y0 + 3 * m * t * t * y1 + t * t * t * y1
+    };
+  }
+
+  /* An empty hand moving from where it let go to where the next ball will arrive. */
+  function reachPoint(g, side, from, to, p) {
+    const x0 = g.endX(side), xc = x0 + side * g.minReach * 0.9;
+    const y0 = g.laneY(from), y1 = g.laneY(to);
+    const t = smooth(p / 0.85), m = 1 - t;
+    return { x: m * m * x0 + 2 * m * t * xc + t * t * x0, y: m * m * y0 + 2 * m * t * (y0 + y1) / 2 + t * t * y1 };
+  }
+
+  function roundRect(x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawBoard(g) {
+    const pat = state.pat;
+    const bw = g.bx1 - g.bx0;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+    roundRect(g.bx0, g.by0 + 6, bw, g.bh, 20); ctx.fillStyle = INK; ctx.fill();
+    roundRect(g.bx0, g.by0, bw, g.bh, 20); ctx.fillStyle = '#fffdf5'; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = INK; ctx.stroke();
+
+    const line = clamp(g.trackH * 0.07, 1.5, 2.5);
+    for (let lane = 1; lane <= g.K; lane++) {
+      const y = g.laneY(lane);
+      const hand = pat.hand[lane];
+      const dir = hand === -1 ? 0 : -sideOf(hand);          // which way balls travel: -1 left, +1 right
+      const x0 = g.bx0 + 8, x1 = g.bx1 - 8;
+      roundRect(x0, y - g.trackH / 2, x1 - x0, g.trackH, g.trackH / 2);
+      ctx.fillStyle = dir === 0 ? '#e9e6dc' : dir < 0 ? RED_SOFT : BLUE_SOFT;
+      ctx.fill();
+      ctx.lineWidth = line; ctx.strokeStyle = INK; ctx.stroke();
+
+      const mid = (x0 + x1) / 2;
+      const badge = clamp(g.trackH * 0.34, 6, 13);
+      if (dir !== 0) {
+        const a = g.trackH * 0.19, gap = Math.max(34, a * 5);
+        ctx.strokeStyle = 'rgba(255,255,255,.9)';
+        ctx.lineWidth = clamp(g.trackH * 0.09, 2, 4);
+        for (let d = badge + gap * 0.75; mid + d < x1 - g.trackH * 0.55; d += gap) {
+          for (const x of [mid - d, mid + d]) {
+            ctx.beginPath();
+            ctx.moveTo(x - dir * a * 0.5, y - a);
+            ctx.lineTo(x + dir * a * 0.5, y);
+            ctx.lineTo(x - dir * a * 0.5, y + a);
+            ctx.stroke();
+          }
+        }
+      }
+      ctx.beginPath(); ctx.arc(mid, y, badge, 0, Math.PI * 2);
+      ctx.fillStyle = '#fffdf5'; ctx.fill();
+      ctx.lineWidth = line; ctx.strokeStyle = INK; ctx.stroke();
+      ctx.fillStyle = INK;
+      ctx.font = '700 ' + Math.round(badge * 1.35) + 'px ' + FONT;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(lane), mid, y + badge * 0.08);
+    }
+  }
+
+  function drawBall(g, x, y, id) {
+    const r = g.rb, colour = BALL_COLOURS[id % BALL_COLOURS.length];
+    ctx.beginPath(); ctx.arc(x, y + r * 0.22, r * 1.02, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(45,42,74,.2)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = colour; ctx.fill();
+    ctx.lineWidth = clamp(r * 0.16, 1.5, 2.6); ctx.strokeStyle = INK; ctx.stroke();
+    // two spots that turn as the ball rolls
+    const ang = x / r;
+    ctx.fillStyle = colour === '#ffffff' ? 'rgba(45,42,74,.18)' : 'rgba(255,255,255,.6)';
+    for (const s of [1, -1]) {
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(ang) * r * 0.48 * s, y + Math.sin(ang) * r * 0.48 * s, r * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.save();
+    ctx.translate(x - r * 0.36, y - r * 0.42); ctx.rotate(-0.7);
+    ctx.beginPath(); ctx.ellipse(0, 0, r * 0.27, r * 0.14, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fill();
+    ctx.restore();
+  }
+
+  /* A cartoon glove, seen from above. `side` is the side of the board it works on; its fingers point at the board. */
+  function drawHand(g, x, y, side) {
+    const r = g.rb * 1.25;
+    const line = clamp(r * 0.13, 1.5, 2.6);
+    const fat = r * 0.54;
+    // [angle away from "straight at the board", length]; the last one is the thumb
+    const digits = [[-0.5, 1.5], [0, 1.64], [0.5, 1.5], [1.5, 1.34]];
+    ctx.save();
+    ctx.translate(x, y); ctx.scale(side, 1);       // +x now points away from the board
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    // cuff
+    roundRect(r * 0.6, -r * 0.62, r * 1.1, r * 1.24, r * 0.3);
+    ctx.fillStyle = side === RIGHT ? RED : BLUE; ctx.fill();
+    ctx.lineWidth = line; ctx.strokeStyle = INK; ctx.stroke();
+    // outline of the whole glove first, then the white on top, so it reads as one shape
+    for (const pass of [0, 1]) {
+      ctx.strokeStyle = pass ? '#ffffff' : INK;
+      ctx.lineWidth = pass ? fat : fat + 2 * line;
+      for (const d of digits) {
+        ctx.beginPath(); ctx.moveTo(0, 0);
+        ctx.lineTo(-Math.cos(d[0]) * d[1] * r, Math.sin(d[0]) * d[1] * r);
+        ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(0, 0, pass ? r : r + line, 0, Math.PI * 2);
+      ctx.fillStyle = pass ? '#ffffff' : INK; ctx.fill();
+    }
+    ctx.restore();
+    // letter on the cuff
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 ' + Math.round(r * 0.8) + 'px ' + FONT;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(side === RIGHT ? 'R' : 'L', x + side * r * 1.18, y + r * 0.06);
+  }
+
+  function draw() {
+    if (!W || !H) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const g = geometry();
+    drawBoard(g);
+
+    const bs = JLS.balls(u, state.pat, state.n, tm);
+    const hs = JLS.hands(u, state.pat, state.n, tm);
+
+    // hands first, so a ball always shows on top of the glove that holds it
+    const handOffset = g.rb * 0.5;
+    for (const h of hs) {
+      const side = sideOf(h.hand);
+      const pt = h.state === 'carry' ? carryPoint(g, side, h.from, h.to, h.p) : reachPoint(g, side, h.from, h.to, h.p);
+      drawHand(g, pt.x + side * handOffset, pt.y, side);
+    }
+    for (const b of bs) {
+      if (b.state === 'roll') {
+        const side = sideOf(b.hand);
+        drawBall(g, lerp(g.endX(side), g.endX(-side), b.p), g.laneY(b.lane), b.id);
+      } else {
+        const pt = carryPoint(g, sideOf(b.hand), b.from, b.to, b.p);
+        drawBall(g, pt.x, pt.y, b.id);
+      }
+    }
+  }
+
+  /* ---------- the clock ---------- */
+  let raf = 0, lastStamp = null, onScreen = true;
+
+  function frame(stamp) {
+    raf = 0;
+    if (lastStamp !== null && state.playing) {
+      const dt = Math.min(0.1, (stamp - lastStamp) / 1000);
+      u += dt * state.speed / tm.cycle;
+    }
+    lastStamp = stamp;
+    draw();
+    markStrip();
+    if (state.playing && onScreen && !document.hidden) raf = requestAnimationFrame(frame);
+    else lastStamp = null;
+  }
+  function kick() { if (!raf) raf = requestAnimationFrame(frame); }
+
+  function resize() {
+    const box = stage.getBoundingClientRect();
+    W = Math.max(1, Math.round(box.width)); H = Math.max(1, Math.round(box.height));
+    dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    draw();
+    kick();
+  }
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+  else window.addEventListener('resize', resize);
+  if (window.IntersectionObserver) {
+    new IntersectionObserver(function (entries) { onScreen = entries[entries.length - 1].isIntersecting; if (onScreen) kick(); }).observe(stage);
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) kick(); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { draw(); });
+
+  inCustom.value = state.pat.text;
+  const startAt = u;
+  refresh(false);
+  u = startAt;
+  resize();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Rule checks</title>
+<pre id="out">running</pre>
+<script>
+/* Loads the rules out of ../index.html and checks them for every listed pattern with 1 to 9 balls.
+   Serve the project folder (python3 -m http.server) and open /tests/test.html. */
+(async function () {
+  const out = document.getElementById('out');
+  const lines = [];
+  let failures = 0;
+  function fail(msg) { failures++; if (failures <= 25) lines.push('FAIL ' + msg); }
+
+  try {
+    const html = await (await fetch('../index.html')).text();
+    const code = html.match(/<script id="engine">([\s\S]*?)<\/script>/)[1];
+    const JLS = new Function(code + '; return JLS;')();
+
+    const patterns = [];
+    JLS.CATALOGUE.forEach(g => g.items.forEach(it => patterns.push(it)));
+    ['1212', '13', '1425', '123456', '162534', '121212343434'].forEach(p => patterns.push(['extra', p]));
+
+    // every listed pattern must be valid, start on lane 1, and appear once
+    const seen = new Set();
+    for (const [name, text] of patterns) {
+      const pat = JLS.parse(text);
+      if (!pat.ok) fail(name + ' ' + text + ' does not parse: ' + pat.error);
+      if (text[0] !== '1') fail(name + ' ' + text + ' does not start on lane 1');
+      if (seen.has(text)) fail(text + ' is listed twice');
+      seen.add(text);
+    }
+    // things that must be refused
+    for (const bad of ['', '123', '1223', '1731', '12a4', '1'.repeat(26), '1221']) {
+      if (JLS.parse(bad).ok) fail('"' + bad + '" should be refused');
+    }
+
+    let checks = 0;
+    for (const [name, text] of patterns) {
+      const pat = JLS.parse(text);
+      if (!pat.ok) continue;
+      const L = pat.seq.length;
+      for (let n = 1; n <= JLS.MAX_BALLS; n++) {
+        const tag = text + ' with ' + n + ': ';
+        const tm = JLS.timing(n);
+        if (Math.abs(tm.roll + tm.hold - n / 2) > 1e-9) fail(tag + 'roll + hold is not n/2');
+        if (!(tm.hold < 0.6 && tm.hold > 0.05 && tm.roll > 0.2)) fail(tag + 'odd timing ' + JSON.stringify(tm));
+
+        const prev = new Map();          // ball id -> last seen state
+        const rollOrder = [];            // lanes in the order rolls begin
+        const step = 0.01;
+        const span = Math.max(3 * L, 2 * n * L / 2 + 4);
+        for (let k = 0; k * step < span; k++) {
+          const u = -1.37 + k * step + 0.0031;
+          const bs = JLS.balls(u, pat, n, tm);
+          const hs = JLS.hands(u, pat, n, tm);
+          checks++;
+          if (bs.length !== n) { fail(tag + bs.length + ' balls at u=' + u); break; }
+          if (new Set(bs.map(b => b.id)).size !== n) { fail(tag + 'duplicate ball ids at u=' + u); break; }
+          for (let h = 0; h < 2; h++) {
+            const held = bs.filter(b => b.state === 'carry' && b.hand === h);
+            if (held.length > 1) { fail(tag + 'hand ' + h + ' holds ' + held.length + ' balls at u=' + u); break; }
+            const hand = hs[h];
+            if ((hand.state === 'carry') !== (held.length === 1)) { fail(tag + 'hand ' + h + ' and its ball disagree at u=' + u); break; }
+            if (held.length === 1) {
+              const b = held[0];
+              if (b.from !== hand.from || b.to !== hand.to || Math.abs(b.p - hand.p) > 1e-6) { fail(tag + 'hand ' + h + ' is not where its ball is at u=' + u); break; }
+            }
+          }
+          for (const b of bs) {
+            if (b.state === 'roll') {
+              if (pat.hand[b.lane] !== b.hand) fail(tag + 'lane ' + b.lane + ' rolled by the wrong hand');
+            } else {
+              if (pat.hand[b.from] !== 1 - b.hand) fail(tag + 'ball caught on the wrong side');
+              if (pat.hand[b.to] !== b.hand) fail(tag + 'ball carried to a lane on the wrong side');
+            }
+            const was = prev.get(b.id);
+            if (was) {
+              if (was.state === 'roll' && b.state === 'carry' && b.from !== was.lane) fail(tag + 'ball ' + b.id + ' jumped lanes when caught');
+              if (was.state === 'carry' && b.state === 'roll') {
+                if (b.lane !== was.to) fail(tag + 'ball ' + b.id + ' jumped lanes when rolled');
+                if (b.hand !== was.hand) fail(tag + 'ball ' + b.id + ' changed hands in mid-air');
+                if (u > 0) rollOrder.push(b.lane);
+              }
+              if (was.state === 'roll' && b.state === 'roll' && (b.lane !== was.lane || b.p < was.p)) fail(tag + 'ball ' + b.id + ' moved wrongly in its lane');
+              if (was.state === 'carry' && b.state === 'carry' && (b.from !== was.from || b.to !== was.to || b.p < was.p)) fail(tag + 'ball ' + b.id + ' moved wrongly in the hand');
+            }
+            prev.set(b.id, b);
+          }
+        }
+        // the lanes must be rolled in the order of the pattern, whatever the ball count
+        if (rollOrder.length < 2 * L) fail(tag + 'too few rolls seen');
+        const want = new Map();
+        pat.seq.forEach(l => want.set(l, (want.get(l) || 0) + 1));
+        const got = new Map();
+        const whole = Math.floor(rollOrder.length / L) * L;
+        rollOrder.slice(0, whole).forEach(l => got.set(l, (got.get(l) || 0) + 1));
+        for (const [lane, c] of want) if (got.get(lane) !== c * whole / L) fail(tag + 'lane ' + lane + ' rolled ' + got.get(lane) + ' times in ' + whole + ' rolls');
+        if (n % 2) {
+          // hands take turns, so the order seen must be the pattern itself from some starting beat
+          const s = rollOrder.join(''), twice = text + text;
+          let ok = false;
+          for (let o = 0; o < L; o++) if (s.startsWith(twice.slice(o, o + L))) ok = true;
+          if (!ok) fail(tag + 'rolls came in the order ' + s.slice(0, 2 * L));
+        }
+      }
+    }
+    lines.push(failures ? failures + ' FAILURES' : 'ALL PASSED');
+    lines.push(patterns.length + ' patterns, ' + checks + ' moments checked');
+  } catch (e) {
+    lines.push('ERROR ' + e.message);
+  }
+  out.textContent = lines.join('\n');
+  document.title = 'done';
+})();
+</script>

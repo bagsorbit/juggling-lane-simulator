@@ -68,3 +68,24 @@ if __name__ == "__main__":
         print(f"{k} lanes, up to {max_beats} beats: {len(groups)} diagrams, {len(found)} hand orders")
         for g in sorted(groups.values(), key=lambda v: (len(v[0]), sorted(v)[0])):
             print("   ", " / ".join(sorted(g)))
+
+
+def embed(path="index.html", max_beats=8):
+    """Rewrite the list of every pattern inside index.html (the "All patterns" pop-up)."""
+    import json, re
+    data = {}
+    named = set(re.findall(r"\['[^']+', '(\d+)', '", open(path, encoding="utf-8").read()))
+    for k in range(2, 7):
+        by_beats = defaultdict(list)
+        for d in search(k, max_beats).values():
+            # where a pattern has a name in the list, show it spelled the way the list spells it
+            same = {"".join(map(str, im)) for im in images(d, k)}
+            text = min(same & named) if same & named else "".join(map(str, d))
+            by_beats[str(len(d))].append(text)
+        data[str(k)] = {b: " ".join(sorted(v)) for b, v in sorted(by_beats.items())}
+    html = open(path, encoding="utf-8").read()
+    block = '<script id="all-patterns">\nconst ALL_PATTERNS = ' + json.dumps(data, separators=(",", ":")) + ';\n</script>'
+    html, n = re.subn(r'<script id="all-patterns">.*?</script>', lambda m: block, html, flags=re.S)
+    assert n == 1
+    open(path, "w", encoding="utf-8").write(html)
+    print({k: {b: len(v.split()) for b, v in d.items()} for k, d in data.items()})

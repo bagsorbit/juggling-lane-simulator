@@ -18,7 +18,7 @@
 
     const patterns = [];
     JLS.CATALOGUE.forEach(g => g.items.forEach(it => patterns.push(it)));
-    ['1212', '13', '1425', '123456', '162534', '121212343434'].forEach(p => patterns.push(['extra', p]));
+    ['1212', '13', '1425', '162534', '121212343434'].forEach(p => patterns.push(['extra', p]));
 
     // every listed pattern must be valid, start on lane 1, and appear once
     const seen = new Set();

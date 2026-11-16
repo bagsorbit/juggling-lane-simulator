@@ -19,6 +19,7 @@ A link can open on a chosen pattern, for example `index.html?p=121434&b=3&start=
 - `index.html`: the whole simulator.
 - `fonts/`: the Fredoka typeface, used under the SIL Open Font License (see `fonts/OFL.txt`).
 - `tests/test.html`: checks the rules for every listed pattern with 1 to 9 balls.
+- `tests/icons.html`: shows every pattern picture at once.
 - `tests/filmstrip.html`: freezes a pattern at a row of moments, for checking the motion by eye.
 - `tools/find_patterns.py`: searches for every valid pattern up to a beat limit.
 

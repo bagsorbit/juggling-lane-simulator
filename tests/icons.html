@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Pictures</title>
+<body style="margin:8px;background:#dcf3ff;font:600 12px system-ui;display:flex;flex-wrap:wrap;gap:6px">
+<script>
+/* Shows every pattern picture at once. Serve the project folder and open /tests/icons.html. */
+fetch('../index.html').then(r => r.text()).then(html => {
+  const code = html.match(/<script id="icons">([\s\S]*?)<\/script>/)[1];
+  const api = new Function(code + '; return {ICONS: ICONS, iconSvg: iconSvg};')();
+  for (const name of Object.keys(api.ICONS)) {
+    const d = document.createElement('div');
+    d.style.cssText = 'width:112px;text-align:center';
+    d.innerHTML = '<div style="width:96px;height:96px;margin:0 auto;background:#fffdf5;border:2.5px solid #2d2a4a;border-radius:50%;display:grid;place-items:center"><div style="width:80%;height:80%">' + api.iconSvg(name) + '</div></div>' + name;
+    document.body.appendChild(d);
+  }
+});
+</script>

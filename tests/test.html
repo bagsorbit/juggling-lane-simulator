@@ -25,7 +25,8 @@
     for (const [name, text] of patterns) {
       const pat = JLS.parse(text);
       if (!pat.ok) fail(name + ' ' + text + ' does not parse: ' + pat.error);
-      if (text[0] !== '1') fail(name + ' ' + text + ' does not start on lane 1');
+      // Round the Houses is Helter Skelter 4 upside down, so it is the one pattern that starts on lane 2
+      if (text[0] !== '1' && text !== '212343') fail(name + ' ' + text + ' does not start on lane 1');
       if (seen.has(text)) fail(text + ' is listed twice');
       seen.add(text);
     }

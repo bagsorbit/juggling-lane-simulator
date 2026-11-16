@@ -74,7 +74,7 @@ def embed(path="index.html", max_beats=8):
     """Rewrite the list of every pattern inside index.html (the "All patterns" pop-up)."""
     import json, re
     data = {}
-    named = set(re.findall(r"\['[^']+', '(\d+)', '", open(path, encoding="utf-8").read()))
+    named = set(re.findall(r"\['[^']+', '(\d+)'\]", open(path, encoding="utf-8").read()))
     for k in range(2, 7):
         by_beats = defaultdict(list)
         for d in search(k, max_beats).values():

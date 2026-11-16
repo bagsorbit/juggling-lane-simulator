@@ -1059,10 +1059,16 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (place.lane) return { x: g.endX(side), y: g.laneY(place.lane) };
     return { x: (g.bx0 + g.bx1) / 2, y: g.laneY(place.mid) };
   }
+  function apart(g) { return (g.bx1 - g.bx0) * 0.2; }      // how far a hand pulls back between two zips
   /* A hand (or the ball in it) part-way between two places. */
   function segPoint(g, side, from, to, p, holding) {
     if (from.lane && to.lane) return holding ? carryPoint(g, side, from.lane, to.lane, p) : reachPoint(g, side, from.lane, to.lane, p);
     const a = placePoint(g, side, from), b = placePoint(g, side, to);
+    if (from.mid && to.mid) {
+      // two zips in a row: the hands pull apart after the first and come back together for the second
+      const t = smooth(p);
+      return { x: lerp(a.x, b.x, t) + side * apart(g) * Math.sin(Math.PI * t), y: lerp(a.y, b.y, t) };
+    }
     const t = holding ? smooth(p) : smooth(p / 0.85);
     return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) };
   }
@@ -1092,6 +1098,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         const reach = lerp(g.minReach, g.maxReach, g.K > 2 ? (span - 1) / (g.K - 2) : 0.5);
         const xc = a.x + p.side * reach / 0.75;
         ctx.bezierCurveTo(xc, a.y, xc, b.y, b.x, b.y);
+      } else if (p.from.mid && p.to.mid) {
+        ctx.lineTo((a.x + b.x) / 2 + p.side * apart(g), (a.y + b.y) / 2);
+        ctx.lineTo(b.x, b.y);
       } else {
         ctx.lineTo(b.x, b.y);
       }

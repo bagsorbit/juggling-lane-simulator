@@ -105,6 +105,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 .info .dot.r { background: var(--red); }
 .info .dot.b { background: var(--blue); }
 .info .sep { opacity: .45; margin: 0 .35em; }
+.info .nw { white-space: nowrap; }
 .info.bad { color: var(--warn); font-weight: 600; }
 
 .controls {
@@ -178,6 +179,8 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
 }
 @media (max-width: 380px) {
   .field > span { font-size: 12px; }
+  .info { font-size: 12px; }
+  .info .sep { margin: 0 .2em; }
   select, input[type="text"] { padding-left: 8px; }
   select { font-size: 15px; }
 }
@@ -464,9 +467,9 @@ const JLS = (function () {
     const n = state.n;
     info.className = 'info';
     info.innerHTML =
-      '<b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + (n % 2 ? 'hands take turns' : 'hands roll together') +
-      '<span class="sep">|</span><span class="dot r"></span>right hand &larr;' +
-      '<span class="sep">|</span><span class="dot b"></span>left hand &rarr;';
+      '<span class="nw"><b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + (n % 2 ? 'hands take turns' : 'hands roll together') + '</span>' +
+      '<span class="sep">|</span><span class="nw"><span class="dot r"></span>right hand &larr;</span>' +
+      '<span class="sep">|</span><span class="nw"><span class="dot b"></span>left hand &rarr;</span>';
   }
 
   function refresh(restart) {

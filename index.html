@@ -1233,7 +1233,9 @@ const ICONS = (function () {
   });
 })();
 function iconSvg(name) {
-  const body = ICONS[String(name).replace(/ (\d+|Triple|Quad|Quin|Hex)$/, '').replace(/^(Triple|Quad|Quin|Hex) /, '').replace(/ (for Two|Reverse)$/, '')];
+  // a name's own picture first; otherwise the shared one for its family (Helter Skelter Quad, Triple Wave, Mobius for Two...)
+  const n = String(name);
+  const body = ICONS[n] || ICONS[n.replace(/ (\d+|Triple|Quad|Quin|Hex)$/, '').replace(/^(Triple|Quad|Quin|Hex) /, '').replace(/ (for Two|Reverse)$/, '')];
   if (!body) return '';
   return '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><g stroke="#2d2a4a" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">' + body + '</g></svg>';
 }

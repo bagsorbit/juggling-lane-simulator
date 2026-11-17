@@ -328,9 +328,9 @@
         if (speeds.size > 1) fail(tag + 'balls roll at different speeds');
       }
     }
-    for (const bad of ['[13]-:2', '[13]-:21', '[13]-:2-', '12[13][24]', '[13]-:2:2', '[13]x:22']) if (JLS.parse(bad).ok) fail('"' + bad + '" should be refused');
-    if (!JLS.parse('[13] - : 2 2').ok) fail('spaces in a rhythm pattern should be fine');
-    if (JLS.parse('[13]-/22').text !== '[13]-:22') fail('a slash should be read as a colon');
+    for (const bad of ['[13]-|2', '[13]-|21', '[13]-|2-', '12[13][24]', '[13]-|2|2', '[13]x|22']) if (JLS.parse(bad).ok) fail('"' + bad + '" should be refused');
+    if (!JLS.parse('[13] - | 2 2').ok) fail('spaces in a rhythm pattern should be fine');
+    if (JLS.parse('[13]-/22').text !== '[13]-|22' || JLS.parse('[13]-:22').text !== '[13]-|22') fail('a slash or colon should be read as a bar');
     lines.push(Object.keys(rhExpected).length + ' own-rhythm patterns, ' + mixChecks + ' moments checked');
     lines.push(pairTexts.length + ' two-at-once patterns, ' + twoChecks + ' moments checked');
     lines.push(zipPatterns.length + ' zip patterns, ' + zipChecks + ' moments checked');

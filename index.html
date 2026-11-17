@@ -226,12 +226,11 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
 #sound .i-on, #sound[aria-pressed="true"] .i-off { display: none; }
 #sound[aria-pressed="true"] .i-on { display: block; }
 #sound[aria-pressed="true"] { background: #c0eb75; }
-#sound, #share { flex: none; width: 46px; padding: 0; display: flex; align-items: center; justify-content: center; }
-#sound svg, #share svg { width: 20px; height: 20px; }
+#sound, #share, #favBtn { flex: none; width: 46px; padding: 0; display: flex; align-items: center; justify-content: center; }
+#sound svg, #share svg, #favBtn svg { width: 20px; height: 20px; }
 .playrow { position: relative; }
-#share { position: relative; }
-.favstar { display: none; position: absolute; top: -7px; right: -6px; font-size: 15px; line-height: 1; color: var(--sun); -webkit-text-stroke: 1.5px var(--ink); }
-#share.fav .favstar { display: block; }
+#favBtn.fav .starfill { fill: var(--sun); }
+#openWall svg { display: none; width: 20px; height: 20px; }
 .keepmenu { position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 5; display: flex; flex-direction: column; gap: 6px; padding: 8px; min-width: 230px; background: #fffdf5; border: 3px solid var(--ink); border-radius: 16px; box-shadow: 0 5px 0 var(--ink); }
 .keepmenu[hidden] { display: none; }
 .keepmenu button { display: flex; align-items: center; gap: 9px; height: 42px; width: 100%; text-align: left; white-space: nowrap; }
@@ -253,13 +252,16 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   .f-custom { grid-column: span 5; }
   .f-balls { grid-column: span 5; }
   .f-start { grid-column: span 7; }
-  .f-speed { grid-column: span 3; }
-  .f-wall { grid-column: span 4; order: 5; }
-  .f-play { grid-column: span 5; order: 6; }
+  .f-speed { grid-column: span 4; }
+  .f-wall { grid-column: span 2; order: 5; }
+  .f-play { grid-column: span 6; order: 6; }
+  #openWall { display: flex; align-items: center; justify-content: center; padding: 0; }
+  #openWall svg { display: block; }
+  #openWall span { display: none; }
   #play svg { display: block; }
   #play span { display: none; }
   .playrow { gap: 5px; }
-  #play, #sound, #share { width: 38px; flex: 1 1 0; padding: 0; }
+  #play, #sound, #share, #favBtn { width: 36px; flex: 1 1 0; padding: 0; }
   #openWall, #play { font-size: 14px; padding: 0 2px; }
   #custom { font-size: 16px; padding-left: 9px; background-position: 9px calc(100% - 8px); }
   .badge { width: 46px; height: 46px; top: 6px; right: 6px; }
@@ -336,7 +338,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
       <select id="pattern"></select>
     </label>
     <div class="field f-wall"><span>&nbsp;</span>
-      <button type="button" id="openWall">All patterns</button>
+      <button type="button" id="openWall" aria-label="All patterns"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linejoin="round" fill="none"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg><span>All patterns</span></button>
     </div>
     <label class="field f-custom"><span>Or type your own</span>
       <input type="text" id="custom" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30" aria-describedby="info">
@@ -361,8 +363,10 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
       <div class="playrow">
         <button type="button" id="play">Pause</button>
         <button type="button" id="sound" aria-pressed="false" aria-label="Beat sound" title="Beat sound: a click on every roll"><svg class="i-on" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="#2d2a4a"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg><svg class="i-off" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="#2d2a4a"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg></button>
-        <button type="button" id="share" aria-label="Share or save this pattern" title="Share or save this pattern" aria-haspopup="menu" aria-expanded="false"><span class="favstar" aria-hidden="true">&#9733;</span><svg class="i-share" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M11 4.5H7.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3V15" stroke-width="2.6"/><path d="M9 15.5c0-4 2.5-6.2 7-6.2" stroke-width="3.4"/><path d="M15.2 4.2l6.3 5.1-6.3 5.1z" fill="#2d2a4a" stroke-width="1.4"/></svg><svg class="i-done" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4.5 12.5l5 5 10-11"/></svg></button>
-        <div class="keepmenu" id="keepMenu" role="menu" hidden><button type="button" role="menuitem" id="mShare"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M10 13.5a4.5 4.5 0 0 0 6.8.5l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.7 1.7"/><path d="M14 10.5a4.5 4.5 0 0 0-6.8-.5l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.7-1.7"/></svg><span>Share link</span></button><button type="button" role="menuitem" id="mSave"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linejoin="round" fill="none"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg><span id="mSaveText">Save to favourites</span></button><button type="button" role="menuitem" id="mOpen"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" fill="none"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" stroke-width="3.4"/></svg><span id="mOpenText">Open favourites</span></button></div>
+        <button type="button" id="favBtn" aria-label="Favourites" title="Favourites" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linejoin="round" fill="none"><path class="starfill" d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg></button>
+        <div class="keepmenu" id="keepMenu" role="menu" hidden><button type="button" role="menuitem" id="mSave"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linejoin="round" fill="none"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg><span id="mSaveText">Save to favourites</span></button><button type="button" role="menuitem" id="mOpen"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" fill="none"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" stroke-width="3.4"/></svg><span id="mOpenText">Open favourites</span></button></div>
+        <button type="button" id="share" aria-label="Share a link to this pattern" title="Share a link to this pattern"><svg class="i-share" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M11 4.5H7.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3V15" stroke-width="2.6"/><path d="M9 15.5c0-4 2.5-6.2 7-6.2" stroke-width="3.4"/><path d="M15.2 4.2l6.3 5.1-6.3 5.1z" fill="#2d2a4a" stroke-width="1.4"/></svg><svg class="i-done" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4.5 12.5l5 5 10-11"/></svg></button>
+        
       </div>
     </div>
   </section>
@@ -1609,7 +1613,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     choose(state.zipMode ? lastZips : lastRolls);
   });
   /* ---------- the share / favourites button ----------
-   * One button opens a small menu: Share link, Save to (or Remove from) favourites, Open favourites.
+   * The star opens a small menu: Save to (or Remove from) favourites, Open favourites. The share button shares at once.
    * Share links point at this page itself for now. Once the simulator lives inside a page on the
    * website, they should point at that page instead, and that page should pass its ?... on to the frame. */
   function patternQuery(withSpeed) {
@@ -1644,26 +1648,25 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function isFav() { const q = patternQuery(false); return loadFavs().some(function (f) { return f.q === q; }); }
   function showFav() {
     const fav = isFav();
-    $('share').classList.toggle('fav', fav);
+    $('favBtn').classList.toggle('fav', fav);
     $('mSaveText').textContent = fav ? 'Remove from favourites' : 'Save to favourites';
     const n = loadFavs().length;
     $('mOpenText').textContent = 'Open favourites' + (n ? ' (' + n + ')' : '');
   }
 
-  const keepMenu = $('keepMenu'), keepBtn = $('share');
+  const keepMenu = $('keepMenu'), keepBtn = $('favBtn');
   function setMenu(open) {
     keepMenu.hidden = !open;
     keepBtn.setAttribute('aria-expanded', String(open));
-    if (open) { showFav(); $('mShare').focus(); }
+    if (open) { showFav(); $('mSave').focus(); }
   }
   keepBtn.addEventListener('click', function (e) { e.stopPropagation(); setMenu(keepMenu.hidden); });
   keepMenu.addEventListener('click', function (e) { e.stopPropagation(); });
   document.addEventListener('click', function () { if (!keepMenu.hidden) setMenu(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !keepMenu.hidden) { setMenu(false); keepBtn.focus(); } });
 
-  function flashDone() { keepBtn.classList.add('done'); setTimeout(function () { keepBtn.classList.remove('done'); }, 1600); }
-  $('mShare').addEventListener('click', function () {
-    setMenu(false);
+  function flashDone() { const b = $('share'); b.classList.add('done'); setTimeout(function () { b.classList.remove('done'); }, 1600); }
+  $('share').addEventListener('click', function () {
     const url = shareUrl(), title = 'Juggling Lane Simulator: ' + patternTitle();
     function copy() {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(flashDone, function () { window.prompt('Copy this link:', url); });
@@ -1682,7 +1685,6 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (!saveFavs(list)) { setMenu(false); window.alert('This browser is not letting the page save anything, so favourites can’t be kept here.'); return; }
     setMenu(false);
     showFav();
-    if (isFav()) flashDone();
   });
 
   const favs = $('favs'), favsBody = $('favsBody');

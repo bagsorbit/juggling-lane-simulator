@@ -16,6 +16,8 @@ Open `index.html` in a browser. Pick a pattern from the list or type your own, t
 
 The "Zips" button switches to patterns with zips. A zip, written `z`, is a handoff: the hand passes its ball straight to the other hand, which rolls it on the next beat. Zips need an odd number of balls. Because a zipped ball jumps the queue, the rolls stop taking equal time; the simulator picks the most even timing that works. In zip mode, tapping a number under the lanes turns it into a zip and back.
 
+Reverses also work with 2 people on: the same patterns and ball counts, with each person using their hands in turn.
+
 Zips also work with 2 people on. Then a `z` is a pass zip: the two people meet in the middle of the board and hand the ball across, and it is rolled on the next beat. An `s` is a self zip: a person hands the ball to their own other hand, which rolls it on that person's next turn. The list has every one-person zip pattern (played as pass zips), patterns where both people self zip, and patterns where each person does both. Tapping a number cycles roll, pass zip, self zip.
 
 ### Slope

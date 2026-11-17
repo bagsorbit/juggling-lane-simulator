@@ -324,7 +324,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
     <li><svg class="one" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="12" cy="7" r="3.6"/><path d="M5 21c0-5 3-8 7-8s7 3 7 8"/></svg><span><b>1 person</b>: a hand at each end of the lanes. Tap for 2 people.</span></li>
     <li><svg class="two" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 21c0-4 2.5-6.5 6-6.5s6 2.5 6 6.5M15 14.6c.6-.1 1.300-.1 2-.1 3.300 0 5.500 2.500 5.500 6.500"/></svg><span><b>2 people</b>: a person at each end, two hands each.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M7 2l3.500 6M17 2l-3.500 6M12 14v8M9.500 16.500h5M9.500 19.500h5"/><path d="M9 8h6l-1 5.500h-4z" fill="#2d2a4a"/></svg><span><b>Zips</b>: patterns with handoffs from one hand to the other. With 2 people, z is a pass to the other person and s a pass to your own other hand.</span></li>
-    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 8h15l-3.500-3.500M20 16H5l3.500 3.500"/></svg><span><b>Reverses</b>: patterns in which lanes change direction.</span></li>
+    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 8h15l-3.500-3.500M20 16H5l3.500 3.500"/></svg><span><b>Reverses</b>: patterns in which lanes change direction. Works with 1 or 2 people.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M5 5H2.500v9H5M12 5h2.500v9H12"/><circle cx="6" cy="9.500" r="1.300"/><circle cx="11" cy="9.500" r="1.300"/><circle cx="20" cy="9.500" r="1.300"/><path d="M3 20h18"/></svg><span><b>Mixed</b>: two people, each keeping their own rhythm of single rolls and pairs.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M3 20h18V8z"/><circle cx="8" cy="11.500" r="2.300"/></svg><span><b>Slope</b>: toss-juggling patterns. You sit at the bottom, place balls up the sloping lanes, and they roll back to you.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#fff" stroke="#2d2a4a" stroke-width="2.4"/><g fill="#2d2a4a"><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="8" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="8" cy="16" r="1.9"/><circle cx="16" cy="16" r="1.9"/></g></svg><span><b>Random top 5</b>: plays one of the five starred patterns.</span></li>
@@ -1161,7 +1161,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   let under = [];            // the numbers hidden under zips that were made by tapping
   let lastRolls = '1234', lastZips = '121z', lastZips2 = '1zs2zs', lastTwo = '[13][24][31][42]', lastRev = '123', lastMix = MIX_TOP[0];
   /* Only one special mode can be on at a time, except that zips can be played by two people ('zip2'). */
-  function setMode(name) { state.zipMode = name === 'zip' || name === 'zip2'; state.twoMode = name === 'two' || name === 'mix' || name === 'zip2'; state.revMode = name === 'rev'; state.mixMode = name === 'mix'; state.slopeMode = name === 'slope'; }
+  function setMode(name) { state.zipMode = name === 'zip' || name === 'zip2'; state.twoMode = name === 'two' || name === 'mix' || name === 'zip2' || name === 'rev2'; state.revMode = name === 'rev' || name === 'rev2'; state.mixMode = name === 'mix'; state.slopeMode = name === 'slope'; }
 
   // Slope patterns can't be typed, so they are looked up by the way they are written in the list.
   const SLOPE = {};
@@ -1190,10 +1190,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     zip2: ['1zs2zs', '12s43s', '1s24s3', '1z2zs3zs', '121z'],
     two: ['1232', '[13][24][31][42]', '[14][23][41][32]', '[12][34][21][43]', '[13][24][13][42][31][42]'],
     rev: ['123', '12345', '12342', '123132', '13524'],
+    rev2: ['123', '12345', '12342', '123132', '13524'],
     mix: MIX_TOP,
     slope: ['Cascade', 'Shower', '441', 'Mills Mess', 'Splits'].map(function (name) { for (const t in SLOPE) if (SLOPE[t].name === name) return t; })
   };
-  function modeName() { return state.slopeMode ? 'slope' : state.zipMode && state.twoMode ? 'zip2' : state.zipMode ? 'zip' : state.mixMode ? 'mix' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
+  function modeName() { return state.slopeMode ? 'slope' : state.zipMode && state.twoMode ? 'zip2' : state.zipMode ? 'zip' : state.revMode && state.twoMode ? 'rev2' : state.mixMode ? 'mix' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
 
   /* Switch to a pattern and ball count. Returns '' if it worked, or the reason it can't be played. */
   function setPattern(parsed, n) {
@@ -1248,7 +1249,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (params.get('slope')) { setMode('slope'); const want = params.get('slope'); for (const t in SLOPE) if (SLOPE[t].name.toLowerCase() === want.toLowerCase()) lastSlope = t; }
     else if (parsed.ok && parsed.self) setMode('zip2');
     else if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) setMode(params.get('two') === '1' ? 'zip2' : 'zip');
-    else if (parsed.ok && parsed.rev) setMode('rev');
+    else if (parsed.ok && parsed.rev) setMode(params.get('two') === '1' ? 'rev2' : 'rev');
     else if (parsed.ok && parsed.mixed) setMode('mix');
     else if (params.get('two') === '1' || (parsed.ok && parsed.pairs)) setMode('two');
     if (setPattern(state.slopeMode ? parseAny(lastSlope) : parsed.ok ? parsed : JLS.parse(state.zipMode ? (state.twoMode ? lastZips2 : lastZips) : state.twoMode ? lastTwo : lastRolls), n)) setPattern(JLS.parse('1234'), 3);
@@ -1448,10 +1449,10 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     // only one of these can be on at a time, so the others are greyed out until it is turned off
     mixBtn.setAttribute('aria-pressed', String(state.mixMode));
     slopeBtn.setAttribute('aria-pressed', String(state.slopeMode));
-    mixBtn.disabled = !state.twoMode || state.zipMode;   // mixed patterns are only for two people, without zips
-    twoBtn.disabled = state.revMode || state.slopeMode;
+    mixBtn.disabled = !state.twoMode || state.zipMode || state.revMode;   // mixed patterns are only for two people, on their own
+    twoBtn.disabled = state.mixMode || state.slopeMode;
     zipBtn.disabled = state.mixMode || state.revMode || state.slopeMode;
-    revBtn.disabled = state.twoMode || state.zipMode || state.slopeMode;
+    revBtn.disabled = state.mixMode || state.zipMode || state.slopeMode;
     slopeBtn.disabled = state.twoMode || state.zipMode || state.revMode;
     inCustom.disabled = state.slopeMode;         // slope patterns come from the list only
     btnR.disabled = btnL.disabled = state.slopeMode;   // and always start the same way round
@@ -1480,7 +1481,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   inCustom.addEventListener('input', function () {
     const parsed = JLS.parse(inCustom.value);
     if (!inCustom.value.trim()) { error = ''; inCustom.classList.remove('bad'); showInfo(); return; }
-    const needs = !parsed.ok ? '' : parsed.self ? 'zip2' : parsed.zip ? (state.twoMode ? 'zip2' : 'zip') : parsed.mixed ? 'mix' : parsed.pairs ? 'two' : parsed.rev ? 'rev' : '';
+    const needs = !parsed.ok ? '' : parsed.self ? 'zip2' : parsed.zip ? (state.twoMode ? 'zip2' : 'zip') : parsed.mixed ? 'mix' : parsed.pairs ? 'two' : parsed.rev ? (state.twoMode ? 'rev2' : 'rev') : '';
     if (needs && modeName() !== needs && !(needs === 'two' && state.twoMode)) { setMode(needs); fillPatternList(); }
     const changed = !parsed.ok || parsed.text !== state.pat.text;
     error = setPattern(parsed, state.n);
@@ -1533,6 +1534,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       choose(state.twoMode ? state.pat.text : state.pat.self ? lastZips : state.pat.text);
       return;
     }
+    if (state.revMode) {                         // the same reversing pattern, played by one person or two
+      setMode(state.twoMode ? 'rev' : 'rev2');
+      fillPatternList();
+      choose(state.pat.text);
+      return;
+    }
     setMode(state.twoMode ? '' : 'two');
     fillPatternList();
     choose(state.twoMode ? lastTwo : lastRolls);
@@ -1548,7 +1555,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     choose(state.slopeMode ? lastSlope : lastRolls);
   });
   revBtn.addEventListener('click', function () {
-    setMode(state.revMode ? '' : 'rev');         // lanes that change direction are for one person, without zips
+    if (state.twoMode) { setMode(state.revMode ? 'two' : 'rev2'); fillPatternList(); choose(state.revMode ? lastRev : lastTwo); return; }
+    setMode(state.revMode ? '' : 'rev');         // lanes that change direction, without zips
     fillPatternList();
     choose(state.revMode ? lastRev : lastRolls);
   });

@@ -801,7 +801,7 @@ const JLS = (function () {
       { name: '531', lanes: 2, rolls: '12z21z', ss: '531' },
       { name: '534', lanes: 2, rolls: '122211', ss: '534' },
       { name: '552', lanes: 2, rolls: '12-21-', ss: '552' },
-      { name: 'Mills Mess', lanes: 3, rolls: '123321', ss: '3' },
+      { name: 'Mills Mess(ish)', lanes: 3, rolls: '123321', ss: '3' },
       { name: 'Boston Mess', lanes: 3, rolls: '123', ss: '3' }] },
     { group: 'Hands together', items: [
       { name: 'Sync Fountain', lanes: 2, together: [['2', '1']], ss: [['4', '4']] },
@@ -1360,7 +1360,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     rev: ['123', '12345', '121323', '123132', '12342143'],
     rev2: ['[12][34][56]', '[16][25][34]', '[14][25][36]', '123', '12345'],
     mix: MIX_TOP,
-    slope: ['Cascade', 'Shower', '441', 'Mills Mess', 'Splits'].map(function (name) { for (const t in SLOPE) if (SLOPE[t].name === name) return t; })
+    slope: ['Cascade', 'Shower', '441', 'Mills Mess(ish)', 'Splits'].map(function (name) { for (const t in SLOPE) if (SLOPE[t].name === name) return t; })
   };
   // the ball count each top-five pattern starts with, where it has one
   const TOP_BALLS = { one: { '1232': 5, '12': 4, '1213': 3, '123432': 5, '141323': 5 },
@@ -1419,7 +1419,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const b = parseInt(params.get('b'), 10);
     const n = b >= 1 && b <= JLS.MAX_BALLS ? b : state.n;
     const parsed = JLS.parse(params.get('p') || '');
-    if (params.get('slope')) { setMode('slope'); const want = params.get('slope'); for (const t in SLOPE) if (SLOPE[t].name.toLowerCase() === want.toLowerCase()) lastSlope = t; }
+    if (params.get('slope')) { setMode('slope'); const want = params.get('slope'); for (const t in SLOPE) if (SLOPE[t].name.toLowerCase().replace('(ish)', '') === want.toLowerCase().replace('(ish)', '')) lastSlope = t; }
     else if (parsed.ok && parsed.self) setMode('zip2');
     else if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) setMode(params.get('two') === '1' ? 'zip2' : 'zip');
     else if (parsed.ok && parsed.rev) setMode(params.get('two') === '1' || parsed.pairs ? 'rev2' : 'rev');

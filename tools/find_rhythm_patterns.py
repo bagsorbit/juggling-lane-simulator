@@ -36,9 +36,9 @@ def ball_counts(R, L, max_travel=6, max_balls=9):
                 if held > len(me[t % P]): waits = True
             stock.append(c)
         if not ok: continue
-        t = 2 * P
-        transit = (cum(R, t) - cum(R, t - D)) + (cum(L, t) - cum(L, t - D))
-        n = stock[0] + stock[1] + transit
+        # stock[i] already counts every ball that person has been sent and not yet rolled back, including the ones
+        # still on their way, so the two stocks together are all the balls
+        n = stock[0] + stock[1]
         if 1 <= n <= max_balls:
             out[n] = (D, waits)
     return out

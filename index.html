@@ -789,9 +789,13 @@ const JLS = (function () {
   // rolls: the lane for each beat (z = zip, - = no lane). together: [right hand, left hand] for each beat.
   // When written out, the left hand comes first in each bracket, because lane 1 is on the left.
   const SLOPE_PATTERNS = [
-    { group: 'Hands take turns', items: [
+    { group: 'Mostly hands take turns', items: [
       { name: 'Cascade', lanes: 2, rolls: '12', ss: '3' },
       { name: 'Async Fountain', lanes: 2, rolls: '21', ss: '4' },
+      // the list follows this order within each ball count, so the fountain family sits together
+      { name: 'Sync Fountain', lanes: 2, together: [['2', '1']], ss: [['4', '4']] },
+      { name: 'Wimpy', lanes: 2, together: [['1', '2']], ss: [['4x', '4x']] },
+      { name: 'Splits', lanes: 4, together: [['2', '1'], ['4', '3']], ss: [['4', '4']] },
       { name: 'Five-Ball Cascade', lanes: 2, rolls: '12', ss: '5' },
       { name: 'Two-Ball Shower', lanes: 2, rolls: '1z', ss: '31' },
       { name: 'Shower', lanes: 2, rolls: '1z', ss: '51' },
@@ -804,10 +808,7 @@ const JLS = (function () {
       { name: 'Mills Mess(ish)', lanes: 3, rolls: '123321', ss: '3' },
       { name: 'Boston Mess', lanes: 3, rolls: '123', ss: '3' }] },
     { group: 'Hands together', items: [
-      { name: 'Sync Fountain', lanes: 2, together: [['2', '1']], ss: [['4', '4']] },
-      { name: 'Wimpy', lanes: 2, together: [['1', '2']], ss: [['4x', '4x']] },
-      { name: 'Box', lanes: 2, together: [['2', 'z'], ['z', '1']], ss: [['4', '2x'], ['2x', '4']] },
-      { name: 'Splits', lanes: 4, together: [['2', '1'], ['4', '3']], ss: [['4', '4']] }] }
+      { name: 'Box', lanes: 2, together: [['2', 'z'], ['z', '1']], ss: [['4', '2x'], ['2x', '4']] }] }
   ];
   function gcd(a, b) { return b ? gcd(b, a % b) : a; }
   function slopeText(spec) {

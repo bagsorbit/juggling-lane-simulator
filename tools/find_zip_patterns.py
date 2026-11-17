@@ -6,7 +6,7 @@ straight to the other hand, which rolls it on the very next beat.
 Rules used here
 - One person, hands always take turns, 1 to 5 balls.
 - Each lane is only ever rolled by one hand; every lane 1..K is used.
-- No hand move happens twice in a loop, so each hand zips at most once.
+- No hand move happens twice in a loop. A hand may zip more than once.
 - Timing: every beat one ball is thrown. A zipped ball is thrown again 1 beat
   later. A rolled ball is thrown again an odd number of beats later (odd because
   it has changed sides), at least 3 beats when there is more than one ball.
@@ -28,6 +28,10 @@ def show(seq):
 def key(seq):
     return tuple(9 if x == Z else x for x in seq)   # sorts zips after lanes
 
+def one_zip_each(seq):
+    """True if each hand zips at most once: the stricter rule used for the short pattern list."""
+    return all(sum(1 for i, x in enumerate(seq) if x == Z and i % 2 == h) <= 1 for h in (0, 1))
+
 def valid_shape(seq, k):
     n = len(seq)
     side = {}
@@ -37,7 +41,7 @@ def valid_shape(seq, k):
             zips[i % 2] += 1
         elif side.setdefault(x, i % 2) != i % 2:
             return False
-    if max(zips) > 1 or sum(zips) == 0:
+    if sum(zips) == 0:
         return False
     if set(seq) - {Z} != set(range(1, k + 1)):
         return False
@@ -151,10 +155,11 @@ def embed(path="index.html"):
         everything[str(k)] = {str(n): " ".join(sorted(v, key=lambda s: s.replace("z", "~"))) for n, v in sorted(by_len.items())}
         for n, v in sorted(by_len.items()):
             if n <= 6 and k <= 3:
-                short.append({"group": f"{k} lane{'s' if k > 1 else ''}, {n} beats", "items": everything[str(k)][str(n)].split()})
+                strict = [s for s in everything[str(k)][str(n)].split() if one_zip_each(tuple(Z if c == 'z' else int(c) for c in s))]
+                short.append({"group": f"{k} lane{'s' if k > 1 else ''}, {n} beats", "items": strict})
     # a few 4-lane ones: well-known patterns with their last roll swapped for a zip
     picks = []
-    listed = set(everything["4"]["6"].split()) | set(everything["4"]["8"].split())
+    listed = {s for b in ("6", "8") for s in everything["4"][b].split() if one_zip_each(tuple(Z if c == 'z' else int(c) for c in s))}
     for base in ("121343", "121434", "121314", "132343", "12341432", "12134243"):
         for pos in range(len(base) - 1, 0, -1):
             seq = tuple(Z if i == pos else int(c) for i, c in enumerate(base))
@@ -163,13 +168,13 @@ def embed(path="index.html"):
                 if disp in listed and disp not in picks:
                     picks.append(disp)
                     break
-    # asked for by name: three zips by the same hand, which the no-repeats rule leaves out of the search
-    for extra, k, n in (("1z2z3z", "3", "6"),):
-        seq = tuple(Z if c == "z" else int(c) for c in extra)
-        timings[extra] = {str(b): list(v) for b in (1, 2, 3, 4, 5) for v in [timing(seq, b)] if v}
-        everything[k][n] += " " + extra
+    # asked for by name: the left hand zips every time
+    for extra, group in (("1z2z", "2 lanes, 4 beats"), ("1z2z3z", "3 lanes, 6 beats")):
+        assert extra in timings, extra
         for g in short:
-            if g["group"] == "3 lanes, 6 beats": g["items"].append(extra)
+            if g["group"] == group: g["items"].append(extra)
+    assert "1z2z3z4z" in timings
+    picks.append("1z2z3z4z")
     short.append({"group": "4 lanes, a few to try", "items": picks})
     block = ('<script id="zip-patterns">\nconst ZIP_LIST = ' + json.dumps(short, separators=(",", ":")) +
              ';\nconst ALL_ZIPS = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')

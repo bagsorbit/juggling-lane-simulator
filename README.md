@@ -16,7 +16,7 @@ Open `index.html` in a browser. Pick a pattern from the list or type your own, t
 
 The "Zips" button switches to patterns with zips. A zip, written `z`, is a handoff: the hand passes its ball straight to the other hand, which rolls it on the next beat. Zips need an odd number of balls. Because a zipped ball jumps the queue, the rolls stop taking equal time; the simulator picks the most even timing that works. In zip mode, tapping a number under the lanes turns it into a zip and back.
 
-Reverses also work with 2 people on: the same patterns and ball counts, with each person using their hands in turn.
+Reverses also work with 2 people on: the same patterns and ball counts, with each person using their hands in turn. There are also 6-lane pair patterns with an odd number of brackets, like `[12][34][56]`: each person rolls two at once, and the next time round the other person takes each bracket, so every lane changes direction. They work with 2, 4 or 6 balls.
 
 Zips also work with 2 people on. Then a `z` is a pass zip: the two people meet in the middle of the board and hand the ball across, and it is rolled on the next beat. An `s` is a self zip: a person hands the ball to their own other hand, which rolls it on that person's next turn. The list has every one-person zip pattern (played as pass zips), patterns where both people self zip, and patterns where each person does both. Tapping a number cycles roll, pass zip, self zip.
 
@@ -44,6 +44,7 @@ A link can open on a chosen pattern, for example `index.html?p=121434&b=3&start=
 - `tests/icons.html`: shows every pattern picture at once.
 - `tests/filmstrip.html`: freezes a pattern at a row of moments, for checking the motion by eye.
 - `tools/find_zip_patterns.py`: searches for every zip pattern and its timing; `zip-patterns.txt` is its output.
+- `tools/find_pair_reverse_patterns.py`: searches for reversing pair patterns; `--embed` writes them into `index.html`.
 - `tools/find_two_zip_patterns.py`: searches for two-person patterns with self zips; `--embed` writes the picked list into `index.html`.
 - `tools/find_pair_patterns.py`: searches for the two-at-once patterns for two people.
 - `tools/find_reverse_patterns.py`: searches for patterns with lanes that change direction.

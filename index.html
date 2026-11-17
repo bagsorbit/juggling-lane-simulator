@@ -433,10 +433,15 @@ const JLS = (function () {
       if (part[0] === part[1]) return { ok: false, error: 'One person cannot roll two balls into lane ' + part[0] + ' at the same moment.' };
     }
     if (parts.length > MAX_BRACKETS) return { ok: false, error: 'That is too long. Keep it to ' + MAX_BRACKETS + ' brackets or fewer.' };
-    if (parts.length % 2) return { ok: false, error: 'A pattern needs an even number of brackets, because the two people take turns.' };
     const slots = [parts.map(function (x) { return Number(x[0]); }), parts.map(function (x) { return Number(x[1]); })];
     const lanes = Math.max.apply(null, slots[0].concat(slots[1]));
     const hand = new Array(lanes + 1).fill(-1);
+    if (parts.length % 2) {
+      // an odd number of brackets: next time round each bracket is rolled from the other end, so lanes change direction.
+      // The two paths must keep to their own lanes, so balls on one never meet balls on the other.
+      for (const lane of slots[0]) if (slots[1].indexOf(lane) !== -1) return { ok: false, error: 'With an odd number of brackets, lane ' + lane + ' cannot be in both the first and the second place of the brackets.' };
+      return { ok: true, text: s, seq: slots[0], slots: slots, lanes: lanes, hand: hand, pairs: true, rev: true, zip: false };
+    }
     for (let i = 0; i < parts.length; i++) {
       for (const slot of slots) {
         if (hand[slot[i]] === -1) hand[slot[i]] = i % 2;
@@ -550,6 +555,7 @@ const JLS = (function () {
 
   /* Lanes that change direction: true if, with n balls, a lane is always empty when it is rolled the other way. */
   function revOk(pat, n) {
+    if (pat.pairs) return n % 2 === 0 && pat.slots.every(function (q) { return revOk({ seq: q }, n / 2); });
     const L = pat.seq.length;
     for (let i = 0; i < 2 * L; i++) {
       for (let j = i + 1; j < i + 2 * n + 3; j++) {
@@ -562,6 +568,10 @@ const JLS = (function () {
   }
   /* For each lane, which hand rolled into it last (so which way it is running right now), or -1. */
   function laneHands(u, pat, n) {
+    if (pat.pairs) {                                    // the two paths keep to their own lanes
+      const a = laneHands(u, { seq: pat.slots[0], lanes: pat.lanes }, n / 2), b = laneHands(u, { seq: pat.slots[1], lanes: pat.lanes }, n / 2);
+      return a.map(function (h, lane) { return h === -1 ? b[lane] : h; });
+    }
     const L = pat.seq.length, out = new Array(pat.lanes + 1).fill(-1);
     const latest = n % 2 ? Math.floor(2 * u) : 2 * Math.floor(u) + 1;
     let left = pat.lanes;
@@ -1094,6 +1104,10 @@ const MIX_TOP = ["[13]-|22", "12|-[34]", "111|-2[23]", "1[12]-|4[34]-", "1144|-[
 const ALL_MIX = {"3":{"2":"11|-[23] [13]-|22","3":"111|-2[23] 111|-3[23] 1[13]-|222","4":"1111|-22[23] 1111|-23[23] 1111|-32[23] 1111|-33[23] 11[13]-|2222 13[13]-|2222"},"4":{"2":"12|-[34] 12|[34]- 13|-[24] 13|[24]- 14|-[23] [14]-|23","3":"111|-2[34] 111|-3[24] 111|-4[23] 112|-3[34] 112|-4[34] 112|3[34]- 112|4[34]- 112|[34]-3 112|[34]-4 113|-2[24] 113|-4[24] 113|2[24]- 113|4[24]- 113|[24]-2 113|[24]-4 114|-2[23] 114|-3[23] 114|2[23]- 114|3[23]- 114|[23]-2 114|[23]-3 122|-3[34] 122|-4[34] 122|3[34]- 122|4[34]- 122|[34]-3 122|[34]-4 133|-2[24] 133|-4[24] 133|2[24]- 133|4[24]- 133|[24]-2 133|[24]-4 1[12]-|-3[34] 1[12]-|-4[34] 1[12]-|3[34]- 1[12]-|4[34]- 1[12]-|[34]-3 1[13]-|-2[24] 1[13]-|-4[24] 1[13]-|2[24]- 1[13]-|4[24]- 1[13]-|[24]-2 1[14]-|-2[23] 1[14]-|-3[23] 1[14]-|223 1[14]-|232 1[14]-|233 1[14]-|2[23]- 1[14]-|322 1[14]-|323 1[14]-|332 1[14]-|3[23]- 1[14]-|[23]-2 1[14]-|[23]-3 1[24]-|333 1[34]-|222 [12]-2|-3[34] [12]-2|[34]-3 [13]-3|-2[24] [13]-3|[24]-2 [14]-2|333","4":"1111|-22[34] 1111|-23[24] 1111|-23[34] 1111|-24[23] 1111|-24[34] 1111|-32[24] 1111|-32[34] 1111|-33[24] 1111|-34[23] 1111|-34[24] 1111|-42[23] 1111|-42[34] 1111|-43[23] 1111|-43[24] 1111|-44[23] 1111|-[23]-[24] 1111|-[23]-[34] 1111|-[24]-[34] 1112|-33[34] 1112|-34[34] 1112|-43[34] 1112|-44[34] 1112|-[34]-[34] 1112|33[34]- 1112|34[34]- 1112|3[34]-3 1112|3[34]-4 1112|43[34]- 1112|44[34]- 1112|4[34]-3 1112|4[34]-4 1112|[34]-33 1112|[34]-34 1112|[34]-43 1112|[34]-44 1112|[34]-[34]- 1113|-22[24] 1113|-24[24] 1113|-42[24] 1113|-44[24] 1113|-[24]-[24] 1113|22[24]- 1113|24[24]- 1113|2[24]-2 1113|2[24]-4 1113|42[24]- 1113|44[24]- 1113|4[24]-2 1113|4[24]-4 1113|[24]-22 1113|[24]-24 1113|[24]-42 1113|[24]-44 1113|[24]-[24]- 1114|-22[23] 1114|-23[23] 1114|-32[23] 1114|-33[23] 1114|-[23]-[23] 1114|22[23]- 1114|23[23]- 1114|2[23]-2 1114|2[23]-3 1114|32[23]- 1114|33[23]- 1114|3[23]-2 1114|3[23]-3 1114|[23]-22 1114|[23]-23 1114|[23]-32 1114|[23]-33 1114|[23]-[23]- 1122|-33[34] 1122|-34[34] 1122|-43[34] 1122|-44[34] 1122|-[34]-[34] 1122|33[34]- 1122|34[34]- 1122|3[34]-3 1122|3[34]-4 1122|43[34]- 1122|44[34]- 1122|4[34]-3 1122|4[34]-4 1122|[34]-33 1122|[34]-34 1122|[34]-43 1122|[34]-44 1122|[34]-[34]- 1133|-22[24] 1133|-24[24] 1133|-42[24] 1133|-44[24] 1133|-[24]-[24] 1133|22[24]- 1133|24[24]- 1133|2[24]-2 1133|2[24]-4 1133|42[24]- 1133|44[24]- 1133|4[24]-2 1133|4[24]-4 1133|[24]-22 1133|[24]-24 1133|[24]-42 1133|[24]-44 1133|[24]-[24]- 1144|-22[23] 1144|-23[23] 1144|-32[23] 1144|-33[23] 1144|-[23]-[23] 1144|22[23]- 1144|23[23]- 1144|32[23]- 1144|33[23]- 1144|[23]-[23]- 11[12]-|3334 11[12]-|3343 11[12]-|33[34]- 11[12]-|3433 11[12]-|3434 11[12]-|34[34]- 11[12]-|4333 11[12]-|4343 11[12]-|43[34]- 11[12]-|44[34]- 11[12]-|[34]-33 11[12]-|[34]-34 11[12]-|[34]-43 11[12]-|[34]-44 11[13]-|2224 11[13]-|2242 11[13]-|22[24]- 11[13]-|2422 11[13]-|2424 11[13]-|24[24]- 11[13]-|4222 11[13]-|4242 11[13]-|42[24]- 11[13]-|44[24]- 11[13]-|[24]-22 11[13]-|[24]-24 11[13]-|[24]-42 11[13]-|[24]-44 11[14]-|2223 11[14]-|2232 11[14]-|2233 11[14]-|22[23]- 11[14]-|2322 11[14]-|2323 11[14]-|2332 11[14]-|2333 11[14]-|23[23]- 11[14]-|3222 11[14]-|3223 11[14]-|3232 11[14]-|3233 11[14]-|32[23]- 11[14]-|3322 11[14]-|3323 11[14]-|3332 11[14]-|33[23]- 11[14]-|[23]-22 11[14]-|[23]-23 11[14]-|[23]-32 11[14]-|[23]-33 11[24]-|3333 11[34]-|2222 1212|-33[34] 1212|-34[34] 1212|-43[34] 1212|33[34]- 1212|34[34]- 1212|43[34]- 1222|-33[34] 1222|-34[34] 1222|-43[34] 1222|-[34]-[34] 1222|33[34]- 1222|34[34]- 1222|3[34]-3 1222|3[34]-4 1222|43[34]- 1222|4[34]-3 1222|[34]-33 1222|[34]-34 1222|[34]-43 1222|[34]-[34]- 12[12]-|33[34]- 12[12]-|34[34]- 12[12]-|43[34]- 12[12]-|[34]-33 12[12]-|[34]-34 12[12]-|[34]-43 12[14]-|3333 12[24]-|3333 1313|-22[24] 1313|-24[24] 1313|-42[24] 1313|22[24]- 1313|24[24]- 1313|42[24]- 1333|-22[24] 1333|-24[24] 1333|-42[24] 1333|-[24]-[24] 1333|22[24]- 1333|24[24]- 1333|2[24]-2 1333|2[24]-4 1333|42[24]- 1333|4[24]-2 1333|[24]-22 1333|[24]-24 1333|[24]-42 1333|[24]-[24]- 13[13]-|22[24]- 13[13]-|24[24]- 13[13]-|42[24]- 13[13]-|[24]-22 13[13]-|[24]-24 13[13]-|[24]-42 13[14]-|2222 13[34]-|2222 1414|-22[23] 1414|-23[23] 1414|-32[23] 1414|-33[23] 14[12]-|3333 14[13]-|2222 14[14]-|2223 14[14]-|2232 14[14]-|2233 14[14]-|22[23]- 14[14]-|2322 14[14]-|2323 14[14]-|2332 14[14]-|2333 14[14]-|23[23]- 14[14]-|3222 14[14]-|3223 14[14]-|3232 14[14]-|3233 14[14]-|32[23]- 14[14]-|3322 14[14]-|3323 14[14]-|3332 14[14]-|33[23]- 14[14]-|[23]-22 14[14]-|[23]-23 14[14]-|[23]-32 14[14]-|[23]-33 14[24]-|3333 14[34]-|2222 1[12]-2|-33[34] 1[12]-2|-34[34] 1[12]-2|3[34]-3 1[12]-2|4[34]-3 1[13]-3|-22[24] 1[13]-3|-24[24] 1[13]-3|2[24]-2 1[13]-3|4[24]-2 1[14]-2|3333 1[14]-3|2222 1[24]-2|3333 1[34]-3|2222 [12]-22|33[34]- [12]-22|[34]-33 [12]-[14]-|3333 [12]-[24]-|3333 [13]-33|22[24]- [13]-33|[24]-22 [13]-[14]-|2222 [14]-22|3333 [14]-[14]-|2223 [14]-[14]-|2232 [14]-[14]-|2233 [14]-[14]-|2332"}};
 </script>
 
+<script id="rev-pair-patterns">
+const REV_PAIR_LIST = [{"group":"Two at once, 6 lanes","items":["[12][34][56]","[12][34][65]","[14][25][36]","[13][25][46]","[16][25][34]","[16][25][43]","[16][34][52]","[16][43][52]"]}];
+const ALL_REV_PAIRS = {"6":{"3":"[12][34][56] [12][34][65] [12][35][46] [12][35][64] [12][36][45] [12][36][54] [12][43][56] [12][45][63] [12][46][53] [12][53][64] [12][54][63] [13][25][46] [13][25][64] [13][26][45] [13][26][54] [13][45][62] [13][46][52] [13][54][62] [14][25][36] [14][25][63] [14][26][35] [14][26][53] [14][35][62] [14][36][52] [14][53][62] [15][26][34] [15][26][43] [15][34][62] [16][23][45] [16][23][54] [16][24][35] [16][24][53] [16][25][34] [16][25][43] [16][32][54] [16][34][52] [16][42][53] [16][43][52]"}};
+</script>
 <script id="reverse-patterns">
 const REV_LIST = [{"group":"3 lanes","items":["123","121323","123132"]},{"group":"4 lanes, 5 rolls","items":["12134","12314","12324","12342","12413","12423"]},{"group":"5 lanes, 5 rolls","items":["12345","12354","12435","12453","12534","13425","13524","14325"]},{"group":"1 lane, 1 ball","items":["1"]}];
 const ALL_REVS = {"3":{"3":"123","6":"121323 123132","8":"12132123 12313213"},"4":{"5":"12134 12314 12324 12342 12413 12423","6":"121324 123124 123134 123142 123143 123243 123413 123423 124134 124143","7":"1213234 1213243 1213424 1214234 1231324 1231342 1231424 1231432 1232134 1232413 1234142 1234143 1234213 1241323 1241342 1241423 1242134 1242314","8":"12131424 12131434 12132124 12132134 12132143 12132314 12132343 12132423 12132434 12134124 12134134 12134143 12134234 12134314 12134324 12142134 12142324 12143134 12312314 12312324 12312342 12312343 12312413 12312423 12312432 12313214 12313242 12313243 12313413 12313423 12313424 12313432 12314124 12314132 12314134 12314213 12314214 12314243 12314314 12314323 12314324 12321314 12321324 12321343 12321424 12324124 12324134 12324142 12324143 12324213 12324214 12324314 12324323 12341323 12341342 12341343 12341423 12342142 12342143 12342413 12342432 12343142 12412413 12412423 12413142 12413143 12413413 12413423 12414213 12414314 12421314 12421323 12421324 12423134 12423143"},"5":{"5":"12345 12354 12435 12453 12534 13425 13524 14325","6":"123145 123154 123425 123453 123524 123543 124135 124153 124325 124354 124523 125134 125143 125324 132435 132534 134235 135234","7":"1213145 1213154 1213245 1213254 1213415 1213425 1213435 1213453 1213454 1213514 1213524 1213534 1213545 1214135 1214235 1214315 1214325 1214345 1214354 1214535 1215345 1231345 1231354 1231415 1231425 1231435 1231452 1231454 1231514 1231524 1231534 1231542 1232145 1232415 1232425 1232435 1232452 1232453 1232454 1232514 1232524 1232534 1232542 1232543 1234135 1234145 1234152 1234153 1234215 1234245 1234252 1234253 1234254 1234315 1234325 1234352 1234353 1234354 1234513 1234514 1234524 1234532 1234542 1235134 1235142 1235143 1235154 1235214 1235242 1235243 1235245 1235254 1235314 1235324 1235342 1235343 1235413 1235415 1235424 1235425 1241315 1241325 1241352 1241353 1241435 1241453 1241513 1241523 1241535 1242135 1242315 1242325 1242352 1242353 1242354 1242513 1242523 1242534 1242535 1243135 1243145 1243152 1243154 1243235 1243252 1243253 1243254 1243415 1243425 1243513 1243514 1243523 1243525 1243534 1243542 1245134 1245143 1245153 1245213 1245234 1245253 1245323 1245352 1251314 1251324 1251343 1251354 1251413 1251423 1251434 1251453 1251534 1252134 1252314 1252324 1252343 1252354 1252413 1252423 1252434 1252435 1253134 1253145 1253154 1253234 1253243 1253413 1253415 1253423 1253424 1253435 1253514 1253524 1314235 1314325 1323415 1323425 1323435 1323514 1323524 1323534 1324153 1324235 1324253 1324315 1324353 1325143 1325234 1325243 1325314 1341425 1341525 1342325 1342353 1342415 1342514 1342524 1343235 1343253 1351424 1351524 1352324 1352514 1423415 1424325 1425234"}};
@@ -1190,7 +1204,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     zip2: ['1zs2zs', '12s43s', '1s24s3', '1z2zs3zs', '121z'],
     two: ['1232', '[13][24][31][42]', '[14][23][41][32]', '[12][34][21][43]', '[13][24][13][42][31][42]'],
     rev: ['123', '12345', '12342', '123132', '13524'],
-    rev2: ['123', '12345', '12342', '123132', '13524'],
+    rev2: ['[12][34][56]', '[16][25][34]', '[14][25][36]', '123', '12345'],
     mix: MIX_TOP,
     slope: ['Cascade', 'Shower', '441', 'Mills Mess', 'Splits'].map(function (name) { for (const t in SLOPE) if (SLOPE[t].name === name) return t; })
   };
@@ -1234,9 +1248,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (parsed.slope) { /* remembered above */ }
     else if (parsed.zip && state.twoMode) lastZips2 = parsed.text;
     else if (parsed.zip) lastZips = parsed.text;
+    else if (parsed.rev) lastRev = parsed.text;
     else if (parsed.pairs) lastTwo = parsed.text;
     else if (parsed.mixed) lastMix = parsed.text;
-    else if (parsed.rev) lastRev = parsed.text;
     else if (!state.zipMode) lastRolls = parsed.text;
     return '';
   }
@@ -1249,7 +1263,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (params.get('slope')) { setMode('slope'); const want = params.get('slope'); for (const t in SLOPE) if (SLOPE[t].name.toLowerCase() === want.toLowerCase()) lastSlope = t; }
     else if (parsed.ok && parsed.self) setMode('zip2');
     else if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) setMode(params.get('two') === '1' ? 'zip2' : 'zip');
-    else if (parsed.ok && parsed.rev) setMode(params.get('two') === '1' ? 'rev2' : 'rev');
+    else if (parsed.ok && parsed.rev) setMode(params.get('two') === '1' || parsed.pairs ? 'rev2' : 'rev');
     else if (parsed.ok && parsed.mixed) setMode('mix');
     else if (params.get('two') === '1' || (parsed.ok && parsed.pairs)) setMode('two');
     if (setPattern(state.slopeMode ? parseAny(lastSlope) : parsed.ok ? parsed : JLS.parse(state.zipMode ? (state.twoMode ? lastZips2 : lastZips) : state.twoMode ? lastTwo : lastRolls), n)) setPattern(JLS.parse('1234'), 3);
@@ -1270,7 +1284,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       const pass = ZIP_LIST.map(function (g) { return { group: 'Pass zips, ' + g.group, items: g.items }; });
       return ZIP2_LIST.concat(pass).filter(function (g) { return g.items.length; }).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return ['', t]; }) }; });
     }
-    if (state.zipMode || state.revMode || state.mixMode) return (state.zipMode ? ZIP_LIST : state.revMode ? REV_LIST : MIX_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return ['', t]; }) }; });
+    if (state.zipMode || state.revMode || state.mixMode) return (state.zipMode ? ZIP_LIST : state.revMode ? (state.twoMode ? REV_PAIR_LIST.concat(REV_LIST) : REV_LIST) : MIX_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return ['', t]; }) }; });
     return state.twoMode ? PAIR_LIST.concat(JLS.CATALOGUE) : JLS.CATALOGUE;
   }
   function fillPatternList() {
@@ -1481,7 +1495,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   inCustom.addEventListener('input', function () {
     const parsed = JLS.parse(inCustom.value);
     if (!inCustom.value.trim()) { error = ''; inCustom.classList.remove('bad'); showInfo(); return; }
-    const needs = !parsed.ok ? '' : parsed.self ? 'zip2' : parsed.zip ? (state.twoMode ? 'zip2' : 'zip') : parsed.mixed ? 'mix' : parsed.pairs ? 'two' : parsed.rev ? (state.twoMode ? 'rev2' : 'rev') : '';
+    const needs = !parsed.ok ? '' : parsed.self ? 'zip2' : parsed.zip ? (state.twoMode ? 'zip2' : 'zip') : parsed.mixed ? 'mix' : parsed.rev ? (state.twoMode || parsed.pairs ? 'rev2' : 'rev') : parsed.pairs ? 'two' : '';
     if (needs && modeName() !== needs && !(needs === 'two' && state.twoMode)) { setMode(needs); fillPatternList(); }
     const changed = !parsed.ok || parsed.text !== state.pat.text;
     error = setPattern(parsed, state.n);
@@ -1537,7 +1551,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (state.revMode) {                         // the same reversing pattern, played by one person or two
       setMode(state.twoMode ? 'rev' : 'rev2');
       fillPatternList();
-      choose(state.pat.text);
+      choose(state.pat.pairs ? '123' : state.pat.text);   // pairs need two people
       return;
     }
     setMode(state.twoMode ? '' : 'two');
@@ -1625,8 +1639,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       add(ALL_MIX, '');
     } else if (state.revMode) {
       wallTitle.textContent = 'All reversing patterns';
-      wallNote.textContent = 'Patterns in which lanes change direction. A lane can only be rolled the other way once it is empty, so each pattern has a top number of balls. These are the ones of up to 8 rolls (7 on five lanes) that work with at least 3 balls. Tap one to play it.' + same + ' Running backwards also counts as the same.';
-      add(ALL_REVS, '');
+      wallNote.textContent = 'Patterns in which lanes change direction. A lane can only be rolled the other way once it is empty, so each pattern has a top number of balls. These are the ones of up to 8 rolls (7 on five lanes) that work with at least 3 balls.' + (state.twoMode ? ' In brackets, each person rolls two balls at once; with an odd number of brackets the other person takes each bracket the next time round, so every lane changes direction.' : '') + ' Tap one to play it.' + same + ' Running backwards also counts as the same.';
+      if (state.twoMode) add(ALL_REV_PAIRS, ', two at once');
+      add(ALL_REVS, state.twoMode ? ', one at a time' : '');
     } else if (state.twoMode) {
       wallTitle.textContent = 'All two-person patterns';
       wallNote.textContent = 'In brackets, each person rolls two balls at once: [14] means lanes 1 and 4 together. Below those are the one-at-a-time patterns, played with each person swapping hands. Tap one to play it. The underlined ones have names in the pattern list.' + same;

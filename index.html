@@ -1331,14 +1331,15 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     zip: ['1z2z', '1z2z3z', '1z', '121z', '121z13'],
     zip2: ['1zs2zs', '12s43s', '1s24s3', '1z2zs3zs', '121z'],
     two: ['1232', '[13][24][31][42]', '[14][23][41][32]', '[12][34][21][43]', '[13][24][13][42][31][42]'],
-    rev: ['123', '12345', '12342', '123132', '13524'],
+    rev: ['123', '12345', '121323', '123132', '12342143'],
     rev2: ['[12][34][56]', '[16][25][34]', '[14][25][36]', '123', '12345'],
     mix: MIX_TOP,
     slope: ['Cascade', 'Shower', '441', 'Mills Mess', 'Splits'].map(function (name) { for (const t in SLOPE) if (SLOPE[t].name === name) return t; })
   };
   // the ball count each top-five pattern starts with, where it has one
   const TOP_BALLS = { one: { '1232': 5, '12': 4, '1213': 3, '123432': 5, '141323': 5 },
-                     zip: { '1z2z': 3, '1z2z3z': 3, '1z': 3, '121z': 4, '121z13': 5 } };
+                     zip: { '1z2z': 3, '1z2z3z': 3, '1z': 3, '121z': 4, '121z13': 5 },
+                     rev: { '123': 3, '12345': 5, '121323': 3, '123132': 3, '12342143': 4 } };
   function topBalls(mode, text) { return (TOP_BALLS[mode] || {})[text] || 0; }
   function modeName() { return state.slopeMode ? 'slope' : state.zipMode && state.twoMode ? 'zip2' : state.zipMode ? 'zip' : state.revMode && state.twoMode ? 'rev2' : state.mixMode ? 'mix' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
 

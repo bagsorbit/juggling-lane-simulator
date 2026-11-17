@@ -111,6 +111,7 @@ h1, .strip, .info, .controls { flex: none; }
 .pair.br { background: none; padding: 2px 5px; border: 3px solid var(--ink); border-top-color: transparent; border-bottom-color: transparent; border-radius: 9px; }
 .cell { display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .cell small { font-size: 12px; font-weight: 600; line-height: 1; opacity: .75; }
+.tile.n { background: #efe9d8; }
 .tile.z { background: #c0eb75; font-style: italic; }
 .tile.tap { cursor: pointer; user-select: none; -webkit-user-select: none; }
 .tile.on { background: var(--sun); transform: translateY(-4px); box-shadow: 0 4px 0 var(--ink); }
@@ -217,7 +218,8 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   .pair.br .tile { width: 20px; height: 28px; font-size: 15px; border-width: 2px; border-radius: 7px; }
   .strip:has(.br) { gap: 3px; }
   .modes { top: 6px; left: 6px; gap: 5px; }
-  .modebtn { height: 30px; padding: 0 9px; font-size: 13px; }
+  .modebtn { height: 30px; padding: 0 7px; font-size: 12.5px; }
+  .modes { gap: 4px; }
   .lucky { left: 6px; bottom: 8px; width: 32px; padding: 0; justify-content: center; }
   .lucky span { display: none; }
   .seg button { font-size: 14px; }
@@ -263,7 +265,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
 <main class="app">
   <h1>Juggling Lane Simulator</h1>
 
-  <div class="stage" id="stage"><div class="modes"><button type="button" class="modebtn" id="twoMode" aria-pressed="false">1 person</button><button type="button" class="modebtn" id="zipMode" aria-pressed="false">Zips off</button></div><button type="button" class="modebtn lucky" id="lucky" aria-label="Play a random pattern from the top five"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#fff" stroke="#2d2a4a" stroke-width="2.4"/><g fill="#2d2a4a"><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="8" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="8" cy="16" r="1.9"/><circle cx="16" cy="16" r="1.9"/></g></svg><span>Random top 5</span></button><div class="badge" id="badge" aria-hidden="true"></div><canvas id="board" role="img" aria-label="Animation of balls rolling across lanes and being carried between them by two hands"></canvas></div>
+  <div class="stage" id="stage"><div class="modes"><button type="button" class="modebtn" id="twoMode" aria-pressed="false">1 person</button><button type="button" class="modebtn" id="zipMode" aria-pressed="false">Zips off</button><button type="button" class="modebtn" id="revMode" aria-pressed="false">Reverses off</button></div><button type="button" class="modebtn lucky" id="lucky" aria-label="Play a random pattern from the top five"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#fff" stroke="#2d2a4a" stroke-width="2.4"/><g fill="#2d2a4a"><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="8" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="8" cy="16" r="1.9"/><circle cx="16" cy="16" r="1.9"/></g></svg><span>Random top 5</span></button><div class="badge" id="badge" aria-hidden="true"></div><canvas id="board" role="img" aria-label="Animation of balls rolling across lanes and being carried between them by two hands"></canvas></div>
 
   <div class="strip" id="strip" aria-label="Pattern, one number per roll"></div>
   <p class="info" id="info" role="status"></p>
@@ -388,20 +390,22 @@ const JLS = (function () {
     const zip = s.indexOf('z') !== -1;
     const most = zip ? MAX_ZIP_BEATS : MAX_BEATS;
     if (s.length > most) return { ok: false, error: 'That is too long. Keep it to ' + most + ' rolls or fewer.' };
-    if (s.length % 2) return { ok: false, error: 'A pattern needs an even number of rolls, because the hands take turns.' };
+    if (zip && s.length % 2) return { ok: false, error: 'A pattern with zips needs an even number of rolls, because the hands take turns.' };
     const seq = Array.from(s, function (c) { return c === 'z' ? 0 : Number(c); });
     const lanes = Math.max.apply(null, seq);
     if (!lanes) return { ok: false, error: 'A pattern needs at least one roll as well as its zips.' };
-    const hand = new Array(lanes + 1).fill(-1);   // hand[lane] = 0 or 1: which hand rolls that lane
+    const hand = new Array(lanes + 1).fill(-1);   // hand[lane] = 0 or 1: which hand rolls that lane (the first time)
+    let rev = s.length % 2 === 1;                 // rev: some lane is rolled from both ends, so it changes direction
     for (let i = 0; i < seq.length; i++) {
       if (!seq[i]) continue;
       const h = i % 2;
       if (hand[seq[i]] === -1) hand[seq[i]] = h;
       else if (hand[seq[i]] !== h) {
-        return { ok: false, error: 'Lane ' + seq[i] + ' is rolled by both hands, so it would have to run both ways.' };
+        if (zip) return { ok: false, error: 'Lane ' + seq[i] + ' is rolled by both hands. Lanes cannot change direction in a pattern with zips.' };
+        rev = true;
       }
     }
-    return { ok: true, text: s, seq: seq, lanes: lanes, hand: hand, zip: zip };
+    return { ok: true, text: s, seq: seq, lanes: lanes, hand: hand, zip: zip, rev: rev };
   }
 
   /* How long things take with n balls.
@@ -469,6 +473,30 @@ const JLS = (function () {
       } else {
         out.push({ hand: h, state: 'carry', from: catchLane, to: pat.seq[mod(coming, L)], p: (f - (1 - tm.hold)) / tm.hold });
       }
+    }
+    return out;
+  }
+
+  /* Lanes that change direction: true if, with n balls, a lane is always empty when it is rolled the other way. */
+  function revOk(pat, n) {
+    const L = pat.seq.length;
+    for (let i = 0; i < 2 * L; i++) {
+      for (let j = i + 1; j < i + 2 * n + 3; j++) {
+        if (pat.seq[i % L] !== pat.seq[j % L] || (j - i) % 2 === 0) continue;       // another lane, or the same direction
+        const gap = n % 2 ? j - i : 2 * (Math.floor(j / 2) - Math.floor(i / 2));
+        if (gap < n) return false;                                                  // the first ball is still on its way
+      }
+    }
+    return true;
+  }
+  /* For each lane, which hand rolled into it last (so which way it is running right now), or -1. */
+  function laneHands(u, pat, n) {
+    const L = pat.seq.length, out = new Array(pat.lanes + 1).fill(-1);
+    const latest = n % 2 ? Math.floor(2 * u) : 2 * Math.floor(u) + 1;
+    let left = pat.lanes;
+    for (let i = latest; i > latest - 2 * L - 2 && left; i--) {
+      const lane = pat.seq[mod(i, L)];
+      if (out[lane] === -1) { out[lane] = mod(i, 2); left--; }
     }
     return out;
   }
@@ -684,6 +712,7 @@ const JLS = (function () {
 
   return { MAX_LANES: MAX_LANES, MAX_BEATS: MAX_BEATS, MAX_BALLS: MAX_BALLS, CATALOGUE: CATALOGUE,
            parse: parse, timing: timing, nextRoll: nextRoll,
+           revOk: revOk, laneHands: laneHands,
            hands2: hands2, pairBalls: pairBalls, pairHands: pairHands,
            solveTiming: solveTiming, zipPlan: zipPlan, zipBalls: zipBalls, zipHands: zipHands, zipPaths: zipPaths, balls: balls, hands: hands, active: active };
 })();
@@ -755,6 +784,11 @@ function iconSvg(name) {
 }
 </script>
 
+<script id="reverse-patterns">
+const REV_LIST = [{"group":"3 lanes","items":["123","121323","123132"]},{"group":"4 lanes, 5 rolls","items":["12134","12314","12324","12342","12413","12423"]},{"group":"5 lanes, 5 rolls","items":["12345","12354","12435","12453","12534","13425","13524","14325"]},{"group":"1 lane, 1 ball","items":["1"]}];
+const ALL_REVS = {"3":{"3":"123","6":"121323 123132","8":"12132123 12313213"},"4":{"5":"12134 12314 12324 12342 12413 12423","6":"121324 123124 123134 123142 123143 123243 123413 123423 124134 124143","7":"1213234 1213243 1213424 1214234 1231324 1231342 1231424 1231432 1232134 1232413 1234142 1234143 1234213 1241323 1241342 1241423 1242134 1242314","8":"12131424 12131434 12132124 12132134 12132143 12132314 12132343 12132423 12132434 12134124 12134134 12134143 12134234 12134314 12134324 12142134 12142324 12143134 12312314 12312324 12312342 12312343 12312413 12312423 12312432 12313214 12313242 12313243 12313413 12313423 12313424 12313432 12314124 12314132 12314134 12314213 12314214 12314243 12314314 12314323 12314324 12321314 12321324 12321343 12321424 12324124 12324134 12324142 12324143 12324213 12324214 12324314 12324323 12341323 12341342 12341343 12341423 12342142 12342143 12342413 12342432 12343142 12412413 12412423 12413142 12413143 12413413 12413423 12414213 12414314 12421314 12421323 12421324 12423134 12423143"},"5":{"5":"12345 12354 12435 12453 12534 13425 13524 14325","6":"123145 123154 123425 123453 123524 123543 124135 124153 124325 124354 124523 125134 125143 125324 132435 132534 134235 135234","7":"1213145 1213154 1213245 1213254 1213415 1213425 1213435 1213453 1213454 1213514 1213524 1213534 1213545 1214135 1214235 1214315 1214325 1214345 1214354 1214535 1215345 1231345 1231354 1231415 1231425 1231435 1231452 1231454 1231514 1231524 1231534 1231542 1232145 1232415 1232425 1232435 1232452 1232453 1232454 1232514 1232524 1232534 1232542 1232543 1234135 1234145 1234152 1234153 1234215 1234245 1234252 1234253 1234254 1234315 1234325 1234352 1234353 1234354 1234513 1234514 1234524 1234532 1234542 1235134 1235142 1235143 1235154 1235214 1235242 1235243 1235245 1235254 1235314 1235324 1235342 1235343 1235413 1235415 1235424 1235425 1241315 1241325 1241352 1241353 1241435 1241453 1241513 1241523 1241535 1242135 1242315 1242325 1242352 1242353 1242354 1242513 1242523 1242534 1242535 1243135 1243145 1243152 1243154 1243235 1243252 1243253 1243254 1243415 1243425 1243513 1243514 1243523 1243525 1243534 1243542 1245134 1245143 1245153 1245213 1245234 1245253 1245323 1245352 1251314 1251324 1251343 1251354 1251413 1251423 1251434 1251453 1251534 1252134 1252314 1252324 1252343 1252354 1252413 1252423 1252434 1252435 1253134 1253145 1253154 1253234 1253243 1253413 1253415 1253423 1253424 1253435 1253514 1253524 1314235 1314325 1323415 1323425 1323435 1323514 1323524 1323534 1324153 1324235 1324253 1324315 1324353 1325143 1325234 1325243 1325314 1341425 1341525 1342325 1342353 1342415 1342514 1342524 1343235 1343253 1351424 1351524 1352324 1352514 1423415 1424325 1425234"}};
+</script>
+
 <script id="pair-patterns">
 const PAIR_LIST = [{"group":"Two at once, 4 rolls","items":[["","[12][34]"],["","[12][43]"],["","[13][24]"],["","[13][42]"],["","[14][23]"],["","[14][32]"]]},{"group":"Two at once, 8 rolls","items":[["","[12][34][12][43]"],["Loop de Loop for Two","[12][34][21][43]"],["","[13][24][13][42]"],["Scarf for Two","[13][24][31][42]"],["","[14][23][14][32]"],["","[14][23][41][23]"],["Mobius for Two","[14][23][41][32]"],["","[14][32][41][23]"]]},{"group":"Two at once, 12 rolls","items":[["","[12][34][12][43][21][43]"],["","[12][34][21][34][12][43]"],["","[13][24][13][42][31][42]"],["","[13][24][31][24][13][42]"],["","[14][23][14][32][41][32]"],["","[14][23][41][23][14][32]"]]}];
 const ALL_PAIRS = {"4":{"4":"[12][34] [12][43] [13][24] [13][42] [14][23] [14][32]","8":"[12][34][12][43] [12][34][21][43] [13][24][13][42] [13][24][31][42] [14][23][14][32] [14][23][41][23] [14][23][41][32] [14][32][41][23]","12":"[12][34][12][43][21][43] [12][34][21][34][12][43] [13][24][13][42][31][42] [13][24][31][24][13][42] [14][23][14][32][41][32] [14][23][41][23][14][32]"},"5":{"8":"[12][34][12][45] [12][34][12][53] [12][34][15][43] [12][34][21][35] [12][34][21][45] [12][34][21][53] [12][34][21][54] [12][34][25][34] [12][34][25][43] [12][34][51][34] [12][34][51][43] [12][34][52][43] [12][35][12][43] [12][35][12][54] [12][35][14][53] [12][35][21][34] [12][35][21][45] [12][35][21][54] [12][35][24][35] [12][35][24][53] [12][35][41][35] [12][35][41][53] [12][35][42][53] [12][43][12][54] [12][43][15][34] [12][43][21][35] [12][43][21][45] [12][43][21][54] [12][43][25][34] [12][43][25][43] [12][43][51][34] [12][43][51][43] [12][43][52][34] [12][45][12][53] [12][45][21][35] [12][45][31][54] [12][53][14][35] [12][53][24][35] [12][53][24][53] [12][53][41][35] [12][53][41][53] [12][53][42][35] [13][24][13][52] [13][24][15][42] [13][24][31][25] [13][24][31][52] [13][24][35][24] [13][24][35][42] [13][24][51][24] [13][24][51][42] [13][24][53][42] [13][25][13][42] [13][25][14][52] [13][25][31][24] [13][25][34][25] [13][25][34][52] [13][25][41][25] [13][25][41][52] [13][25][43][52] [13][42][15][24] [13][42][31][25] [13][42][35][42] [13][42][51][24] [13][42][51][42] [13][42][53][24] [13][52][14][25] [13][52][34][25] [13][52][34][52] [13][52][41][25] [13][52][41][52] [13][52][43][25] [14][23][14][52] [14][23][15][32] [14][23][41][25] [14][23][41][52] [14][23][51][23] [14][23][51][32] [14][25][14][32] [14][25][41][23] [14][25][43][52] [14][32][15][23] [14][32][51][23] [14][32][51][32] [15][23][15][34] [15][23][15][42] [15][23][51][24] [15][23][51][34] [15][23][51][42] [15][23][51][43] [15][24][15][32] [15][24][51][23] [15][32][15][43] [15][32][51][24] [15][32][51][34]"}};
@@ -782,7 +816,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   const $ = function (id) { return document.getElementById(id); };
   const stage = $('stage'), canvas = $('board'), ctx = canvas.getContext('2d');
-  const strip = $('strip'), info = $('info'), badge = $('badge'), zipBtn = $('zipMode'), twoBtn = $('twoMode');
+  const strip = $('strip'), info = $('info'), badge = $('badge'), zipBtn = $('zipMode'), twoBtn = $('twoMode'), revBtn = $('revMode');
   const wall = $('wall'), wallBody = $('wallBody'), wallNote = $('wallNote'), wallTitle = $('wallTitle');
   const selPattern = $('pattern'), inCustom = $('custom');
   const btnLess = $('less'), btnMore = $('more'), outCount = $('count');
@@ -798,22 +832,26 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     speed: 1,
     playing: !reduceMotion,
     zipMode: false,
-    twoMode: false
+    twoMode: false,
+    revMode: false
   };
   let tm = JLS.timing(state.n);
   let plan = null;           // set when the pattern has zips
   let u = 0;                 // time, in hand cycles
   let error = '';
   let under = [];            // the numbers hidden under zips that were made by tapping
-  let lastRolls = '1234', lastZips = '121z', lastTwo = '[13][24][31][42]';
+  let lastRolls = '1234', lastZips = '121z', lastTwo = '[13][24][31][42]', lastRev = '123';
+  /* Only one of the three special modes can be on at a time. */
+  function setMode(name) { state.zipMode = name === 'zip'; state.twoMode = name === 'two'; state.revMode = name === 'rev'; }
 
   // The five patterns picked out in each mode: starred in the list, and what the "Random top 5" button plays.
   const TOP5 = {
     one: ['1213', '123432', '1243', '121434', '12134243'],
     zip: ['121z', '1z', '123z', '12zz', '12143z'],
-    two: ['1232', '[13][24][31][42]', '[14][23][41][32]', '[12][34][21][43]', '[13][24][13][42][31][42]']
+    two: ['1232', '[13][24][31][42]', '[14][23][41][32]', '[12][34][21][43]', '[13][24][13][42][31][42]'],
+    rev: ['123', '12345', '12342', '123132', '13524']
   };
-  function modeName() { return state.zipMode ? 'zip' : state.twoMode ? 'two' : 'one'; }
+  function modeName() { return state.zipMode ? 'zip' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
 
   /* Switch to a pattern and ball count. Returns '' if it worked, or the reason it can't be played. */
   function setPattern(parsed, n) {
@@ -827,11 +865,21 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       }
       if (!p) return 'No timing works for that pattern with ' + n + (n === 1 ? ' ball.' : ' balls.');
     }
+    if (parsed.rev) {
+      // lanes that change direction must be empty when they do, which limits the ball count
+      let m = 0;
+      for (let d = 0; d < JLS.MAX_BALLS && !m; d++) {
+        for (const c of [n + d, n - d]) if (!m && c >= 1 && c <= JLS.MAX_BALLS && JLS.revOk(parsed, c)) m = c;
+      }
+      if (!m) return 'Balls would meet head-on in a lane, whatever the number of balls.';
+      n = m;
+    }
     if (parsed.pairs) n = Math.max(2, Math.min(8, n % 2 ? n + 1 : n));   // pairs need an even number of balls
     plan = p; state.pat = parsed; state.n = n;
     tm = JLS.timing(parsed.pairs ? n / 2 : n);
     if (parsed.zip) lastZips = parsed.text;
     else if (parsed.pairs) lastTwo = parsed.text;
+    else if (parsed.rev) lastRev = parsed.text;
     else if (!state.zipMode) lastRolls = parsed.text;
     return '';
   }
@@ -841,8 +889,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const b = parseInt(params.get('b'), 10);
     const n = b >= 1 && b <= JLS.MAX_BALLS ? b : state.n;
     const parsed = JLS.parse(params.get('p') || '');
-    if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) state.zipMode = true;
-    else if (params.get('two') === '1' || (parsed.ok && parsed.pairs)) state.twoMode = true;
+    if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) setMode('zip');
+    else if (parsed.ok && parsed.rev) setMode('rev');
+    else if (params.get('two') === '1' || (parsed.ok && parsed.pairs)) setMode('two');
     if (setPattern(parsed.ok ? parsed : JLS.parse(state.zipMode ? lastZips : state.twoMode ? lastTwo : lastRolls), n)) setPattern(JLS.parse('1234'), 3);
     if (params.get('start') === 'left') state.startRight = false;
     const sp = parseFloat(params.get('speed'));
@@ -855,7 +904,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* ---------- pattern list ---------- */
   /* The groups shown in the pattern list for the current mode, each item as [name, pattern]. */
   function listGroups() {
-    if (state.zipMode) return ZIP_LIST.map(function (g) { return { group: g.group, items: g.items.map(function (t) { return ['', t]; }) }; });
+    if (state.zipMode || state.revMode) return (state.zipMode ? ZIP_LIST : REV_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return ['', t]; }) }; });
     return state.twoMode ? PAIR_LIST.concat(JLS.CATALOGUE) : JLS.CATALOGUE;
   }
   function fillPatternList() {
@@ -893,11 +942,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   function buildStrip() {
     strip.textContent = '';
-    const pat = state.pat, together = !plan && !pat.pairs && state.n % 2 === 0;
+    const pat = state.pat, together = !plan && !pat.pairs && state.n % 2 === 0 && pat.seq.length % 2 === 0;
     let holder = strip;
     function tile(lane, i) {
       const t = document.createElement('span');
-      t.className = 'tile ' + (lane ? (sideOf(i % 2) === RIGHT ? 'r' : 'b') : 'z');
+      t.className = 'tile ' + (!lane ? 'z' : pat.rev ? 'n' : sideOf(i % 2) === RIGHT ? 'r' : 'b');
       t.textContent = lane || 'z';
       t.dataset.b = i;
       return t;
@@ -958,7 +1007,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* The next ball count up or down that this pattern can be played with, or 0 if there is none. */
   function nextBalls(by) {
     for (let n = state.n + by * ballStep(); n >= ballLimits()[0] && n <= ballLimits()[1]; n += by * ballStep()) {
-      if (!state.pat.zip || JLS.zipPlan(state.pat, n)) return n;
+      if (state.pat.zip ? JLS.zipPlan(state.pat, n) : !state.pat.rev || JLS.revOk(state.pat, n)) return n;
     }
     return 0;
   }
@@ -978,6 +1027,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     zipBtn.setAttribute('aria-pressed', String(state.zipMode));
     twoBtn.textContent = state.twoMode ? '2 people' : '1 person';
     twoBtn.setAttribute('aria-pressed', String(state.twoMode));
+    revBtn.textContent = state.revMode ? 'Reverses on' : 'Reverses off';
+    revBtn.setAttribute('aria-pressed', String(state.revMode));
     inSpeed.value = state.speed;
     inCustom.setAttribute('inputmode', state.zipMode ? 'text' : 'numeric');
     selPattern.value = state.pat.text;
@@ -1003,8 +1054,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   inCustom.addEventListener('input', function () {
     const parsed = JLS.parse(inCustom.value);
     if (!inCustom.value.trim()) { error = ''; inCustom.classList.remove('bad'); showInfo(); return; }
-    if (parsed.ok && parsed.zip && !state.zipMode) { state.zipMode = true; state.twoMode = false; fillPatternList(); }
-    if (parsed.ok && parsed.pairs && !state.twoMode) { state.twoMode = true; state.zipMode = false; fillPatternList(); }
+    const needs = !parsed.ok ? '' : parsed.zip ? 'zip' : parsed.pairs ? 'two' : parsed.rev ? 'rev' : '';
+    if (needs && modeName() !== needs) { setMode(needs); fillPatternList(); }
     const changed = !parsed.ok || parsed.text !== state.pat.text;
     error = setPattern(parsed, state.n);
     if (error) { inCustom.classList.add('bad'); showInfo(); return; }
@@ -1029,8 +1080,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   inSpeed.addEventListener('input', function () { state.speed = parseFloat(inSpeed.value) || 1; });
   btnPlay.addEventListener('click', function () { state.playing = !state.playing; btnPlay.textContent = state.playing ? 'Pause' : 'Play'; kick(); });
   zipBtn.addEventListener('click', function () {
-    state.zipMode = !state.zipMode;
-    state.twoMode = false;                       // zips are for one person
+    setMode(state.zipMode ? '' : 'zip');         // zips are for one person
     fillPatternList();
     choose(state.zipMode ? lastZips : lastRolls);
   });
@@ -1039,10 +1089,14 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     choose(picks[Math.floor(Math.random() * picks.length)]);
   });
   twoBtn.addEventListener('click', function () {
-    state.twoMode = !state.twoMode;
-    state.zipMode = false;
+    setMode(state.twoMode ? '' : 'two');
     fillPatternList();
     choose(state.twoMode ? lastTwo : lastRolls);
+  });
+  revBtn.addEventListener('click', function () {
+    setMode(state.revMode ? '' : 'rev');         // lanes that change direction are for one person, without zips
+    fillPatternList();
+    choose(state.revMode ? lastRev : lastRolls);
   });
 
   /* In zip mode, tapping a number in the strip turns it into a zip, and tapping the zip turns it back. */
@@ -1085,6 +1139,10 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       wallTitle.textContent = 'All zip patterns';
       wallNote.textContent = 'Every pattern with zips of up to 8 rolls in which no hand move happens twice. A z is a zip: a handoff from one hand to the other. Tap one to play it.' + same;
       add(ALL_ZIPS, '');
+    } else if (state.revMode) {
+      wallTitle.textContent = 'All reversing patterns';
+      wallNote.textContent = 'Patterns in which lanes change direction. A lane can only be rolled the other way once it is empty, so each pattern has a top number of balls. These are the ones of up to 8 rolls (7 on five lanes) that work with at least 3 balls. Tap one to play it.' + same + ' Running backwards also counts as the same.';
+      add(ALL_REVS, '');
     } else if (state.twoMode) {
       wallTitle.textContent = 'All two-person patterns';
       wallNote.textContent = 'In brackets, each person rolls two balls at once: [14] means lanes 1 and 4 together. Below those are the one-at-a-time patterns, played with each person swapping hands. Tap one to play it. The underlined ones have names in the pattern list.' + same;
@@ -1162,13 +1220,14 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* A ball being carried round the end of the board from one lane to another. */
   function carryPoint(g, side, from, to, p) {
     const span = Math.abs(from - to);
-    const reach = lerp(g.minReach, g.maxReach, g.K > 2 ? (span - 1) / (g.K - 2) : 0.5);
+    const reach = lerp(g.minReach, g.maxReach, g.K > 2 ? Math.max(0, span - 1) / (g.K - 2) : 0.5);
     const x0 = g.endX(side), xc = x0 + side * reach / 0.75;
     const y0 = g.laneY(from), y1 = g.laneY(to);
+    const turn = span ? 0 : g.pitch * 0.3;                   // back down the same lane: a small loop
     const t = lerp(p, smooth(p), 0.6), m = 1 - t;
     return {
       x: m * m * m * x0 + 3 * m * m * t * xc + 3 * m * t * t * xc + t * t * t * x0,
-      y: m * m * m * y0 + 3 * m * m * t * y0 + 3 * m * t * t * y1 + t * t * t * y1
+      y: m * m * m * y0 + 3 * m * m * t * (y0 - turn) + 3 * m * t * t * (y1 + turn) + t * t * t * y1
     };
   }
 
@@ -1193,6 +1252,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   function drawBoard(g) {
     const pat = state.pat;
+    const running = pat.rev ? JLS.laneHands(u, pat, state.n) : pat.hand;   // which hand each lane is running away from
     const bw = g.bx1 - g.bx0;
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
 
@@ -1203,7 +1263,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const line = clamp(g.trackH * 0.07, 1.5, 2.5);
     for (let lane = 1; lane <= g.K; lane++) {
       const y = g.laneY(lane);
-      const hand = pat.hand[lane];
+      const hand = running[lane];
       const dir = hand === -1 ? 0 : -sideOf(hand);          // which way balls travel: -1 left, +1 right
       const x0 = g.bx0 + 8, x1 = g.bx1 - 8;
       roundRect(x0, y - g.trackH / 2, x1 - x0, g.trackH, g.trackH / 2);
@@ -1270,7 +1330,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       // pairs are two ordinary patterns side by side, each with half the balls
       const tracks = state.pat.pairs ? state.pat.slots.map(function (q) { return [q, state.n / 2]; }) : [[seq, state.n]];
       for (const tr of tracks) {
-        for (let i = 0; i < L; i++) paths.push({ side: sideOf(1 - i % 2), from: { lane: tr[0][i] }, to: { lane: tr[0][JLS.nextRoll(i, tr[1]) % L] } });
+        for (let i = 0; i < (L % 2 ? 2 * L : L); i++) paths.push({ side: sideOf(1 - i % 2), from: { lane: tr[0][i % L] }, to: { lane: tr[0][JLS.nextRoll(i, tr[1]) % L] } });
       }
     }
     for (const p of paths) {
@@ -1282,9 +1342,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       ctx.moveTo(a.x, a.y);
       if (p.from.lane && p.to.lane) {
         const span = Math.abs(p.from.lane - p.to.lane);
-        const reach = lerp(g.minReach, g.maxReach, g.K > 2 ? (span - 1) / (g.K - 2) : 0.5);
-        const xc = a.x + p.side * reach / 0.75;
-        ctx.bezierCurveTo(xc, a.y, xc, b.y, b.x, b.y);
+        const reach = lerp(g.minReach, g.maxReach, g.K > 2 ? Math.max(0, span - 1) / (g.K - 2) : 0.5);
+        const xc = a.x + p.side * reach / 0.75, turn = span ? 0 : g.pitch * 0.3;   // back down the same lane: a small loop
+        ctx.bezierCurveTo(xc, a.y - turn, xc, b.y + turn, b.x, b.y);
       } else if (p.from.mid && p.to.mid) {
         ctx.lineTo((a.x + b.x) / 2 + p.side * apart(g), (a.y + b.y) / 2);
         ctx.lineTo(b.x, b.y);

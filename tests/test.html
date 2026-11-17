@@ -30,7 +30,7 @@
       seen.add(text);
     }
     // things that must be refused
-    for (const bad of ['', '123', '1223', '1731', '12a4', '1'.repeat(26), '1221']) {
+    for (const bad of ['', '1731', '12a4', '1'.repeat(26), '12z', '12z1']) {
       if (JLS.parse(bad).ok) fail('"' + bad + '" should be refused');
     }
 
@@ -181,7 +181,43 @@
         }
       }
     }
-    if (JLS.parse('12z').ok || JLS.parse('zz').ok || !JLS.parse('121Z').ok) fail('zip parsing rules');
+    if (JLS.parse('12z').ok || JLS.parse('zz').ok || !JLS.parse('121Z').ok || JLS.parse('12z1').ok) fail('zip parsing rules');
+    /* ---------- lanes that change direction ---------- */
+    const revExpected = await (await fetch('reverse-counts.json')).json();
+    let revChecks = 0;
+    for (const text of Object.keys(revExpected)) {
+      const pat = JLS.parse(text);
+      if (!pat.ok || !pat.rev) { fail('reversing pattern ' + text + ' does not parse as one'); continue; }
+      for (let n = 1; n <= JLS.MAX_BALLS; n++) {
+        const tag = text + ' reversing with ' + n + ': ';
+        const ok = JLS.revOk(pat, n);
+        if (ok !== revExpected[text].includes(n)) { fail(tag + 'revOk says ' + ok + ' but the search script disagrees'); continue; }
+        if (!ok) continue;
+        const tm = JLS.timing(n), L = pat.seq.length;
+        for (let k = 0; k * 0.011 < 4 * L + 4; k++) {
+          const u = 0.0031 + k * 0.011;
+          const bs = JLS.balls(u, pat, n, tm), hs = JLS.hands(u, pat, n, tm);
+          revChecks++;
+          if (bs.length !== n || new Set(bs.map(b => b.id)).size !== n) { fail(tag + 'wrong balls at u=' + u); break; }
+          const dirs = {};
+          let clash = false;
+          for (const b of bs) if (b.state === 'roll') { if (dirs[b.lane] !== undefined && dirs[b.lane] !== b.hand) clash = true; dirs[b.lane] = b.hand; }
+          if (clash) { fail(tag + 'balls rolling towards each other at u=' + u); break; }
+          const running = JLS.laneHands(u, pat, n);
+          if (Object.keys(dirs).some(l => running[l] !== dirs[l])) { fail(tag + 'a lane is coloured the wrong way at u=' + u); break; }
+          let bad = false;
+          for (let h = 0; h < 2; h++) {
+            const held = bs.filter(b => b.state === 'carry' && b.hand === h);
+            if (held.length > 1 || (hs[h].state === 'carry') !== (held.length === 1)) bad = true;
+            else if (held.length && (held[0].from !== hs[h].from || held[0].to !== hs[h].to)) bad = true;
+          }
+          if (bad) { fail(tag + 'hands and balls disagree at u=' + u); break; }
+        }
+      }
+    }
+    for (const plain of ['1234', '121434', '12']) if (JLS.parse(plain).rev) fail(plain + ' should not count as reversing');
+    lines.push(Object.keys(revExpected).length + ' reversing patterns, ' + revChecks + ' moments checked');
+
     /* ---------- two people ---------- */
     const lists = new Function(html.match(/<script id="pair-patterns">([\s\S]*?)<\/script>/)[1] + '; return {PAIR_LIST: PAIR_LIST, ALL_PAIRS: ALL_PAIRS};')();
     const pairTexts = [];

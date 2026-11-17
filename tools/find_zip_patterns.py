@@ -4,7 +4,7 @@ A zip (written z) is a handoff: instead of rolling, the hand passes its ball
 straight to the other hand, which rolls it on the very next beat.
 
 Rules used here
-- One person, hands take turns, odd ball counts only (1, 3, 5).
+- One person, hands always take turns, 1 to 5 balls.
 - Each lane is only ever rolled by one hand; every lane 1..K is used.
 - No hand move happens twice in a loop, so each hand zips at most once.
 - Timing: every beat one ball is thrown. A zipped ball is thrown again 1 beat
@@ -102,7 +102,7 @@ def timing(seq, balls):
     go(0, total - fixed)
     return best[1]
 
-def search(k, max_beats=8, ball_counts=(1, 3, 5)):
+def search(k, max_beats=8, ball_counts=(1, 2, 3, 4, 5)):
     found = {}
     for n in range(2, max_beats + 1, 2):
         for rest in itertools.product(list(range(1, k + 1)) + [Z], repeat=n - 1):
@@ -117,7 +117,7 @@ def search(k, max_beats=8, ball_counts=(1, 3, 5)):
             found[canon] = (disp, {b: timing(disp, b) for b in ball_counts})
     return found
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--embed" not in sys.argv:
     out = []
     grand = 0
     for k in range(1, 5):
@@ -127,12 +127,11 @@ if __name__ == "__main__":
             by_len[len(disp)].append((disp, tm))
         for n in sorted(by_len):
             rows = sorted(by_len[n], key=lambda r: key(r[0]))
-            three = sum(1 for _, tm in rows if tm[3])
-            five = sum(1 for _, tm in rows if tm[5])
+            works = ", ".join(f"{sum(1 for _, tm in rows if tm[b])} with {b}" for b in (2, 3, 4, 5))
             grand += len(rows)
-            out.append(f"\n{k} lane{'s' if k > 1 else ''}, {n} beats: {len(rows)} patterns ({three} work with 3 balls, {five} with 5)")
+            out.append(f"\n{k} lane{'s' if k > 1 else ''}, {n} beats: {len(rows)} patterns (how many work: {works} balls)")
             for disp, tm in rows:
-                parts = [f"{b}: {' '.join(map(str, tm[b]))}" if tm[b] else f"{b}: no" for b in (3, 5)]
+                parts = [f"{b}: {' '.join(map(str, tm[b]))}" if tm[b] else f"{b}: no" for b in (2, 3, 4, 5)]
                 out.append(f"  {show(disp):<9} " + "   ".join(parts))
     text = f"{grand} zip patterns in all (every one works with 1 ball)\nThe numbers after each pattern are how many beats later each ball is thrown again.\n" + "\n".join(out)
     open("zip-patterns.txt", "w").write(text + "\n")

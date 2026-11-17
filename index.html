@@ -109,6 +109,8 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 .tile.b { background: var(--blue-soft); }
 h1, .strip, .info, .controls { flex: none; }
 .pair.br { background: none; padding: 2px 5px; border: 3px solid var(--ink); border-top-color: transparent; border-bottom-color: transparent; border-radius: 9px; }
+.cell { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.cell small { font-size: 12px; font-weight: 600; line-height: 1; opacity: .75; }
 .tile.z { background: #c0eb75; font-style: italic; }
 .tile.tap { cursor: pointer; user-select: none; -webkit-user-select: none; }
 .tile.on { background: var(--sun); transform: translateY(-4px); box-shadow: 0 4px 0 var(--ink); }
@@ -125,6 +127,7 @@ h1, .strip, .info, .controls { flex: none; }
 .info .dot.b { background: var(--blue); }
 .info .sep { opacity: .45; margin: 0 .35em; }
 .info .nw { white-space: nowrap; }
+.info { flex-wrap: wrap; }
 .info.bad { color: var(--warn); font-weight: 600; }
 
 .controls {
@@ -537,8 +540,8 @@ const JLS = (function () {
    * rolls it on the very next beat. That ball jumps the queue, so the rolls can no
    * longer all take the same time. Each throw gets a "value": how many beats later
    * that ball is thrown again. A zip is 1. A roll is an odd number (the ball has
-   * changed sides), at least 3 once there is more than one ball. Hands take turns,
-   * so zips only work with an odd number of balls.
+   * changed sides), at least 3 once there is more than one ball. The hands always
+   * take turns, even with an even number of balls: the zip is what makes that work.
    */
 
   /* The most even set of values that works, or null if nothing does. */
@@ -594,7 +597,6 @@ const JLS = (function () {
 
   /* Everything needed to play a pattern with zips, or null if it can't be played with n balls. */
   function zipPlan(pat, n) {
-    if (n % 2 === 0) return null;
     const vals = solveTiming(pat.seq, n);
     if (!vals) return null;
     const L = pat.seq.length, srcVal = new Array(L);
@@ -818,8 +820,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (!parsed.ok) return parsed.error;
     let p = null;
     if (parsed.zip) {
-      if (n % 2 === 0) n = n < JLS.MAX_BALLS ? n + 1 : n - 1;       // zips need an odd number of balls
-      p = JLS.zipPlan(parsed, n);
+      // not every ball count has a timing that works, so settle on the nearest one that does
+      for (const d of [0, 1, -1, 2, -2, 3, -3]) {
+        const m = n + d;
+        if (m >= 1 && m <= JLS.MAX_BALLS && (p = JLS.zipPlan(parsed, m))) { n = m; break; }
+      }
       if (!p) return 'No timing works for that pattern with ' + n + (n === 1 ? ' ball.' : ' balls.');
     }
     if (parsed.pairs) n = Math.max(2, Math.min(8, n % 2 ? n + 1 : n));   // pairs need an even number of balls
@@ -910,6 +915,13 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         t.className += ' tap'; t.tabIndex = 0; t.setAttribute('role', 'button');
         t.setAttribute('aria-label', lane ? 'Roll ' + (i + 1) + ', lane ' + lane + '. Tap to make it a zip' : 'Roll ' + (i + 1) + ', a zip. Tap to make it a roll again');
       }
+      if (plan) {                                             // underneath: how many beats until that ball is thrown again
+        const cell = document.createElement('span'); cell.className = 'cell';
+        const beats = document.createElement('small'); beats.textContent = plan.vals[i];
+        cell.appendChild(t); cell.appendChild(beats);
+        holder.appendChild(cell);
+        return;
+      }
       holder.appendChild(t);
     });
     lastActive = '';
@@ -928,11 +940,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function showInfo() {
     if (error) { info.className = 'info bad'; info.textContent = error; return; }
     const n = state.n, who = state.twoMode ? 'people' : 'hands';
-    const turns = state.pat.pairs ? (n / 2) % 2 === 1 : n % 2 === 1;
+    const turns = plan ? true : state.pat.pairs ? (n / 2) % 2 === 1 : n % 2 === 1;
     info.className = 'info';
     let html = '<span class="nw"><b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + who + (turns ? ' take turns' : ' roll together') + '</span>';
     if (state.zipMode) {
       html += '<span class="sep">|</span><span class="nw">tap a number to make it a zip</span>';
+      if (plan) html += '<span class="sep">|</span><span class="nw">small numbers are beats</span>';
     } else {
       const unit = state.twoMode ? ' person ' : ' hand ';
       html += '<span class="sep">|</span><span class="nw"><span class="dot b"></span>left' + unit + '&rarr;</span>' +
@@ -941,17 +954,26 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     info.innerHTML = html;
   }
 
-  function ballStep() { return state.pat.zip || state.pat.pairs ? 2 : 1; }
+  function ballStep() { return state.pat.pairs ? 2 : 1; }
+  /* The next ball count up or down that this pattern can be played with, or 0 if there is none. */
+  function nextBalls(by) {
+    for (let n = state.n + by * ballStep(); n >= ballLimits()[0] && n <= ballLimits()[1]; n += by * ballStep()) {
+      if (!state.pat.zip || JLS.zipPlan(state.pat, n)) return n;
+    }
+    return 0;
+  }
   function ballLimits() { return state.pat.pairs ? [2, 8] : [1, JLS.MAX_BALLS]; }
 
   function refresh(restart) {
     if (restart) u = 0;
     outCount.textContent = state.n;
-    btnLess.disabled = state.n - ballStep() < ballLimits()[0];
-    btnMore.disabled = state.n + ballStep() > ballLimits()[1];
+    btnLess.disabled = !nextBalls(-1);
+    btnMore.disabled = !nextBalls(1);
     btnR.setAttribute('aria-pressed', String(state.startRight));
     btnL.setAttribute('aria-pressed', String(!state.startRight));
     btnPlay.textContent = state.playing ? 'Pause' : 'Play';
+    btnR.textContent = state.twoMode ? 'Right person' : 'Right hand';
+    btnL.textContent = state.twoMode ? 'Left person' : 'Left hand';
     zipBtn.textContent = state.zipMode ? 'Zips on' : 'Zips off';
     zipBtn.setAttribute('aria-pressed', String(state.zipMode));
     twoBtn.textContent = state.twoMode ? '2 people' : '1 person';
@@ -993,8 +1015,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (!inCustom.value.trim()) { error = ''; inCustom.classList.remove('bad'); showInfo(); }
   });
   function changeBalls(by) {
-    const n = state.n + by * ballStep();
-    if (n < ballLimits()[0] || n > ballLimits()[1]) return;
+    const n = nextBalls(by);
+    if (!n) return;
     const problem = setPattern(state.pat, n);
     if (problem) { error = problem; showInfo(); return; }
     error = '';

@@ -113,9 +113,10 @@
     for (const text of zipPatterns) {
       const pat = JLS.parse(text);
       if (!pat.ok || !pat.zip) { fail('zip pattern ' + text + ' does not parse'); continue; }
-      for (const n of [1, 3, 5]) {
+      for (const n of [1, 2, 3, 4, 5]) {
         const tag = text + ' with ' + n + ': ';
         const plan = JLS.zipPlan(pat, n);
+        if (!expected[text][n]) { if (plan) fail(tag + 'found a timing the search script did not'); continue; }
         if (!plan) { fail(tag + 'no timing found'); continue; }
         if (!same(plan.vals, expected[text][n])) fail(tag + 'timing ' + plan.vals + ' but the search script says ' + expected[text][n]);
         const tm = JLS.timing(n);
@@ -181,7 +182,6 @@
       }
     }
     if (JLS.parse('12z').ok || JLS.parse('zz').ok || !JLS.parse('121Z').ok) fail('zip parsing rules');
-    if (JLS.zipPlan(JLS.parse('121z'), 4)) fail('zips should not work with an even ball count');
     /* ---------- two people ---------- */
     const lists = new Function(html.match(/<script id="pair-patterns">([\s\S]*?)<\/script>/)[1] + '; return {PAIR_LIST: PAIR_LIST, ALL_PAIRS: ALL_PAIRS};')();
     const pairTexts = [];

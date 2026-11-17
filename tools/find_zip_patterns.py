@@ -176,6 +176,10 @@ def embed(path="index.html"):
     assert "1z2z3z4z" in timings
     picks.append("1z2z3z4z")
     short.append({"group": "4 lanes, a few to try", "items": picks})
+    # taken out of the list at the user's request (2026-11-17); they stay on the All patterns page
+    dropped = {"12131z", "1213zz", "121zz3", "1232zz", "123zz2", "1213z3", "12z23z", "12z31z", "12zz13", "131zz2", "1234143z", "1213424z"}
+    for g in short:
+        g["items"] = [t for t in g["items"] if t not in dropped]
     block = ('<script id="zip-patterns">\nconst ZIP_LIST = ' + json.dumps(short, separators=(",", ":")) +
              ';\nconst ALL_ZIPS = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')
     html, n = re.subn(r'<script id="zip-patterns">.*?</script>', lambda m: block, html, flags=re.S)

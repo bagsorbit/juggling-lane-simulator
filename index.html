@@ -162,8 +162,8 @@ h1, .strip, .info, .controls { flex: none; }
 .f-custom { grid-column: span 5; }
 .f-balls { grid-column: span 3; }
 .f-start { grid-column: span 4; }
-.f-speed { grid-column: span 3; }
-.f-play { grid-column: span 2; }
+.f-speed { grid-column: span 2; }
+.f-play { grid-column: span 3; }
 
 select, input[type="text"], button {
   font: inherit;
@@ -220,8 +220,11 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
 #play { width: 100%; background: var(--sun); }
 .playrow { display: flex; gap: 6px; }
 .playrow #play { flex: 1 1 auto; min-width: 0; }
-#share { flex: none; width: 46px; padding: 0; display: flex; align-items: center; justify-content: center; }
-#share svg { width: 20px; height: 20px; }
+#sound .i-on, #sound[aria-pressed="true"] .i-off { display: none; }
+#sound[aria-pressed="true"] .i-on { display: block; }
+#sound[aria-pressed="true"] { background: #c0eb75; }
+#sound, #share { flex: none; width: 46px; padding: 0; display: flex; align-items: center; justify-content: center; }
+#sound svg, #share svg { width: 20px; height: 20px; }
 #share .i-done, #share.done .i-share { display: none; }
 #share.done .i-done { display: block; }
 
@@ -232,9 +235,10 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   .f-custom { grid-column: span 5; }
   .f-balls { grid-column: span 5; }
   .f-start { grid-column: span 7; }
-  .f-speed { grid-column: span 5; }
-  .f-wall { grid-column: span 4; order: 5; }
-  .f-play { grid-column: span 3; order: 6; }
+  .f-speed { grid-column: span 7; }
+  .f-wall { grid-column: span 5; order: 5; }
+  .f-play { grid-column: span 12; order: 6; }
+  .f-play > span { display: none; }
   #openWall, #play { font-size: 14px; padding: 0 2px; }
   #custom { font-size: 16px; padding-left: 9px; background-position: 9px calc(100% - 8px); }
   .badge { width: 46px; height: 46px; top: 6px; right: 6px; }
@@ -326,7 +330,8 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
     <div class="field f-play"><span>&nbsp;</span>
       <div class="playrow">
         <button type="button" id="play">Pause</button>
-        <button type="button" id="share" aria-label="Share a link to this pattern" title="Share a link to this pattern"><svg class="i-share" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><g transform="rotate(-45 12 12)" stroke-width="2.7"><rect x="0.8" y="8.4" width="9.6" height="7.2" rx="3.6"/><rect x="7.2" y="8.4" width="9.6" height="7.2" rx="3.6"/><rect x="13.6" y="8.4" width="9.6" height="7.2" rx="3.6"/></g></svg><svg class="i-done" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4.5 12.5l5 5 10-11"/></svg></button>
+        <button type="button" id="sound" aria-pressed="false" aria-label="Beat sound" title="Beat sound: a click on every roll"><svg class="i-on" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="#2d2a4a"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg><svg class="i-off" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="#2d2a4a"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg></button>
+        <button type="button" id="share" aria-label="Share a link to this pattern" title="Share a link to this pattern"><svg class="i-share" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M11 4.5H7.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3V15" stroke-width="2.6"/><path d="M9 15.5c0-4 2.5-6.2 7-6.2" stroke-width="3.4"/><path d="M15.2 4.2l6.3 5.1-6.3 5.1z" fill="#2d2a4a" stroke-width="1.4"/></svg><svg class="i-done" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4.5 12.5l5 5 10-11"/></svg></button>
       </div>
     </div>
   </section>
@@ -2082,6 +2087,61 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     }
   }
 
+  /* ---------- beat sound ----------
+   * A short click whenever someone rolls: a higher note for the right hand (or person), a lower one
+   * for the left, a middle one when the lane colours don't say, and a quiet tick for a zip.
+   * It reads the highlighted numbers under the lanes, so it follows every mode. */
+  const sound = { on: false, ctx: null, beat: null };
+  try { sound.on = localStorage.getItem('jls-sound') === '1'; } catch (e) { /* no storage: start silent */ }
+  function rawBeat() {
+    if (splan) return Math.floor(2 * u / (splan.sync ? 2 : 1));
+    if (plan || mplan) return Math.floor(2 * u);
+    const n = state.pat.pairs ? state.n / 2 : state.n;
+    return n % 2 ? Math.floor(2 * u) : Math.floor(u);
+  }
+  function blip(freq, vol, len) {
+    const c = sound.ctx, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+    o.type = 'triangle'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + len + 0.02);
+  }
+  function beatSound() {
+    const b = rawBeat();
+    if (b === sound.beat) return;
+    const fresh = sound.beat !== null && b === sound.beat + 1;   // only on a real step forward, not a jump or restart
+    sound.beat = b;
+    if (!fresh || !sound.on || !sound.ctx || !state.playing) return;
+    const kinds = {};
+    strip.querySelectorAll('.tile.on').forEach(function (t) {
+      const c = t.classList;
+      kinds[c.contains('rest') ? '' : c.contains('z') ? 'z' : c.contains('r') ? 'r' : c.contains('b') ? 'b' : 'n'] = true;
+    });
+    if (kinds.r) blip(988, 0.35, 0.07);
+    if (kinds.b) blip(659, 0.35, 0.07);
+    if (kinds.n) blip(784, 0.35, 0.07);
+    if (kinds.z) blip(1568, 0.12, 0.035);
+  }
+  function showSound() { $('sound').setAttribute('aria-pressed', String(sound.on)); }
+  $('sound').addEventListener('click', function () {
+    sound.on = !sound.on;
+    if (sound.on && !sound.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) sound.ctx = new AC();
+    }
+    if (sound.ctx && sound.ctx.state === 'suspended') sound.ctx.resume();
+    try { localStorage.setItem('jls-sound', sound.on ? '1' : '0'); } catch (e) { /* fine without */ }
+    showSound();
+  });
+  // a browser only allows sound after a tap, so a remembered "on" waits for the first tap anywhere
+  document.addEventListener('pointerdown', function () {
+    if (sound.on && !sound.ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) sound.ctx = new AC(); }
+    if (sound.ctx && sound.ctx.state === 'suspended') sound.ctx.resume();
+  }, { capture: true });
+  showSound();
+
   /* ---------- the clock ---------- */
   let raf = 0, lastStamp = null, onScreen = true;
 
@@ -2094,6 +2154,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     lastStamp = stamp;
     draw();
     markStrip();
+    beatSound();
     if (state.playing && onScreen && !document.hidden) raf = requestAnimationFrame(frame);
     else lastStamp = null;
   }

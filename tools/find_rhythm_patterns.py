@@ -86,7 +86,7 @@ def search(k, P):
                     if counts: found[canon] = counts
     return found
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--embed" not in sys.argv:
     for k, P in ((3, 2), (3, 3), (3, 4), (4, 2), (4, 3), (4, 4)):
         found = search(k, P)
         waiting = {c: v for c, v in found.items() if any(w for d, w in v.values())}
@@ -94,3 +94,63 @@ if __name__ == "__main__":
         for (R, L), counts in sorted(waiting.items())[:10]:
             cs = ", ".join(f"{n}{'*' if w else ''}" for n, (d, w) in sorted(counts.items()))
             print(f"   Right: {show_row(R):<16} Left: {show_row(L):<16} balls: {cs}")
+
+
+def steady(row):
+    """A person only rests on the beat after rolling a pair, and always rests then."""
+    P = len(row)
+    for i, a in enumerate(row):
+        if len(a) == 2 and row[(i + 1) % P] != (): return False
+        if a == () and len(row[i - 1]) != 2: return False
+    return True
+
+def text(R, L):
+    row = lambda r: "".join("-" if not a else str(a[0]) if len(a) == 1 else f"[{a[0]}{a[1]}]" for a in r)
+    return row(R) + "/" + row(L)
+
+def display(R, L, k):
+    """The same pattern written to start on lane 1 with the first person, where possible."""
+    def key(im):
+        a, b = im
+        return (1 not in {x for act in a for x in act}, a[0] == (), 1 not in a[0], text(a, b))
+    return min(images(R, L, k), key=key)
+
+def symmetric(R, L, k):
+    ims = images(R, L, k)
+    P = len(R)
+    return any(im == (R, L) for i, im in enumerate(ims) if i >= P)      # the first P images are plain rotations
+
+def embed(path="index.html"):
+    """Rewrite the own-rhythm lists inside index.html and the expected ball counts used by the tests."""
+    import json, re
+    everything, expected, groups = {}, {}, []
+    picked = {}
+    for k, P in ((3, 2), (3, 3), (3, 4), (4, 2), (4, 3), (4, 4)):
+        rows = []
+        for (R, L), counts in search(k, P).items():
+            if not (steady(R) and steady(L)): continue
+            d = display(R, L, k)
+            t = text(*d)
+            expected[t] = {str(n): v[0] for n, v in counts.items()}
+            rows.append((not symmetric(R, L, k), 5 not in counts, t))
+        rows.sort()
+        everything.setdefault(str(k), {})[str(P)] = " ".join(sorted(r[2] for r in rows))
+        picked[(k, P)] = [r[2] for r in rows]
+    groups.append({"group": "3 lanes", "items": picked[(3, 2)] + picked[(3, 3)] + picked[(3, 4)]})
+    groups.append({"group": "4 lanes, 2 beats", "items": picked[(4, 2)]})
+    groups.append({"group": "4 lanes, 3 beats", "items": picked[(4, 3)][:6]})
+    groups.append({"group": "4 lanes, 4 beats", "items": picked[(4, 4)][:6]})
+    top = [picked[(3, 2)][0], picked[(4, 2)][0], picked[(3, 3)][0], picked[(4, 3)][0], picked[(4, 4)][0]]
+    block = ('<script id="mixed-patterns">\nconst MIX_LIST = ' + json.dumps(groups, separators=(",", ":")) +
+             ';\nconst MIX_TOP = ' + json.dumps(top) + ';\nconst ALL_MIX = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')
+    html = open(path, encoding="utf-8").read()
+    html, n = re.subn(r'<script id="mixed-patterns">.*?</script>', lambda m: block, html, flags=re.S)
+    assert n == 1
+    open(path, "w", encoding="utf-8").write(html)
+    json.dump(expected, open("tests/rhythm-counts.json", "w"), separators=(",", ":"))
+    print("rhythm:", {k: {b: len(v.split()) for b, v in d.items()} for k, d in everything.items()})
+    print("top:", top)
+    for g in groups: print(g["group"], g["items"])
+
+if __name__ == "__main__" and "--embed" in sys.argv:
+    embed()

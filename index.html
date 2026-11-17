@@ -112,6 +112,9 @@ h1, .strip, .info, .controls { flex: none; }
 .cell { display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .cell small { font-size: 12px; font-weight: 600; line-height: 1; opacity: .75; }
 .tile.n { background: #efe9d8; }
+.tile.rest { background: none; border-style: dashed; opacity: .55; }
+.rows { display: grid; gap: 5px 6px; align-items: center; justify-items: center; }
+.rows > small { font-size: 12px; font-weight: 600; justify-self: end; opacity: .75; }
 .tile.z { background: #c0eb75; font-style: italic; }
 .tile.tap { cursor: pointer; user-select: none; -webkit-user-select: none; }
 .tile.on { background: var(--sun); transform: translateY(-4px); box-shadow: 0 4px 0 var(--ink); }
@@ -330,6 +333,7 @@ const JLS = (function () {
   const MAX_BALLS = 9;
   const MAX_ZIP_BEATS = 10;
   const MAX_BRACKETS = 12;
+  const MAX_RHYTHM_BEATS = 8;
 
   // [name, pattern]. Names that end in a number share one picture.
   const CATALOGUE = [
@@ -356,37 +360,45 @@ const JLS = (function () {
 
   function mod(a, m) { return ((a % m) + m) % m; }
 
-  /* Two-person patterns that mix single rolls and pairs, written 12[13][24]. The people take strict
-   * turns; `turns` holds the one or two lanes rolled on each turn. */
-  function parseMixed(s) {
-    const tokens = s.match(/\[[^\[\]]*\]|[^\[\]]/g) || [];
-    if (tokens.join('') !== s) return { ok: false, error: 'The brackets do not match up. Write pairs like [14].' };
-    const turns = [];
-    for (const tok of tokens) {
-      if (/^[1-6]$/.test(tok)) turns.push([Number(tok)]);
-      else if (/^\[[1-6]{2}\]$/.test(tok) && tok[1] !== tok[2]) turns.push([Number(tok[1]), Number(tok[2])]);
-      else return { ok: false, error: 'Use lane numbers 1 to ' + MAX_LANES + ', alone or two different ones in brackets like [14].' };
-    }
-    if (turns.length > MAX_BRACKETS) return { ok: false, error: 'That is too long. Keep it to ' + MAX_BRACKETS + ' turns or fewer.' };
-    if (turns.length % 2) return { ok: false, error: 'A pattern needs an even number of turns, because the two people take turns.' };
-    const lanes = Math.max.apply(null, [].concat.apply([], turns));
-    const hand = new Array(lanes + 1).fill(-1), rolls = [0, 0];
-    for (let i = 0; i < turns.length; i++) {
-      rolls[i % 2] += turns[i].length;
-      for (const lane of turns[i]) {
-        if (hand[lane] === -1) hand[lane] = i % 2;
-        else if (hand[lane] !== i % 2) return { ok: false, error: 'Lane ' + lane + ' is rolled from both ends, so it would have to run both ways.' };
+  /* Two-person patterns where each person keeps their own rhythm, written as a row for each person
+   * with a / between them: [13]-/22. On each beat a person rests (-), rolls one lane, or rolls two
+   * lanes together. `rows[0]` is the person who has lane 1 or rolls first. */
+  function parseRhythm(s) {
+    const halves = s.split('/');
+    if (halves.length !== 2) return { ok: false, error: 'Write one row for each person with a single / between them, like [13]-/22.' };
+    const rows = [];
+    for (const half of halves) {
+      const tokens = half.match(/\[[^\[\]]*\]|[^\[\]]/g) || [];
+      const row = [];
+      for (const tok of tokens) {
+        if (tok === '-') row.push([]);
+        else if (/^[1-6]$/.test(tok)) row.push([Number(tok)]);
+        else if (/^\[[1-6]{2}\]$/.test(tok) && tok[1] !== tok[2]) row.push([Number(tok[1]), Number(tok[2])]);
+        else return { ok: false, error: 'Each beat is a lane number 1 to ' + MAX_LANES + ', two different ones in brackets like [13], or - for a rest.' };
       }
+      rows.push(row);
     }
+    const P = rows[0].length;
+    if (!P || rows[1].length !== P) return { ok: false, error: 'Both rows need the same number of beats. Use - for a beat where that person does not roll.' };
+    if (P > MAX_RHYTHM_BEATS) return { ok: false, error: 'That is too long. Keep it to ' + MAX_RHYTHM_BEATS + ' beats or fewer.' };
+    let lanes = 0;
+    const rolls = [0, 0];
+    rows.forEach(function (row, x) { row.forEach(function (act) { rolls[x] += act.length; act.forEach(function (l) { lanes = Math.max(lanes, l); }); }); });
+    if (!rolls[0] && !rolls[1]) return { ok: false, error: 'Nobody rolls anything in that pattern.' };
     if (rolls[0] !== rolls[1]) return { ok: false, error: 'Both people must roll the same number of balls each loop. Here one rolls ' + rolls[0] + ' and the other ' + rolls[1] + '.' };
-    return { ok: true, text: s, seq: turns.map(function (t) { return t[0]; }), turns: turns, lanes: lanes, hand: hand, mixed: true, zip: false };
+    const hand = new Array(lanes + 1).fill(-1);
+    for (let x = 0; x < 2; x++) for (const act of rows[x]) for (const lane of act) {
+      if (hand[lane] === -1) hand[lane] = x;
+      else if (hand[lane] !== x) return { ok: false, error: 'Lane ' + lane + ' is rolled from both ends, so it would have to run both ways.' };
+    }
+    return { ok: true, text: s, seq: new Array(P).fill(0), rows: rows, lanes: lanes, hand: hand, mixed: true, zip: false };
   }
 
   /* Two-person patterns where each person rolls two balls at once, written [14][23].
    * The first number in each bracket is one ball's path and the second number is the other's,
    * so the pattern is really two ordinary patterns played side by side: `slots`. */
   function parsePairs(s) {
-    if (!/^(\[[^\[\]]*\])+$/.test(s)) return parseMixed(s);
+    if (!/^(\[[^\[\]]*\])+$/.test(s)) return { ok: false, error: 'To mix single rolls and pairs, write a row for each person with a / between them, like [13]-/22.' };
     const parts = s.slice(1, -1).split('][');
     for (const part of parts) {
       if (!/^[1-6]{2}$/.test(part)) return { ok: false, error: 'Each pair of brackets needs two lane numbers from 1 to ' + MAX_LANES + ', like [14].' };
@@ -409,6 +421,7 @@ const JLS = (function () {
   /* Turn typed text into a pattern, or explain in plain words why it can't work.
    * A zip (z) is stored as lane 0. */
   function parse(text) {
+    if (String(text == null ? '' : text).indexOf('/') !== -1) return parseRhythm(String(text).replace(/[\s,.]/g, ''));
     const s = String(text == null ? '' : text).replace(/[\s,.\-]/g, '').toLowerCase();
     if (!s) return { ok: false, error: 'Type some lane numbers, like 1234.' };
     if (/[\[\]]/.test(s)) return parsePairs(s);
@@ -589,153 +602,78 @@ const JLS = (function () {
     return out;
   }
 
-  /* ================= two people, single rolls and pairs mixed =================
-   * Timed the same way as zips: every roll gets a value, the number of turns until that ball is
-   * rolled again. It is odd (the ball changes ends) and at least 3 unless every value is 1. Each
-   * turn must be handed exactly as many balls as it rolls, and a ball can never overtake another
-   * in its lane. The two balls of a pair take the same time, because they are rolled together.
-   * A ball that is not needed yet simply rolls more slowly.
+  /* ================= two people, each keeping their own rhythm =================
+   * Every ball rolls at the same speed: it can be rolled back `D` beats after it was rolled. A ball
+   * that arrives before it is needed waits in a hand, and a person can hold at most two. Each person
+   * always rolls the ball that reached them first. Time here is counted in beats (two per cycle).
    */
-  function mixedTiming(turns, n) {
-    const L = turns.length, sites = [];
-    for (let t = 0; t < L; t++) for (let k = 0; k < turns[t].length; k++) sites.push([t, k]);
-    const R = sites.length, total = n * L, avg = total / R;
-    const low = avg <= 1 ? 1 : 3, cap = 2 * L + Math.ceil(avg) + 2;
-    const got = new Array(L).fill(0), vals = new Array(R).fill(0);
-    let best = null, bestScore = null;
-    function laneOk(i) {
-      const ti = sites[i][0], lane = turns[ti][sites[i][1]];
-      for (let j = 0; j < R; j++) {
-        if (j === i || !vals[j]) continue;
-        const tj = sites[j][0];
-        if (turns[tj][sites[j][1]] !== lane) continue;
-        const first = ti < tj ? i : j, second = ti < tj ? j : i, gap = Math.abs(ti - tj);
-        if (!(vals[first] - vals[second] < gap && vals[second] - vals[first] < L - gap)) return false;
-      }
-      return true;
-    }
-    function go(i, left) {
-      if (i === R) {
-        if (left !== 0) return;
-        let lo = Infinity, hi = 0, sq = 0;
-        for (const v of vals) { lo = Math.min(lo, v); hi = Math.max(hi, v); sq += v * v; }
-        let better = !bestScore || hi - lo < bestScore[0] || (hi - lo === bestScore[0] && sq < bestScore[1]);
-        if (!better && bestScore && hi - lo === bestScore[0] && sq === bestScore[1]) {
-          for (let k = 0; k < R; k++) if (vals[k] !== best[k]) { better = vals[k] < best[k]; break; }
-        }
-        if (better) { bestScore = [hi - lo, sq]; best = vals.slice(); }
-        return;
-      }
-      const t = sites[i][0], rest = R - i - 1;
-      const twin = sites[i][1] === 1 ? vals[i - 1] : 0;       // the two balls of a pair are rolled at one speed
-      for (let v = twin || low; v <= (twin || cap); v += 2) {
-        if (left - v < rest * low) break;
-        const lt = (t + v) % L;
-        if (got[lt] >= turns[lt].length) continue;
-        vals[i] = v;
-        if (laneOk(i)) { got[lt]++; go(i + 1, left - v); got[lt]--; }
-        vals[i] = 0;
-      }
-    }
-    go(0, total);
-    return best;
-  }
-
-  /* Everything needed to play a mixed pattern with n balls, or null if no timing works. */
   function mixedPlan(pat, n) {
-    const turns = pat.turns, L = turns.length;
-    const flat = mixedTiming(turns, n);
-    if (!flat) return null;
-    const vals = [], src = [];                   // vals[turn][k]; src[turn][k] = {v, k}: the roll that feeds this one
-    let i = 0, maxV = 1, rolls = 0;
-    for (let t = 0; t < L; t++) { vals.push(turns[t].map(function () { return flat[i++]; })); src.push([]); rolls += turns[t].length; }
-    const arrive = turns.map(function () { return []; });
-    for (let t = 0; t < L; t++) for (let k = 0; k < turns[t].length; k++) {
-      arrive[mod(t + vals[t][k], L)].push({ v: vals[t][k], k: k });
-      maxV = Math.max(maxV, vals[t][k]);
+    const P = pat.rows[0].length;
+    const slots = pat.rows.map(function (row) {              // each person's rolls in order: which beat, which lane
+      const out = [];
+      row.forEach(function (act, beat) { act.forEach(function (lane) { out.push({ beat: beat, lane: lane }); }); });
+      return out;
+    });
+    const r = slots[0].length;
+    function thrown(x, t) {                                   // how many balls person x has rolled up to and including beat t
+      let c = Math.floor(t / P) * r;
+      for (const sl of slots[x]) if (sl.beat <= mod(t, P)) c++;
+      return c;
     }
-    // of two balls reaching the same turn, the one rolled earlier becomes the first number in the bracket;
-    // if they were rolled together they keep their order
-    for (let t = 0; t < L; t++) src[t] = arrive[t].sort(function (a, b) { return b.v - a.v || a.k - b.k; });
-    const dest = turns.map(function (tn) { return tn.map(function () { return 0; }); });
-    for (let t = 0; t < L; t++) for (let k = 0; k < src[t].length; k++) dest[mod(t - src[t][k].v, L)][src[t][k].k] = k;
-    const landings = [];
-    for (let t = -maxV; t < 0; t++) for (let k = 0; k < turns[mod(t, L)].length; k++) {
-      const v = vals[mod(t, L)][k];
-      if (t + v >= 0) landings.push((t + v) * 2 + dest[mod(t, L)][k]);
+    for (let D = 1; D <= 9; D++) {
+      const stock = [];
+      let ok = true;
+      for (let x = 0; x < 2; x++) {
+        let c = -Infinity;
+        for (let t = 0; t < P; t++) c = Math.max(c, thrown(x, t) - thrown(1 - x, t - D));       // never short of a ball to roll
+        for (let t = 0; t < P; t++) if (c + thrown(1 - x, t - D) - thrown(x, t - 1) > 2) ok = false;   // never more than two in hand
+        stock.push(c);
+      }
+      // stock[x] counts every ball person x has been sent and not rolled back, so together they are all the balls
+      if (ok && stock[0] + stock[1] === n) return { P: P, r: r, slots: slots, D: D, stock: stock, n: n, lanes: pat.lanes, average: D, thrown: thrown };
     }
-    landings.sort(function (a, b) { return a - b; });
-    // for swapping hands on single rolls: how many single rolls each person makes per loop, and how many come before each turn
-    const singles = [0, 0], before = [];
-    for (let t = 0; t < L; t++) { before.push(singles[t % 2]); if (turns[t].length === 1) singles[t % 2]++; }
-    return { turns: turns, L: L, n: n, lanes: pat.lanes, vals: vals, flat: flat, src: src, dest: dest, maxV: maxV,
-             landings: landings, singles: singles, before: before, average: n * L / rolls, ids: new Map() };
+    return null;
   }
-  function mxBallId(plan, t, k) {
-    const chain = [];
-    let id;
-    for (;;) {
-      const key = t * 2 + k;
-      id = plan.ids.get(key);
-      if (id !== undefined) break;
-      chain.push(key);
-      const r = mod(t, plan.L);
-      if (t < 0) { id = plan.landings.indexOf((t + plan.vals[r][k]) * 2 + plan.dest[r][k]); break; }
-      const s = plan.src[r][k];
-      t -= s.v; k = s.k;
-    }
-    if (plan.ids.size > 5000) plan.ids.clear();
-    for (const c of chain) plan.ids.set(c, id);
-    return id;
-  }
+  /* Person x's m-th roll ever (m can be negative): when, and into which lane. Their m-th roll is the ball from
+   * the other person's (m - stock[x])-th roll. */
+  function rhBeat(plan, x, m) { return Math.floor(m / plan.r) * plan.P + plan.slots[x][mod(m, plan.r)].beat; }
+  function rhLane(plan, x, m) { return plan.slots[x][mod(m, plan.r)].lane; }
+  function rhHold(tm) { return Math.min(0.9, 2 * tm.hold); }                // beats a ball spends in the hand at the least
+
   /* state 'roll': crossing `lane`, rolled from end `hand`. state 'carry': held at end `hand`, going from lane `from` to lane `to`. */
   function mixedBalls(u, plan, tm) {
-    const out = [], top = Math.floor(2 * u), L = plan.L;
-    for (let t = top; t > top - plan.maxV; t--) {
-      const r = mod(t, L);
-      for (let k = 0; k < plan.turns[r].length; k++) {
-        const v = plan.vals[r][k];
-        if (u >= (t + v) / 2) continue;
-        const age = u - t / 2, dur = v / 2 - tm.hold, end = mod(t, 2), lane = plan.turns[r][k];
-        if (age < dur) out.push({ id: mxBallId(plan, t, k), state: 'roll', lane: lane, hand: end, p: age / dur });
-        else out.push({ id: mxBallId(plan, t, k), state: 'carry', hand: 1 - end, from: lane,
-                        to: plan.turns[mod(t + v, L)][plan.dest[r][k]], p: Math.min(1, (age - dur) / tm.hold) });
+    const b = 2 * u, h = rhHold(tm), out = [];
+    for (let x = 0; x < 2; x++) {
+      const y = 1 - x;
+      for (let m = plan.thrown(x, Math.floor(b)) - 1, k = 0; k < plan.n + 2 * plan.r + 2; m--, k++) {
+        const again = rhBeat(plan, y, m + plan.stock[y]);     // when the other person rolls it back
+        if (b >= again) break;
+        const t0 = rhBeat(plan, x, m), arrive = t0 + plan.D - h, lane = rhLane(plan, x, m);
+        const id = mod(x === 0 ? m : m - plan.stock[1], plan.n);
+        if (b < arrive) out.push({ id: id, state: 'roll', lane: lane, hand: x, p: (b - t0) / (plan.D - h) });
+        else out.push({ id: id, state: 'carry', hand: y, from: lane, to: rhLane(plan, y, m + plan.stock[y]), p: Math.min(1, (b - arrive) / (again - arrive)) });
       }
     }
     return out;
   }
-  /* The jobs at turn t: for each ball rolled, the lane it was caught from, the lane it goes into, and which hand does it.
-   * In a pair, hand 0 takes the ball from the lower lane. Single rolls are done by each hand in turn. */
-  function mxJobs(plan, t) {
-    const r = mod(t, plan.L);
-    const jobs = plan.turns[r].map(function (lane, k) {
-      const s = plan.src[r][k];
-      return { c: plan.turns[mod(t - s.v, plan.L)][s.k], r: lane };
-    });
-    jobs.sort(function (a, b) { return a.c - b.c; });
-    if (jobs.length === 2) { jobs[0].q = 0; jobs[1].q = 1; }
-    else jobs[0].q = mod(Math.floor(t / plan.L) * plan.singles[mod(t, 2)] + plan.before[r], 2);   // single rolls swap hands each time
-    return jobs;
-  }
+  /* Each person uses their hands in turn, roll after roll, so two balls held at once are always in different hands. */
   function mixedHands(u, plan, tm) {
-    const out = [];
-    for (let e = 0; e < 2; e++) {
-      const first = 2 * (Math.floor(u - e / 2) + 1) + e;       // this person's next turn
+    const b = 2 * u, h = rhHold(tm), out = [];
+    for (let x = 0; x < 2; x++) {
+      const y = 1 - x, first = plan.thrown(x, Math.floor(b));  // this person's next roll
       for (let q = 0; q < 2; q++) {
-        let next = null, prev = null, tn = first, tp = first - 2;
-        for (let g = 0; g <= plan.L && !next; g++, tn += 2) next = mxJobs(plan, tn).find(function (j) { return j.q === q; }) || null;
-        for (let g = 0; g <= plan.L && !prev; g++, tp -= 2) prev = mxJobs(plan, tp).find(function (j) { return j.q === q; }) || null;
-        if (!next || !prev) continue;
-        const T = (tn - 2) / 2, Tp = (tp + 2) / 2, got = T - tm.hold;
-        if (u < got) out.push({ end: e, which: q, holding: false, from: prev.r, to: next.c, p: (u - Tp) / (got - Tp) });
-        else out.push({ end: e, which: q, holding: true, from: next.c, to: next.r, p: (u - got) / tm.hold });
+        const m = mod(first, 2) === q ? first : first + 1;    // this hand's next roll
+        const got = rhBeat(plan, y, m - plan.stock[x]) + plan.D - h, last = rhBeat(plan, x, m - 2), T = rhBeat(plan, x, m);
+        const catchLane = rhLane(plan, y, m - plan.stock[x]);
+        if (b < got) out.push({ end: x, which: q, holding: false, from: rhLane(plan, x, m - 2), to: catchLane, p: Math.max(0, (b - last) / (got - last)) });
+        else out.push({ end: x, which: q, holding: true, from: catchLane, to: rhLane(plan, x, m), p: Math.min(1, (b - got) / (T - got)) });
       }
     }
     return out;
   }
   function mixedPaths(plan) {
     const out = [];
-    for (let t = 0; t < plan.L; t++) for (const j of mxJobs(plan, t)) out.push({ hand: t % 2, from: j.c, to: j.r });
+    for (let x = 0; x < 2; x++) for (let m = 0; m < plan.r; m++) out.push({ hand: x, from: rhLane(plan, 1 - x, m - plan.stock[x]), to: rhLane(plan, x, m) });
     return out;
   }
 
@@ -889,7 +827,7 @@ const JLS = (function () {
   return { MAX_LANES: MAX_LANES, MAX_BEATS: MAX_BEATS, MAX_BALLS: MAX_BALLS, CATALOGUE: CATALOGUE,
            parse: parse, timing: timing, nextRoll: nextRoll,
            revOk: revOk, laneHands: laneHands,
-           mixedTiming: mixedTiming, mixedPlan: mixedPlan, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths,
+           mixedPlan: mixedPlan, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths,
            hands2: hands2, pairBalls: pairBalls, pairHands: pairHands,
            solveTiming: solveTiming, zipPlan: zipPlan, zipBalls: zipBalls, zipHands: zipHands, zipPaths: zipPaths, balls: balls, hands: hands, active: active };
 })();
@@ -962,9 +900,9 @@ function iconSvg(name) {
 </script>
 
 <script id="mixed-patterns">
-const MIX_LIST = [{"group":"Symmetric, 4 or 8 balls","items":["12[13]43[24]","12[13]43[42]","12[31]43[24]","13[12]42[34]","13[12]42[43]","13[21]42[34]","14[12]41[43]","14[13]41[42]","1[24]14[13]4","1[24]14[31]4","1[24]34[13]2","1[24]34[31]2","1[34]14[12]4","1[34]14[21]4","1[34]24[12]3","1[34]24[21]3","1[42]34[13]2","1[43]24[12]3","[12]32[34]23","[12]32[43]23","[13]23[24]32","[13]23[42]32","[21]32[34]23","[31]23[24]32"]}];
-const MIX_TOP = ["12[13]43[24]", "13[12]42[34]", "14[12]41[43]", "1[24]14[13]4", "1[34]14[12]4"];
-const ALL_MIX = {"4":{"6":"12[13][24] 12[13][42] 12[14][23] 12[14][32] 12[31][24] 12[31][42] 12[41][23] 12[41][32] 13[12][34] 13[12][43] 13[14][23] 13[14][32] 13[21][34] 13[21][43] 13[41][23] 13[41][32] 14[12][34] 14[12][43] 14[13][24] 14[13][42] 1[23][14]2 1[23][14]3 1[23][41]2 1[23][41]3 1[24][13]2 1[24][13]4 1[24][31]2 1[24][31]4 1[32][14]2 1[32][14]3 1[32][41]2 1[32][41]3 1[34][12]3 1[34][12]4 1[34][21]3 1[34][21]4 1[42][13]2 1[42][31]2 1[43][12]3 1[43][21]3 [12]32[34] [12]32[43] [12][34]23 [13]23[24] [13]23[42] [13][24]32 [21]32[34] [31]23[24]","8":"1213[14][23] 1213[14][32] 1213[41][23] 1213[41][32] 1214[13][24] 1214[13][42] 1214[31][24] 1214[31][42] 121[23][14]3 121[23][41]3 121[24][13]4 121[24][31]4 121[32][14]3 121[32][41]3 121[42][13]4 121[42][31]4 1232[13][24] 1232[13][42] 1232[31][24] 1232[31][42] 1234[13][24] 1234[13][42] 1234[31][24] 1234[31][42] 123[24][13]2 123[24][13]4 123[24][31]2 123[24][31]4 123[42][13]2 123[42][13]4 123[42][31]2 123[42][31]4 1242[14][23] 1242[14][32] 1242[41][23] 1242[41][32] 1243[14][23] 1243[14][32] 124[23][14]2 124[23][14]3 124[23][41]2 124[23][41]3 124[32][14]2 124[32][14]3 124[32][41]2 124[32][41]3 12[13]21[24] 12[13]21[42] 12[13]23[24] 12[13]23[42] 12[13]41[24] 12[13]41[42] 12[13]43[24] 12[13]43[42] 12[13][24]14 12[13][24]32 12[13][24]34 12[13][42]14 12[13][42]32 12[13][42]34 12[14]21[23] 12[14]21[32] 12[14]24[23] 12[14]24[32] 12[14]31[23] 12[14]31[32] 12[14]34[23] 12[14]34[32] 12[14][23]13 12[14][23]42 12[14][23]43 12[14][32]13 12[14][32]42 12[14][32]43 12[31]21[24] 12[31]21[42] 12[31]23[24] 12[31]23[42] 12[31]41[24] 12[31]41[42] 12[31]43[24] 12[31][24]14 12[31][24]32 12[31][24]34 12[31][42]14 12[31][42]32 12[31][42]34 12[41]21[23] 12[41]21[32] 12[41]24[23] 12[41]24[32] 12[41]31[23] 12[41]31[32] 12[41]34[23] 12[41]34[32] 12[41][23]13 12[41][23]42 12[41][32]13 12[41][32]42 1314[12][34] 1314[12][43] 1314[21][34] 1314[21][43] 131[32][14]2 131[32][41]2 131[34][12]4 131[34][21]4 131[43][12]4 131[43][21]4 1323[12][34] 1323[12][43] 1323[21][34] 1323[21][43] 1324[12][34] 1324[12][43] 1324[21][34] 1324[21][43] 132[34][12]3 132[34][12]4 132[34][21]3 132[34][21]4 132[43][12]3 132[43][12]4 132[43][21]3 132[43][21]4 1342[14][23] 1342[14][32] 134[23][14]2 134[23][14]3 134[23][41]2 134[23][41]3 13[12]31[34] 13[12]31[43] 13[12]32[34] 13[12]32[43] 13[12]41[34] 13[12]41[43] 13[12]42[34] 13[12]42[43] 13[12][34]14 13[12][34]23 13[12][34]24 13[12][43]14 13[12][43]23 13[12][43]24 13[14]21[32] 13[14]24[23] 13[14]31[32] 13[14]34[23] 13[14][23]42 13[14][32]42 13[21]31[34] 13[21]31[43] 13[21]32[34] 13[21]32[43] 13[21]41[34] 13[21]41[43] 13[21]42[34] 13[21][34]14 13[21][34]23 13[21][34]24 13[21][43]14 13[21][43]23 13[21][43]24 13[41]21[32] 13[41]24[23] 13[41]31[32] 13[41]34[23] 141[42][13]2 141[42][31]2 141[43][12]3 141[43][21]3 14[12]31[43] 14[12]32[34] 14[12]32[43] 14[12]41[43] 14[12][34]23 14[12][43]23 14[13]21[42] 14[13]23[24] 14[13]23[42] 14[13]41[42] 14[13][24]32 14[13][42]32 1[23]13[14]2 1[23]13[14]3 1[23]13[41]2 1[23]13[41]3 1[23]42[14]2 1[23]42[14]3 1[23]42[41]2 1[23]42[41]3 1[23][14]213 1[23][14]242 1[23][14]342 1[23][41]213 1[23][41]242 1[23][41]342 1[24]14[13]2 1[24]14[13]4 1[24]14[31]2 1[24]14[31]4 1[24]32[13]2 1[24]32[13]4 1[24]32[31]2 1[24]32[31]4 1[24]34[13]2 1[24]34[13]4 1[24]34[31]2 1[24][13]214 1[24][13]232 1[24][13]234 1[24][31]214 1[24][31]232 1[24][31]234 1[34]14[12]3 1[34]14[12]4 1[34]14[21]3 1[34]14[21]4 1[34]23[12]3 1[34]23[12]4 1[34]23[21]3 1[34]23[21]4 1[34]24[12]3 1[34]24[12]4 1[34]24[21]3 1[34][12]314 1[34][12]323 1[34][12]324 1[34][21]314 1[34][21]323 1[34][21]324 1[42]32[13]2 1[42]32[31]2 1[42]34[13]2 1[42][13]232 1[42][31]232 1[43]23[12]3 1[43]23[21]3 1[43]24[12]3 1[43][12]323 1[43][21]323 [12]32[34]23 [12]32[43]23 [13]23[24]32 [13]23[42]32 [21]32[34]23 [31]23[24]32"}};
+const MIX_LIST = [{"group":"3 lanes","items":["[13]-/22","11/-[23]","111/-2[23]","111/-3[23]","1[13]-/222","1111/-22[23]","1111/-23[23]","1111/-32[23]","1111/-33[23]","11[13]-/2222","13[13]-/2222"]},{"group":"4 lanes, 2 beats","items":["12/-[34]","12/[34]-","13/-[24]","13/[24]-","14/-[23]","[14]-/23"]},{"group":"4 lanes, 3 beats","items":["1[12]-/4[34]-","1[13]-/4[24]-","[12]-2/[34]-3","[13]-3/[24]-2","111/-2[34]","111/-3[24]"]},{"group":"4 lanes, 4 beats","items":["1144/-[23]-[23]","1144/[23]-[23]-","[14]-[14]-/2233","[14]-[14]-/2332","11[12]-/44[34]-","11[12]-/[34]-44"]}];
+const MIX_TOP = ["[13]-/22", "12/-[34]", "111/-2[23]", "1[12]-/4[34]-", "1144/-[23]-[23]"];
+const ALL_MIX = {"3":{"2":"11/-[23] [13]-/22","3":"111/-2[23] 111/-3[23] 1[13]-/222","4":"1111/-22[23] 1111/-23[23] 1111/-32[23] 1111/-33[23] 11[13]-/2222 13[13]-/2222"},"4":{"2":"12/-[34] 12/[34]- 13/-[24] 13/[24]- 14/-[23] [14]-/23","3":"111/-2[34] 111/-3[24] 111/-4[23] 112/-3[34] 112/-4[34] 112/3[34]- 112/4[34]- 112/[34]-3 112/[34]-4 113/-2[24] 113/-4[24] 113/2[24]- 113/4[24]- 113/[24]-2 113/[24]-4 114/-2[23] 114/-3[23] 114/2[23]- 114/3[23]- 114/[23]-2 114/[23]-3 122/-3[34] 122/-4[34] 122/3[34]- 122/4[34]- 122/[34]-3 122/[34]-4 133/-2[24] 133/-4[24] 133/2[24]- 133/4[24]- 133/[24]-2 133/[24]-4 1[12]-/-3[34] 1[12]-/-4[34] 1[12]-/3[34]- 1[12]-/4[34]- 1[12]-/[34]-3 1[13]-/-2[24] 1[13]-/-4[24] 1[13]-/2[24]- 1[13]-/4[24]- 1[13]-/[24]-2 1[14]-/-2[23] 1[14]-/-3[23] 1[14]-/223 1[14]-/232 1[14]-/233 1[14]-/2[23]- 1[14]-/322 1[14]-/323 1[14]-/332 1[14]-/3[23]- 1[14]-/[23]-2 1[14]-/[23]-3 1[24]-/333 1[34]-/222 [12]-2/-3[34] [12]-2/[34]-3 [13]-3/-2[24] [13]-3/[24]-2 [14]-2/333","4":"1111/-22[34] 1111/-23[24] 1111/-23[34] 1111/-24[23] 1111/-24[34] 1111/-32[24] 1111/-32[34] 1111/-33[24] 1111/-34[23] 1111/-34[24] 1111/-42[23] 1111/-42[34] 1111/-43[23] 1111/-43[24] 1111/-44[23] 1111/-[23]-[24] 1111/-[23]-[34] 1111/-[24]-[34] 1112/-33[34] 1112/-34[34] 1112/-43[34] 1112/-44[34] 1112/-[34]-[34] 1112/33[34]- 1112/34[34]- 1112/3[34]-3 1112/3[34]-4 1112/43[34]- 1112/44[34]- 1112/4[34]-3 1112/4[34]-4 1112/[34]-33 1112/[34]-34 1112/[34]-43 1112/[34]-44 1112/[34]-[34]- 1113/-22[24] 1113/-24[24] 1113/-42[24] 1113/-44[24] 1113/-[24]-[24] 1113/22[24]- 1113/24[24]- 1113/2[24]-2 1113/2[24]-4 1113/42[24]- 1113/44[24]- 1113/4[24]-2 1113/4[24]-4 1113/[24]-22 1113/[24]-24 1113/[24]-42 1113/[24]-44 1113/[24]-[24]- 1114/-22[23] 1114/-23[23] 1114/-32[23] 1114/-33[23] 1114/-[23]-[23] 1114/22[23]- 1114/23[23]- 1114/2[23]-2 1114/2[23]-3 1114/32[23]- 1114/33[23]- 1114/3[23]-2 1114/3[23]-3 1114/[23]-22 1114/[23]-23 1114/[23]-32 1114/[23]-33 1114/[23]-[23]- 1122/-33[34] 1122/-34[34] 1122/-43[34] 1122/-44[34] 1122/-[34]-[34] 1122/33[34]- 1122/34[34]- 1122/3[34]-3 1122/3[34]-4 1122/43[34]- 1122/44[34]- 1122/4[34]-3 1122/4[34]-4 1122/[34]-33 1122/[34]-34 1122/[34]-43 1122/[34]-44 1122/[34]-[34]- 1133/-22[24] 1133/-24[24] 1133/-42[24] 1133/-44[24] 1133/-[24]-[24] 1133/22[24]- 1133/24[24]- 1133/2[24]-2 1133/2[24]-4 1133/42[24]- 1133/44[24]- 1133/4[24]-2 1133/4[24]-4 1133/[24]-22 1133/[24]-24 1133/[24]-42 1133/[24]-44 1133/[24]-[24]- 1144/-22[23] 1144/-23[23] 1144/-32[23] 1144/-33[23] 1144/-[23]-[23] 1144/22[23]- 1144/23[23]- 1144/32[23]- 1144/33[23]- 1144/[23]-[23]- 11[12]-/3334 11[12]-/3343 11[12]-/33[34]- 11[12]-/3433 11[12]-/3434 11[12]-/34[34]- 11[12]-/4333 11[12]-/4343 11[12]-/43[34]- 11[12]-/44[34]- 11[12]-/[34]-33 11[12]-/[34]-34 11[12]-/[34]-43 11[12]-/[34]-44 11[13]-/2224 11[13]-/2242 11[13]-/22[24]- 11[13]-/2422 11[13]-/2424 11[13]-/24[24]- 11[13]-/4222 11[13]-/4242 11[13]-/42[24]- 11[13]-/44[24]- 11[13]-/[24]-22 11[13]-/[24]-24 11[13]-/[24]-42 11[13]-/[24]-44 11[14]-/2223 11[14]-/2232 11[14]-/2233 11[14]-/22[23]- 11[14]-/2322 11[14]-/2323 11[14]-/2332 11[14]-/2333 11[14]-/23[23]- 11[14]-/3222 11[14]-/3223 11[14]-/3232 11[14]-/3233 11[14]-/32[23]- 11[14]-/3322 11[14]-/3323 11[14]-/3332 11[14]-/33[23]- 11[14]-/[23]-22 11[14]-/[23]-23 11[14]-/[23]-32 11[14]-/[23]-33 11[24]-/3333 11[34]-/2222 1212/-33[34] 1212/-34[34] 1212/-43[34] 1212/33[34]- 1212/34[34]- 1212/43[34]- 1222/-33[34] 1222/-34[34] 1222/-43[34] 1222/-[34]-[34] 1222/33[34]- 1222/34[34]- 1222/3[34]-3 1222/3[34]-4 1222/43[34]- 1222/4[34]-3 1222/[34]-33 1222/[34]-34 1222/[34]-43 1222/[34]-[34]- 12[12]-/33[34]- 12[12]-/34[34]- 12[12]-/43[34]- 12[12]-/[34]-33 12[12]-/[34]-34 12[12]-/[34]-43 12[14]-/3333 12[24]-/3333 1313/-22[24] 1313/-24[24] 1313/-42[24] 1313/22[24]- 1313/24[24]- 1313/42[24]- 1333/-22[24] 1333/-24[24] 1333/-42[24] 1333/-[24]-[24] 1333/22[24]- 1333/24[24]- 1333/2[24]-2 1333/2[24]-4 1333/42[24]- 1333/4[24]-2 1333/[24]-22 1333/[24]-24 1333/[24]-42 1333/[24]-[24]- 13[13]-/22[24]- 13[13]-/24[24]- 13[13]-/42[24]- 13[13]-/[24]-22 13[13]-/[24]-24 13[13]-/[24]-42 13[14]-/2222 13[34]-/2222 1414/-22[23] 1414/-23[23] 1414/-32[23] 1414/-33[23] 14[12]-/3333 14[13]-/2222 14[14]-/2223 14[14]-/2232 14[14]-/2233 14[14]-/22[23]- 14[14]-/2322 14[14]-/2323 14[14]-/2332 14[14]-/2333 14[14]-/23[23]- 14[14]-/3222 14[14]-/3223 14[14]-/3232 14[14]-/3233 14[14]-/32[23]- 14[14]-/3322 14[14]-/3323 14[14]-/3332 14[14]-/33[23]- 14[14]-/[23]-22 14[14]-/[23]-23 14[14]-/[23]-32 14[14]-/[23]-33 14[24]-/3333 14[34]-/2222 1[12]-2/-33[34] 1[12]-2/-34[34] 1[12]-2/3[34]-3 1[12]-2/4[34]-3 1[13]-3/-22[24] 1[13]-3/-24[24] 1[13]-3/2[24]-2 1[13]-3/4[24]-2 1[14]-2/3333 1[14]-3/2222 1[24]-2/3333 1[34]-3/2222 [12]-22/33[34]- [12]-22/[34]-33 [12]-[14]-/3333 [12]-[24]-/3333 [13]-33/22[24]- [13]-33/[24]-22 [13]-[14]-/2222 [14]-22/3333 [14]-[14]-/2223 [14]-[14]-/2232 [14]-[14]-/2233 [14]-[14]-/2332"}};
 </script>
 
 <script id="reverse-patterns">
@@ -1152,12 +1090,26 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       cell.appendChild(t); cell.appendChild(small);
       return cell;
     }
-    if (pat.mixed) {
-      pat.turns.forEach(function (turn, i) {
-        holder = strip;
-        if (turn.length === 2) { holder = document.createElement('span'); holder.className = 'pair br'; strip.appendChild(holder); }
-        turn.forEach(function (lane, k) { holder.appendChild(withBeats(tile(lane, i), mplan.vals[i][k])); });
+    if (pat.mixed) {                                          // a row for each person, beat by beat
+      const rows = document.createElement('span'); rows.className = 'rows';
+      rows.style.gridTemplateColumns = 'auto repeat(' + pat.rows[0].length + ', auto)';     // one column per beat, so the rows line up
+      pat.rows.forEach(function (row, x) {
+        const who = document.createElement('small'); who.textContent = sideOf(x) === RIGHT ? 'Right' : 'Left';
+        rows.appendChild(who);
+        row.forEach(function (act, beat) {
+          let cell;
+          if (act.length === 2) {
+            cell = document.createElement('span'); cell.className = 'pair br';
+            act.forEach(function (lane) { const t = tile(lane, x); t.dataset.b = beat; cell.appendChild(t); });
+          } else if (act.length === 1) {
+            cell = tile(act[0], x); cell.dataset.b = beat;
+          } else {
+            cell = tile(0, x); cell.className = 'tile rest'; cell.textContent = '–'; cell.dataset.b = beat;
+          }
+          rows.appendChild(cell);
+        });
       });
+      strip.appendChild(rows);
       lastActive = '';
       return;
     }
@@ -1201,8 +1153,10 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const n = state.n, who = state.twoMode ? 'people' : 'hands';
     const turns = plan || mplan ? true : state.pat.pairs ? (n / 2) % 2 === 1 : n % 2 === 1;
     info.className = 'info';
-    let html = '<span class="nw"><b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + who + (turns ? ' take turns' : ' roll together') + '</span>';
-    if (state.zipMode) {
+    let html = '<span class="nw"><b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + (mplan ? 'each person keeps their own rhythm' : who + (turns ? ' take turns' : ' roll together')) + '</span>';
+    if (mplan) {
+      // the rows under the lanes already say who is who
+    } else if (state.zipMode) {
       html += '<span class="sep">|</span><span class="nw">tap a number to make it a zip</span>';
       if (plan) html += '<span class="sep">|</span><span class="nw">small numbers are beats</span>';
     } else {
@@ -1363,7 +1317,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       add(ALL_ZIPS, '');
     } else if (state.mixMode) {
       wallTitle.textContent = 'All mixed patterns';
-      wallNote.textContent = 'Two-person patterns that mix single rolls and pairs. The people take turns; a turn is one lane, or two lanes in brackets rolled together. Up to 8 rolls a loop. The two balls of a pair always roll at the same speed, which limits the ball counts: 6 for the 6-roll patterns, 8 or sometimes 4 for the 8-roll ones. The pattern list has the symmetric ones. Swapping the numbers inside a bracket swaps which ball goes where. Tap one to play it.' + same;
+      wallNote.textContent = 'Two-person patterns where each person keeps their own rhythm. Each one is two rows with a / between them, the first person then the second. On each beat a person rolls one lane, rolls two lanes together (in brackets), or rests (-) on the beat after a pair. Every ball rolls at the same speed, and a ball that arrives early waits in a hand. Most work with 3, 5, 7 or 9 balls. Tap one to play it.' + same;
       add(ALL_MIX, '');
     } else if (state.revMode) {
       wallTitle.textContent = 'All reversing patterns';
@@ -1386,7 +1340,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       for (const beats of Object.keys(sec[1]).sort(function (x, y) { return x - y; })) {
         const list = sec[1][beats].split(' ');
         const h4 = document.createElement('h4');
-        h4.textContent = beats + ' rolls (' + list.length + ')';
+        h4.textContent = beats + (state.mixMode ? ' beats (' : ' rolls (') + list.length + ')';
         wallBody.appendChild(h4);
         const box = document.createElement('div');
         box.className = 'wall-list';
@@ -1659,7 +1613,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         return b.state === 'roll' ? b : { id: b.id, state: 'held', hand: b.hand, from: { lane: b.from }, to: { lane: b.to }, p: b.p };
       });
       if (state.twoMode) {
-        const fixed = pairs || !!mplan;                       // each hand keeps to its own side of the person
+        const fixed = pairs;                                  // rolling pairs, each hand keeps to its own side of the person
         hs = (mplan ? JLS.mixedHands(u, mplan, tm) : pairs ? JLS.pairHands(u, pat, n, tm) : JLS.hands2(u, pat, n, tm)).map(function (h) {
           // Letters are each person's own right and left. Taking turns, a person leads with their right hand.
           // Rolling pairs, hand 1 is the one further up the screen: the right person's right, the left person's left.

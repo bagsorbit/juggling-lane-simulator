@@ -1029,6 +1029,10 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     twoBtn.setAttribute('aria-pressed', String(state.twoMode));
     revBtn.textContent = state.revMode ? 'Reverses on' : 'Reverses off';
     revBtn.setAttribute('aria-pressed', String(state.revMode));
+    // only one of these can be on at a time, so the others are greyed out until it is turned off
+    twoBtn.disabled = state.zipMode || state.revMode;
+    zipBtn.disabled = state.twoMode || state.revMode;
+    revBtn.disabled = state.twoMode || state.zipMode;
     inSpeed.value = state.speed;
     inCustom.setAttribute('inputmode', state.zipMode ? 'text' : 'numeric');
     selPattern.value = state.pat.text;

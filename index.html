@@ -217,7 +217,8 @@ select:focus-visible, input:focus-visible, button:focus-visible { outline: 3px s
 .seg button[aria-pressed="true"] { background: var(--sun); }
 
 input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: var(--ink); }
-#play { width: 100%; background: var(--sun); }
+#play { width: 100%; background: var(--sun); display: flex; align-items: center; justify-content: center; }
+#play svg { display: none; width: 20px; height: 20px; }
 .playrow { display: flex; gap: 6px; }
 .playrow #play { flex: 1 1 auto; min-width: 0; }
 #sound .i-on, #sound[aria-pressed="true"] .i-off { display: none; }
@@ -235,10 +236,13 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   .f-custom { grid-column: span 5; }
   .f-balls { grid-column: span 5; }
   .f-start { grid-column: span 7; }
-  .f-speed { grid-column: span 7; }
-  .f-wall { grid-column: span 5; order: 5; }
-  .f-play { grid-column: span 12; order: 6; }
-  .f-play > span { display: none; }
+  .f-speed { grid-column: span 3; }
+  .f-wall { grid-column: span 4; order: 5; }
+  .f-play { grid-column: span 5; order: 6; }
+  #play svg { display: block; }
+  #play span { display: none; }
+  .playrow { gap: 5px; }
+  #play, #sound, #share { width: 38px; flex: 1 1 0; padding: 0; }
   #openWall, #play { font-size: 14px; padding: 0 2px; }
   #custom { font-size: 16px; padding-left: 9px; background-position: 9px calc(100% - 8px); }
   .badge { width: 46px; height: 46px; top: 6px; right: 6px; }
@@ -1471,7 +1475,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     btnMore.disabled = !nextBalls(1);
     btnR.setAttribute('aria-pressed', String(state.startRight));
     btnL.setAttribute('aria-pressed', String(!state.startRight));
-    btnPlay.textContent = state.playing ? 'Pause' : 'Play';
+    showPlay();
     btnR.textContent = state.twoMode ? 'Right person' : 'Right hand';
     btnL.textContent = state.twoMode ? 'Left person' : 'Left hand';
     zipBtn.setAttribute('aria-pressed', String(state.zipMode));
@@ -1540,7 +1544,15 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   btnR.addEventListener('click', function () { if (!state.startRight) { state.startRight = true; refresh(true); } });
   btnL.addEventListener('click', function () { if (state.startRight) { state.startRight = false; refresh(true); } });
   inSpeed.addEventListener('input', function () { state.speed = parseFloat(inSpeed.value) || 1; });
-  btnPlay.addEventListener('click', function () { state.playing = !state.playing; btnPlay.textContent = state.playing ? 'Pause' : 'Play'; kick(); });
+  btnPlay.addEventListener('click', function () { state.playing = !state.playing; showPlay(); kick(); });
+  /* The Play button has words on a computer and just an icon on a phone, where it shares a row with Speed. */
+  function showPlay() {
+    btnPlay.innerHTML = (state.playing
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true" fill="#2d2a4a"><rect x="6" y="5" width="4.2" height="14" rx="1.4"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.4"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true" fill="#2d2a4a"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.9l10.6-6.8a1 1 0 0 0 0-1.8L9.5 4.3A1 1 0 0 0 8 5.2z"/></svg>')
+      + '<span>' + (state.playing ? 'Pause' : 'Play') + '</span>';
+    btnPlay.setAttribute('aria-label', state.playing ? 'Pause' : 'Play');
+  }
   zipBtn.addEventListener('click', function () {
     if (state.twoMode) { setMode(state.zipMode ? 'two' : 'zip2'); fillPatternList(); choose(state.zipMode ? lastZips2 : lastTwo); return; }
     setMode(state.zipMode ? '' : 'zip');

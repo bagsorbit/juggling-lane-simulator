@@ -1275,7 +1275,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   // The five patterns picked out in each mode: starred in the list, and what the "Random top 5" button plays.
   const TOP5 = {
     one: ['1232', '12', '1213', '123432', '141323'],
-    zip: ['121z', '1z', '123z', '12zz', '12143z'],
+    zip: ['1z2z', '1z2z3z', '1z', '121z', '13121z'],
     zip2: ['1zs2zs', '12s43s', '1s24s3', '1z2zs3zs', '121z'],
     two: ['1232', '[13][24][31][42]', '[14][23][41][32]', '[12][34][21][43]', '[13][24][13][42][31][42]'],
     rev: ['123', '12345', '12342', '123132', '13524'],
@@ -1284,7 +1284,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     slope: ['Cascade', 'Shower', '441', 'Mills Mess', 'Splits'].map(function (name) { for (const t in SLOPE) if (SLOPE[t].name === name) return t; })
   };
   // the ball count each top-five pattern starts with, where it has one
-  const TOP_BALLS = { one: { '1232': 5, '12': 4, '1213': 3, '123432': 5, '141323': 5 } };
+  const TOP_BALLS = { one: { '1232': 5, '12': 4, '1213': 3, '123432': 5, '141323': 5 },
+                     zip: { '1z2z': 3, '1z2z3z': 3, '1z': 3, '121z': 4, '13121z': 5 } };
   function topBalls(mode, text) { return (TOP_BALLS[mode] || {})[text] || 0; }
   function modeName() { return state.slopeMode ? 'slope' : state.zipMode && state.twoMode ? 'zip2' : state.zipMode ? 'zip' : state.revMode && state.twoMode ? 'rev2' : state.mixMode ? 'mix' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
 
@@ -1361,9 +1362,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (state.zipMode && state.twoMode) {
       // the one-person zip list works as it is, with each z a pass between the two people
       const pass = ZIP_LIST.map(function (g) { return { group: 'Pass zips, ' + g.group, items: g.items }; });
-      return ZIP2_LIST.concat(pass).filter(function (g) { return g.items.length; }).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return ['', t]; }) }; });
+      return ZIP2_LIST.concat(pass).filter(function (g) { return g.items.length; }).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [ZIP_NAMES[t] || '', t]; }) }; });
     }
-    if (state.zipMode || state.revMode || state.mixMode) return (state.zipMode ? ZIP_LIST : state.revMode ? (state.twoMode ? REV_PAIR_LIST.concat(REV_LIST) : REV_LIST) : MIX_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return ['', t]; }) }; });
+    if (state.zipMode || state.revMode || state.mixMode) return (state.zipMode ? ZIP_LIST : state.revMode ? (state.twoMode ? REV_PAIR_LIST.concat(REV_LIST) : REV_LIST) : MIX_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [ZIP_NAMES[t] || '', t]; }) }; });
     return state.twoMode ? PAIR_LIST.concat(JLS.CATALOGUE) : JLS.CATALOGUE;
   }
   function fillPatternList() {
@@ -1392,7 +1393,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     return false;
   }
 
+  // names for zip patterns (they have no pictures)
+  const ZIP_NAMES = { '1z': 'Parade', '121z': 'Cheeky', '1z2z': 'X Factor', '1z2z3z': 'Shuffle', '1z2z3z4z': 'Stairs',
+                      '12zz': 'Hand Off', '12z21z': 'Heart', '123z': 'Face', '12z3': 'Bird', '13z2': 'Bill' };
   function knownPattern(text) {
+    if (ZIP_NAMES[text]) return [ZIP_NAMES[text], text];
     for (const g of JLS.CATALOGUE.concat(PAIR_LIST, SLOPE_LIST)) for (const it of g.items) if (it[0] && it[1] === text) return it;
     return null;
   }
@@ -1898,7 +1903,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         for (const text of list) {
           const b = document.createElement('button');
           b.type = 'button'; b.textContent = text;
-          const known = state.zipMode ? null : knownPattern(text);
+          const known = knownPattern(text);
           if (known) { b.className = 'named'; b.title = known[0]; }
           box.appendChild(b);
         }

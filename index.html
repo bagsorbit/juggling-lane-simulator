@@ -196,6 +196,8 @@ input[type="text"].bad { border-color: var(--warn); box-shadow: 0 3px 0 var(--wa
 button { cursor: pointer; font-weight: 600; padding: 0 12px; touch-action: manipulation; }
 button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
 button:disabled { opacity: .4; cursor: default; }
+input:disabled { opacity: .4; cursor: default; }
+.field:has(input:disabled) > span { opacity: .4; }
 select:focus-visible, input:focus-visible, button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 
 .stepper { display: flex; align-items: flex-start; gap: 6px; }

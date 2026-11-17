@@ -285,7 +285,50 @@
         }
       }
     }
-    for (const bad of ['[14]', '[11][23]', '[14][21]', '1[23]4', '[14][23', '[147][23]']) if (JLS.parse(bad).ok) fail('"' + bad + '" should be refused');
+    for (const bad of ['[14]', '[11][23]', '[14][21]', '[14][23', '[147][23]']) if (JLS.parse(bad).ok) fail('"' + bad + '" should be refused');
+    /* ---------- two people, mixed single rolls and pairs ---------- */
+    const mixExpected = await (await fetch('mixed-timings.json')).json();
+    let mixChecks = 0;
+    for (const text of Object.keys(mixExpected)) {
+      const pat = JLS.parse(text);
+      if (!pat.ok || !pat.mixed) { fail('mixed pattern ' + text + ' does not parse: ' + pat.error); continue; }
+      for (let n = 1; n <= 8; n++) {
+        const tag = text + ' mixed with ' + n + ': ';
+        const plan = JLS.mixedPlan(pat, n);
+        if (!mixExpected[text][n]) { if (plan) fail(tag + 'found a timing the search script did not'); continue; }
+        if (!plan) { fail(tag + 'no timing found'); continue; }
+        if (JSON.stringify(plan.flat) !== JSON.stringify(mixExpected[text][n])) { fail(tag + 'timing ' + plan.flat + ' but the search script says ' + mixExpected[text][n]); continue; }
+        if (n % 2) continue;                                  // simulate half of them to keep the run short
+        const tm = JLS.timing(plan.average), L = pat.turns.length, prev = new Map();
+        const last = [new Map(), new Map()];
+        for (let k = 0; k * 0.013 < 2 * L + 3; k++) {
+          const u = 0.0031 + k * 0.013;
+          const bs = JLS.mixedBalls(u, plan, tm), hs = JLS.mixedHands(u, plan, tm);
+          mixChecks++;
+          if (bs.length !== n || new Set(bs.map(b => b.id)).size !== n || bs.some(b => !(b.id >= 0 && b.id < n))) { fail(tag + 'wrong balls at u=' + u); break; }
+          if (!checkHands(tag, u, bs, hs)) break;
+          let bad = '';
+          const turnNow = pat.turns[((Math.floor(2 * u) % L) + L) % L];
+          for (const b of bs) {
+            const was = prev.get(b.id);
+            if (b.state === 'roll' && pat.hand[b.lane] !== b.hand) bad = 'lane rolled from the wrong end';
+            if (was && was.state === 'roll' && b.state === 'carry' && b.from !== was.lane) bad = 'ball jumped when caught';
+            if (was && was.state === 'carry' && b.state === 'roll' && (was.to !== b.lane || !turnNow.includes(b.lane))) bad = 'ball rolled into the wrong lane';
+            if (was && was.state === 'roll' && b.state === 'roll' && (was.lane !== b.lane || b.p < was.p)) bad = 'ball moved wrongly in its lane';
+            prev.set(b.id, b);
+          }
+          for (const h of hs) {
+            const was = last[h.end].get(h.which);
+            if (was && was.holding !== h.holding && was.to !== h.from) bad = 'a hand jumped';
+            last[h.end].set(h.which, h);
+          }
+          if (bad) { fail(tag + bad + ' at u=' + u); break; }
+        }
+      }
+    }
+    for (const bad of ['[13]2[13]2', '1[23]4', '12[13][21]', '1[2', '12[13][24]1']) if (JLS.parse(bad).ok) fail('"' + bad + '" should be refused');
+    lines.push(Object.keys(mixExpected).length + ' mixed patterns, ' + mixChecks + ' moments checked');
+
     lines.push(pairTexts.length + ' two-at-once patterns, ' + twoChecks + ' moments checked');
     lines.push(zipPatterns.length + ' zip patterns, ' + zipChecks + ' moments checked');
     lines.push(failures ? failures + ' FAILURES' : 'ALL PASSED');

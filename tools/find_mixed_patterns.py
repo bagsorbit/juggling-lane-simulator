@@ -114,7 +114,7 @@ def search(k, max_rolls=8, ball_counts=range(1, 9)):
         if 1 in t: build((t,), len(t))
     return found
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--embed" not in sys.argv:
     for k in (3, 4):
         found = search(k)
         playable = {c: v for c, v in found.items() if v[1]}
@@ -128,3 +128,29 @@ if __name__ == "__main__":
             if len(rows) <= 12:
                 for text, tm in rows:
                     print("     ", text.ljust(18), "  ".join(f"{b}: {''.join(map(str, v))}" for b, v in tm.items()))
+
+
+def embed(path="index.html"):
+    """Rewrite the mixed-pattern lists inside index.html and the expected timings used by the tests."""
+    import json, re
+    found = search(4)
+    by = defaultdict(list)
+    expected = {}
+    for d, tm in found.values():
+        by[sum(len(t) for t in d)].append(show(d))
+        expected[show(d)] = {str(b): list(v) for b, v in tm.items()}
+    everything = {"4": {str(r): " ".join(sorted(v)) for r, v in sorted(by.items())}}
+    six = sorted(by[6])[:8]
+    eight = [t for t in sorted(by[8]) if "4" in expected[t]][:2]
+    short = [{"group": "6 rolls", "items": six}, {"group": "8 rolls", "items": eight}]
+    block = ('<script id="mixed-patterns">\nconst MIX_LIST = ' + json.dumps(short, separators=(",", ":")) +
+             ';\nconst ALL_MIX = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')
+    html = open(path, encoding="utf-8").read()
+    html, n = re.subn(r'<script id="mixed-patterns">.*?</script>', lambda m: block, html, flags=re.S)
+    assert n == 1
+    open(path, "w", encoding="utf-8").write(html)
+    json.dump(expected, open("tests/mixed-timings.json", "w"), separators=(",", ":"))
+    print("mixed:", {r: len(v.split()) for r, v in everything["4"].items()}, "list:", six, eight)
+
+if __name__ == "__main__" and "--embed" in sys.argv:
+    embed()

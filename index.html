@@ -76,7 +76,7 @@ h1 {
   pointer-events: none;
 }
 .badge:empty { display: none; }
-.modes { position: absolute; top: 8px; left: 8px; z-index: 1; display: flex; gap: 6px; }
+.modes { position: absolute; top: 8px; left: 8px; right: 80px; z-index: 1; display: flex; flex-wrap: wrap; gap: 6px; }
 .modebtn { height: 34px; margin: 0; padding: 0 12px; font-size: 14px; border-radius: 17px; white-space: nowrap; }
 .modebtn[aria-pressed="true"] { background: #c0eb75; }
 .lucky { position: absolute; left: 8px; bottom: 10px; z-index: 1; display: flex; align-items: center; gap: 6px; padding: 0 12px 0 8px; background: var(--sun); }
@@ -218,8 +218,8 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   .pair.br .tile { width: 20px; height: 28px; font-size: 15px; border-width: 2px; border-radius: 7px; }
   .strip:has(.br) { gap: 3px; }
   .modes { top: 6px; left: 6px; gap: 5px; }
-  .modebtn { height: 30px; padding: 0 7px; font-size: 12.5px; }
-  .modes { gap: 4px; }
+  .modebtn { height: 28px; padding: 0 6px; font-size: 12px; }
+  .modes { gap: 3px; right: 54px; }
   .lucky { left: 6px; bottom: 8px; width: 32px; padding: 0; justify-content: center; }
   .lucky span { display: none; }
   .seg button { font-size: 14px; }
@@ -265,7 +265,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
 <main class="app">
   <h1>Juggling Lane Simulator</h1>
 
-  <div class="stage" id="stage"><div class="modes"><button type="button" class="modebtn" id="twoMode" aria-pressed="false">1 person</button><button type="button" class="modebtn" id="zipMode" aria-pressed="false">Zips off</button><button type="button" class="modebtn" id="revMode" aria-pressed="false">Reverses off</button></div><button type="button" class="modebtn lucky" id="lucky" aria-label="Play a random pattern from the top five"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#fff" stroke="#2d2a4a" stroke-width="2.4"/><g fill="#2d2a4a"><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="8" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="8" cy="16" r="1.9"/><circle cx="16" cy="16" r="1.9"/></g></svg><span>Random top 5</span></button><div class="badge" id="badge" aria-hidden="true"></div><canvas id="board" role="img" aria-label="Animation of balls rolling across lanes and being carried between them by two hands"></canvas></div>
+  <div class="stage" id="stage"><div class="modes"><button type="button" class="modebtn" id="twoMode" aria-pressed="false">1 person</button><button type="button" class="modebtn" id="mixMode" aria-pressed="false">Mixed off</button><button type="button" class="modebtn" id="zipMode" aria-pressed="false">Zips off</button><button type="button" class="modebtn" id="revMode" aria-pressed="false">Reverses off</button></div><button type="button" class="modebtn lucky" id="lucky" aria-label="Play a random pattern from the top five"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#fff" stroke="#2d2a4a" stroke-width="2.4"/><g fill="#2d2a4a"><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="8" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="8" cy="16" r="1.9"/><circle cx="16" cy="16" r="1.9"/></g></svg><span>Random top 5</span></button><div class="badge" id="badge" aria-hidden="true"></div><canvas id="board" role="img" aria-label="Animation of balls rolling across lanes and being carried between them by two hands"></canvas></div>
 
   <div class="strip" id="strip" aria-label="Pattern, one number per roll"></div>
   <p class="info" id="info" role="status"></p>
@@ -356,11 +356,37 @@ const JLS = (function () {
 
   function mod(a, m) { return ((a % m) + m) % m; }
 
+  /* Two-person patterns that mix single rolls and pairs, written 12[13][24]. The people take strict
+   * turns; `turns` holds the one or two lanes rolled on each turn. */
+  function parseMixed(s) {
+    const tokens = s.match(/\[[^\[\]]*\]|[^\[\]]/g) || [];
+    if (tokens.join('') !== s) return { ok: false, error: 'The brackets do not match up. Write pairs like [14].' };
+    const turns = [];
+    for (const tok of tokens) {
+      if (/^[1-6]$/.test(tok)) turns.push([Number(tok)]);
+      else if (/^\[[1-6]{2}\]$/.test(tok) && tok[1] !== tok[2]) turns.push([Number(tok[1]), Number(tok[2])]);
+      else return { ok: false, error: 'Use lane numbers 1 to ' + MAX_LANES + ', alone or two different ones in brackets like [14].' };
+    }
+    if (turns.length > MAX_BRACKETS) return { ok: false, error: 'That is too long. Keep it to ' + MAX_BRACKETS + ' turns or fewer.' };
+    if (turns.length % 2) return { ok: false, error: 'A pattern needs an even number of turns, because the two people take turns.' };
+    const lanes = Math.max.apply(null, [].concat.apply([], turns));
+    const hand = new Array(lanes + 1).fill(-1), rolls = [0, 0];
+    for (let i = 0; i < turns.length; i++) {
+      rolls[i % 2] += turns[i].length;
+      for (const lane of turns[i]) {
+        if (hand[lane] === -1) hand[lane] = i % 2;
+        else if (hand[lane] !== i % 2) return { ok: false, error: 'Lane ' + lane + ' is rolled from both ends, so it would have to run both ways.' };
+      }
+    }
+    if (rolls[0] !== rolls[1]) return { ok: false, error: 'Both people must roll the same number of balls each loop. Here one rolls ' + rolls[0] + ' and the other ' + rolls[1] + '.' };
+    return { ok: true, text: s, seq: turns.map(function (t) { return t[0]; }), turns: turns, lanes: lanes, hand: hand, mixed: true, zip: false };
+  }
+
   /* Two-person patterns where each person rolls two balls at once, written [14][23].
    * The first number in each bracket is one ball's path and the second number is the other's,
    * so the pattern is really two ordinary patterns played side by side: `slots`. */
   function parsePairs(s) {
-    if (!/^(\[[^\[\]]*\])+$/.test(s)) return { ok: false, error: 'Mixing single rolls and pairs is not possible yet. Put every roll in brackets, like [14][23].' };
+    if (!/^(\[[^\[\]]*\])+$/.test(s)) return parseMixed(s);
     const parts = s.slice(1, -1).split('][');
     for (const part of parts) {
       if (!/^[1-6]{2}$/.test(part)) return { ok: false, error: 'Each pair of brackets needs two lane numbers from 1 to ' + MAX_LANES + ', like [14].' };
@@ -563,6 +589,153 @@ const JLS = (function () {
     return out;
   }
 
+  /* ================= two people, single rolls and pairs mixed =================
+   * Timed the same way as zips: every roll gets a value, the number of turns until that ball is
+   * rolled again. It is odd (the ball changes ends) and at least 3 unless every value is 1. Each
+   * turn must be handed exactly as many balls as it rolls, and a ball can never overtake another
+   * in its lane. A ball that is not needed yet simply rolls more slowly.
+   */
+  function mixedTiming(turns, n) {
+    const L = turns.length, sites = [];
+    for (let t = 0; t < L; t++) for (let k = 0; k < turns[t].length; k++) sites.push([t, k]);
+    const R = sites.length, total = n * L, avg = total / R;
+    const low = avg <= 1 ? 1 : 3, cap = 2 * L + Math.ceil(avg) + 2;
+    const got = new Array(L).fill(0), vals = new Array(R).fill(0);
+    let best = null, bestScore = null;
+    function laneOk(i) {
+      const ti = sites[i][0], lane = turns[ti][sites[i][1]];
+      for (let j = 0; j < R; j++) {
+        if (j === i || !vals[j]) continue;
+        const tj = sites[j][0];
+        if (turns[tj][sites[j][1]] !== lane) continue;
+        const first = ti < tj ? i : j, second = ti < tj ? j : i, gap = Math.abs(ti - tj);
+        if (!(vals[first] - vals[second] < gap && vals[second] - vals[first] < L - gap)) return false;
+      }
+      return true;
+    }
+    function go(i, left) {
+      if (i === R) {
+        if (left !== 0) return;
+        let lo = Infinity, hi = 0, sq = 0;
+        for (const v of vals) { lo = Math.min(lo, v); hi = Math.max(hi, v); sq += v * v; }
+        let better = !bestScore || hi - lo < bestScore[0] || (hi - lo === bestScore[0] && sq < bestScore[1]);
+        if (!better && bestScore && hi - lo === bestScore[0] && sq === bestScore[1]) {
+          for (let k = 0; k < R; k++) if (vals[k] !== best[k]) { better = vals[k] < best[k]; break; }
+        }
+        if (better) { bestScore = [hi - lo, sq]; best = vals.slice(); }
+        return;
+      }
+      const t = sites[i][0], rest = R - i - 1;
+      for (let v = low; v <= cap; v += 2) {
+        if (left - v < rest * low) break;
+        const lt = (t + v) % L;
+        if (got[lt] >= turns[lt].length) continue;
+        vals[i] = v;
+        if (laneOk(i)) { got[lt]++; go(i + 1, left - v); got[lt]--; }
+        vals[i] = 0;
+      }
+    }
+    go(0, total);
+    return best;
+  }
+
+  /* Everything needed to play a mixed pattern with n balls, or null if no timing works. */
+  function mixedPlan(pat, n) {
+    const turns = pat.turns, L = turns.length;
+    const flat = mixedTiming(turns, n);
+    if (!flat) return null;
+    const vals = [], src = [];                   // vals[turn][k]; src[turn][k] = {v, k}: the roll that feeds this one
+    let i = 0, maxV = 1, rolls = 0;
+    for (let t = 0; t < L; t++) { vals.push(turns[t].map(function () { return flat[i++]; })); src.push([]); rolls += turns[t].length; }
+    const arrive = turns.map(function () { return []; });
+    for (let t = 0; t < L; t++) for (let k = 0; k < turns[t].length; k++) {
+      arrive[mod(t + vals[t][k], L)].push({ v: vals[t][k], k: k });
+      maxV = Math.max(maxV, vals[t][k]);
+    }
+    // of two balls reaching the same turn, the one rolled earlier becomes the first number in the bracket;
+    // if they were rolled together they keep their order
+    for (let t = 0; t < L; t++) src[t] = arrive[t].sort(function (a, b) { return b.v - a.v || a.k - b.k; });
+    const dest = turns.map(function (tn) { return tn.map(function () { return 0; }); });
+    for (let t = 0; t < L; t++) for (let k = 0; k < src[t].length; k++) dest[mod(t - src[t][k].v, L)][src[t][k].k] = k;
+    const landings = [];
+    for (let t = -maxV; t < 0; t++) for (let k = 0; k < turns[mod(t, L)].length; k++) {
+      const v = vals[mod(t, L)][k];
+      if (t + v >= 0) landings.push((t + v) * 2 + dest[mod(t, L)][k]);
+    }
+    landings.sort(function (a, b) { return a - b; });
+    // which of a person's two hands takes a ball: the lower hand for the lower half of the lanes that reach them
+    const incoming = [[], []];
+    for (let lane = 1; lane <= pat.lanes; lane++) if (pat.hand[lane] !== -1) incoming[1 - pat.hand[lane]].push(lane);
+    return { turns: turns, L: L, n: n, lanes: pat.lanes, vals: vals, flat: flat, src: src, dest: dest, maxV: maxV,
+             landings: landings, incoming: incoming, average: n * L / rolls, ids: new Map() };
+  }
+  function mxBallId(plan, t, k) {
+    const chain = [];
+    let id;
+    for (;;) {
+      const key = t * 2 + k;
+      id = plan.ids.get(key);
+      if (id !== undefined) break;
+      chain.push(key);
+      const r = mod(t, plan.L);
+      if (t < 0) { id = plan.landings.indexOf((t + plan.vals[r][k]) * 2 + plan.dest[r][k]); break; }
+      const s = plan.src[r][k];
+      t -= s.v; k = s.k;
+    }
+    if (plan.ids.size > 5000) plan.ids.clear();
+    for (const c of chain) plan.ids.set(c, id);
+    return id;
+  }
+  /* state 'roll': crossing `lane`, rolled from end `hand`. state 'carry': held at end `hand`, going from lane `from` to lane `to`. */
+  function mixedBalls(u, plan, tm) {
+    const out = [], top = Math.floor(2 * u), L = plan.L;
+    for (let t = top; t > top - plan.maxV; t--) {
+      const r = mod(t, L);
+      for (let k = 0; k < plan.turns[r].length; k++) {
+        const v = plan.vals[r][k];
+        if (u >= (t + v) / 2) continue;
+        const age = u - t / 2, dur = v / 2 - tm.hold, end = mod(t, 2), lane = plan.turns[r][k];
+        if (age < dur) out.push({ id: mxBallId(plan, t, k), state: 'roll', lane: lane, hand: end, p: age / dur });
+        else out.push({ id: mxBallId(plan, t, k), state: 'carry', hand: 1 - end, from: lane,
+                        to: plan.turns[mod(t + v, L)][plan.dest[r][k]], p: Math.min(1, (age - dur) / tm.hold) });
+      }
+    }
+    return out;
+  }
+  /* The jobs at turn t: for each ball rolled, the lane it was caught from, the lane it goes into, and which hand does it. */
+  function mxJobs(plan, t) {
+    const r = mod(t, plan.L), mine = plan.incoming[mod(t, 2)];
+    const jobs = plan.turns[r].map(function (lane, k) {
+      const s = plan.src[r][k];
+      return { c: plan.turns[mod(t - s.v, plan.L)][s.k], r: lane };
+    });
+    jobs.sort(function (a, b) { return a.c - b.c; });
+    if (jobs.length === 2) { jobs[0].q = 0; jobs[1].q = 1; }
+    else jobs[0].q = mine.indexOf(jobs[0].c) < mine.length / 2 ? 0 : 1;
+    return jobs;
+  }
+  function mixedHands(u, plan, tm) {
+    const out = [];
+    for (let e = 0; e < 2; e++) {
+      const first = 2 * (Math.floor(u - e / 2) + 1) + e;       // this person's next turn
+      for (let q = 0; q < 2; q++) {
+        let next = null, prev = null, tn = first, tp = first - 2;
+        for (let g = 0; g <= plan.L && !next; g++, tn += 2) next = mxJobs(plan, tn).find(function (j) { return j.q === q; }) || null;
+        for (let g = 0; g <= plan.L && !prev; g++, tp -= 2) prev = mxJobs(plan, tp).find(function (j) { return j.q === q; }) || null;
+        if (!next || !prev) continue;
+        const T = (tn - 2) / 2, Tp = (tp + 2) / 2, got = T - tm.hold;
+        if (u < got) out.push({ end: e, which: q, holding: false, from: prev.r, to: next.c, p: (u - Tp) / (got - Tp) });
+        else out.push({ end: e, which: q, holding: true, from: next.c, to: next.r, p: (u - got) / tm.hold });
+      }
+    }
+    return out;
+  }
+  function mixedPaths(plan) {
+    const out = [];
+    for (let t = 0; t < plan.L; t++) for (const j of mxJobs(plan, t)) out.push({ hand: t % 2, from: j.c, to: j.r });
+    return out;
+  }
+
   /* ================= zips =================
    * A zip is a handoff: the hand passes its ball straight to the other hand, which
    * rolls it on the very next beat. That ball jumps the queue, so the rolls can no
@@ -713,6 +886,7 @@ const JLS = (function () {
   return { MAX_LANES: MAX_LANES, MAX_BEATS: MAX_BEATS, MAX_BALLS: MAX_BALLS, CATALOGUE: CATALOGUE,
            parse: parse, timing: timing, nextRoll: nextRoll,
            revOk: revOk, laneHands: laneHands,
+           mixedTiming: mixedTiming, mixedPlan: mixedPlan, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths,
            hands2: hands2, pairBalls: pairBalls, pairHands: pairHands,
            solveTiming: solveTiming, zipPlan: zipPlan, zipBalls: zipBalls, zipHands: zipHands, zipPaths: zipPaths, balls: balls, hands: hands, active: active };
 })();
@@ -784,6 +958,11 @@ function iconSvg(name) {
 }
 </script>
 
+<script id="mixed-patterns">
+const MIX_LIST = [{"group":"6 rolls","items":["12[13][24]","12[13][42]","12[14][23]","12[14][32]","12[31][24]","12[31][42]","12[41][23]","12[41][32]"]},{"group":"8 rolls","items":["12[13]21[24]","12[13]21[42]"]}];
+const ALL_MIX = {"4":{"6":"12[13][24] 12[13][42] 12[14][23] 12[14][32] 12[31][24] 12[31][42] 12[41][23] 12[41][32] 13[12][34] 13[12][43] 13[14][23] 13[14][32] 13[21][34] 13[21][43] 13[41][23] 13[41][32] 14[12][34] 14[12][43] 14[13][24] 14[13][42] 1[23][14]2 1[23][14]3 1[23][41]2 1[23][41]3 1[24][13]2 1[24][13]4 1[24][31]2 1[24][31]4 1[32][14]2 1[32][14]3 1[32][41]2 1[32][41]3 1[34][12]3 1[34][12]4 1[34][21]3 1[34][21]4 1[42][13]2 1[42][31]2 1[43][12]3 1[43][21]3 23[21][34] 23[24][31] [12]32[34] [12]32[43] [12][34]23 [13]23[24] [13]23[42] [13][24]32","8":"1213[14][23] 1213[14][32] 1213[41][23] 1213[41][32] 1214[13][24] 1214[13][42] 1214[31][24] 1214[31][42] 121[23][14]3 121[23][41]3 121[24][13]4 121[24][31]4 121[32][14]3 121[32][41]3 121[42][13]4 121[42][31]4 1232[13][24] 1232[13][42] 1232[31][24] 1232[31][42] 1234[13][24] 1234[13][42] 1234[31][24] 1234[31][42] 123[24][13]2 123[24][13]4 123[24][31]2 123[24][31]4 123[42][13]2 123[42][13]4 123[42][31]2 123[42][31]4 1242[14][23] 1242[14][32] 1242[41][23] 1242[41][32] 1243[14][23] 1243[14][32] 124[23][14]2 124[23][14]3 124[23][41]2 124[23][41]3 124[32][14]2 124[32][14]3 124[32][41]2 124[32][41]3 12[13]21[24] 12[13]21[42] 12[13]23[24] 12[13]23[42] 12[13]41[24] 12[13]41[42] 12[13]43[24] 12[13]43[42] 12[13][24]14 12[13][24]32 12[13][24]34 12[13][42]14 12[13][42]32 12[13][42]34 12[14]21[23] 12[14]21[32] 12[14]24[23] 12[14]24[32] 12[14]31[23] 12[14]31[32] 12[14]34[23] 12[14]34[32] 12[14][23]13 12[14][23]42 12[14][23]43 12[14][32]13 12[14][32]42 12[14][32]43 12[31]21[24] 12[31]21[42] 12[31]23[24] 12[31]23[42] 12[31]41[24] 12[31]41[42] 12[31]43[24] 12[31][24]14 12[31][24]32 12[31][24]34 12[31][42]14 12[31][42]32 12[31][42]34 12[41]21[23] 12[41]21[32] 12[41]24[23] 12[41]24[32] 12[41]31[23] 12[41]31[32] 12[41]34[23] 12[41]34[32] 12[41][23]13 12[41][23]42 12[41][32]13 12[41][32]42 1314[12][34] 1314[12][43] 1314[21][34] 1314[21][43] 131[32][14]2 131[32][41]2 131[34][12]4 131[34][21]4 131[43][12]4 131[43][21]4 1323[12][34] 1323[12][43] 1323[21][34] 1323[21][43] 1324[12][34] 1324[12][43] 1324[21][34] 1324[21][43] 132[34][12]3 132[34][12]4 132[34][21]3 132[34][21]4 132[43][12]3 132[43][12]4 132[43][21]3 132[43][21]4 1342[14][23] 1342[14][32] 134[23][14]2 134[23][14]3 134[23][41]2 134[23][41]3 13[12]31[34] 13[12]31[43] 13[12]32[34] 13[12]32[43] 13[12]41[34] 13[12]41[43] 13[12]42[34] 13[12]42[43] 13[12][34]14 13[12][34]23 13[12][34]24 13[12][43]14 13[12][43]23 13[12][43]24 13[14]21[32] 13[14]24[23] 13[14]31[32] 13[14]34[23] 13[14][23]42 13[14][32]42 13[21]31[34] 13[21]31[43] 13[21]32[34] 13[21]32[43] 13[21]41[34] 13[21]41[43] 13[21]42[34] 13[21][34]14 13[21][34]23 13[21][34]24 13[21][43]14 13[21][43]23 13[21][43]24 13[41]21[32] 13[41]24[23] 13[41]31[32] 13[41]34[23] 141[42][13]2 141[42][31]2 141[43][12]3 141[43][21]3 14[12]31[43] 14[12]32[34] 14[12]32[43] 14[12]41[43] 14[12][34]23 14[12][43]23 14[13]21[42] 14[13]23[24] 14[13]23[42] 14[13]41[42] 14[13][24]32 14[13][42]32 1[23]13[14]2 1[23]13[14]3 1[23]13[41]2 1[23]13[41]3 1[23]42[14]2 1[23]42[14]3 1[23]42[41]2 1[23]42[41]3 1[23][14]213 1[23][14]242 1[23][14]342 1[23][41]213 1[23][41]242 1[23][41]342 1[24]14[13]2 1[24]14[13]4 1[24]14[31]2 1[24]14[31]4 1[24]32[13]2 1[24]32[13]4 1[24]32[31]2 1[24]32[31]4 1[24]34[13]2 1[24]34[13]4 1[24]34[31]2 1[24][13]214 1[24][13]232 1[24][13]234 1[24][31]214 1[24][31]232 1[24][31]234 1[34]14[12]3 1[34]14[12]4 1[34]14[21]3 1[34]14[21]4 1[34]23[12]3 1[34]23[12]4 1[34]23[21]3 1[34]23[21]4 1[34]24[12]3 1[34]24[12]4 1[34]24[21]3 1[34][12]314 1[34][12]323 1[34][12]324 1[34][21]314 1[34][21]323 1[34][21]324 1[42]32[13]2 1[42]32[31]2 1[42]34[13]2 1[42][13]232 1[42][31]232 1[43]23[12]3 1[43]23[21]3 1[43]24[12]3 1[43][12]323 1[43][21]323 23[21]32[34] 23[24]32[31] [12]32[34]23 [12]32[43]23 [13]23[24]32 [13]23[42]32"}};
+</script>
+
 <script id="reverse-patterns">
 const REV_LIST = [{"group":"3 lanes","items":["123","121323","123132"]},{"group":"4 lanes, 5 rolls","items":["12134","12314","12324","12342","12413","12423"]},{"group":"5 lanes, 5 rolls","items":["12345","12354","12435","12453","12534","13425","13524","14325"]},{"group":"1 lane, 1 ball","items":["1"]}];
 const ALL_REVS = {"3":{"3":"123","6":"121323 123132","8":"12132123 12313213"},"4":{"5":"12134 12314 12324 12342 12413 12423","6":"121324 123124 123134 123142 123143 123243 123413 123423 124134 124143","7":"1213234 1213243 1213424 1214234 1231324 1231342 1231424 1231432 1232134 1232413 1234142 1234143 1234213 1241323 1241342 1241423 1242134 1242314","8":"12131424 12131434 12132124 12132134 12132143 12132314 12132343 12132423 12132434 12134124 12134134 12134143 12134234 12134314 12134324 12142134 12142324 12143134 12312314 12312324 12312342 12312343 12312413 12312423 12312432 12313214 12313242 12313243 12313413 12313423 12313424 12313432 12314124 12314132 12314134 12314213 12314214 12314243 12314314 12314323 12314324 12321314 12321324 12321343 12321424 12324124 12324134 12324142 12324143 12324213 12324214 12324314 12324323 12341323 12341342 12341343 12341423 12342142 12342143 12342413 12342432 12343142 12412413 12412423 12413142 12413143 12413413 12413423 12414213 12414314 12421314 12421323 12421324 12423134 12423143"},"5":{"5":"12345 12354 12435 12453 12534 13425 13524 14325","6":"123145 123154 123425 123453 123524 123543 124135 124153 124325 124354 124523 125134 125143 125324 132435 132534 134235 135234","7":"1213145 1213154 1213245 1213254 1213415 1213425 1213435 1213453 1213454 1213514 1213524 1213534 1213545 1214135 1214235 1214315 1214325 1214345 1214354 1214535 1215345 1231345 1231354 1231415 1231425 1231435 1231452 1231454 1231514 1231524 1231534 1231542 1232145 1232415 1232425 1232435 1232452 1232453 1232454 1232514 1232524 1232534 1232542 1232543 1234135 1234145 1234152 1234153 1234215 1234245 1234252 1234253 1234254 1234315 1234325 1234352 1234353 1234354 1234513 1234514 1234524 1234532 1234542 1235134 1235142 1235143 1235154 1235214 1235242 1235243 1235245 1235254 1235314 1235324 1235342 1235343 1235413 1235415 1235424 1235425 1241315 1241325 1241352 1241353 1241435 1241453 1241513 1241523 1241535 1242135 1242315 1242325 1242352 1242353 1242354 1242513 1242523 1242534 1242535 1243135 1243145 1243152 1243154 1243235 1243252 1243253 1243254 1243415 1243425 1243513 1243514 1243523 1243525 1243534 1243542 1245134 1245143 1245153 1245213 1245234 1245253 1245323 1245352 1251314 1251324 1251343 1251354 1251413 1251423 1251434 1251453 1251534 1252134 1252314 1252324 1252343 1252354 1252413 1252423 1252434 1252435 1253134 1253145 1253154 1253234 1253243 1253413 1253415 1253423 1253424 1253435 1253514 1253524 1314235 1314325 1323415 1323425 1323435 1323514 1323524 1323534 1324153 1324235 1324253 1324315 1324353 1325143 1325234 1325243 1325314 1341425 1341525 1342325 1342353 1342415 1342514 1342524 1343235 1343253 1351424 1351524 1352324 1352514 1423415 1424325 1425234"}};
@@ -816,7 +995,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   const $ = function (id) { return document.getElementById(id); };
   const stage = $('stage'), canvas = $('board'), ctx = canvas.getContext('2d');
-  const strip = $('strip'), info = $('info'), badge = $('badge'), zipBtn = $('zipMode'), twoBtn = $('twoMode'), revBtn = $('revMode');
+  const strip = $('strip'), info = $('info'), badge = $('badge'), zipBtn = $('zipMode'), twoBtn = $('twoMode'), revBtn = $('revMode'), mixBtn = $('mixMode');
   const wall = $('wall'), wallBody = $('wallBody'), wallNote = $('wallNote'), wallTitle = $('wallTitle');
   const selPattern = $('pattern'), inCustom = $('custom');
   const btnLess = $('less'), btnMore = $('more'), outCount = $('count');
@@ -833,25 +1012,28 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     playing: !reduceMotion,
     zipMode: false,
     twoMode: false,
-    revMode: false
+    revMode: false,
+    mixMode: false           // mixed single rolls and pairs; always with two people
   };
   let tm = JLS.timing(state.n);
   let plan = null;           // set when the pattern has zips
+  let mplan = null;          // set when the pattern mixes single rolls and pairs
   let u = 0;                 // time, in hand cycles
   let error = '';
   let under = [];            // the numbers hidden under zips that were made by tapping
-  let lastRolls = '1234', lastZips = '121z', lastTwo = '[13][24][31][42]', lastRev = '123';
+  let lastRolls = '1234', lastZips = '121z', lastTwo = '[13][24][31][42]', lastRev = '123', lastMix = '12[13][24]';
   /* Only one of the three special modes can be on at a time. */
-  function setMode(name) { state.zipMode = name === 'zip'; state.twoMode = name === 'two'; state.revMode = name === 'rev'; }
+  function setMode(name) { state.zipMode = name === 'zip'; state.twoMode = name === 'two' || name === 'mix'; state.revMode = name === 'rev'; state.mixMode = name === 'mix'; }
 
   // The five patterns picked out in each mode: starred in the list, and what the "Random top 5" button plays.
   const TOP5 = {
     one: ['1213', '123432', '1243', '121434', '12134243'],
     zip: ['121z', '1z', '123z', '12zz', '12143z'],
     two: ['1232', '[13][24][31][42]', '[14][23][41][32]', '[12][34][21][43]', '[13][24][13][42][31][42]'],
-    rev: ['123', '12345', '12342', '123132', '13524']
+    rev: ['123', '12345', '12342', '123132', '13524'],
+    mix: MIX_LIST[0].items.slice(0, 4).concat(MIX_LIST[1].items.slice(0, 1))
   };
-  function modeName() { return state.zipMode ? 'zip' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
+  function modeName() { return state.zipMode ? 'zip' : state.mixMode ? 'mix' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
 
   /* Switch to a pattern and ball count. Returns '' if it worked, or the reason it can't be played. */
   function setPattern(parsed, n) {
@@ -865,6 +1047,13 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       }
       if (!p) return 'No timing works for that pattern with ' + n + (n === 1 ? ' ball.' : ' balls.');
     }
+    let mp = null;
+    if (parsed.mixed) {
+      for (let d = 0; d < JLS.MAX_BALLS && !mp; d++) {
+        for (const c of [n + d, n - d]) if (!mp && c >= 1 && c <= JLS.MAX_BALLS && (mp = JLS.mixedPlan(parsed, c))) n = c;
+      }
+      if (!mp) return 'No timing works for that pattern, whatever the number of balls.';
+    }
     if (parsed.rev) {
       // lanes that change direction must be empty when they do, which limits the ball count
       let m = 0;
@@ -875,10 +1064,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       n = m;
     }
     if (parsed.pairs) n = Math.max(2, Math.min(8, n % 2 ? n + 1 : n));   // pairs need an even number of balls
-    plan = p; state.pat = parsed; state.n = n;
-    tm = JLS.timing(parsed.pairs ? n / 2 : n);
+    plan = p; mplan = mp; state.pat = parsed; state.n = n;
+    tm = JLS.timing(mp ? mp.average : parsed.pairs ? n / 2 : n);
     if (parsed.zip) lastZips = parsed.text;
     else if (parsed.pairs) lastTwo = parsed.text;
+    else if (parsed.mixed) lastMix = parsed.text;
     else if (parsed.rev) lastRev = parsed.text;
     else if (!state.zipMode) lastRolls = parsed.text;
     return '';
@@ -891,6 +1081,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const parsed = JLS.parse(params.get('p') || '');
     if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) setMode('zip');
     else if (parsed.ok && parsed.rev) setMode('rev');
+    else if (parsed.ok && parsed.mixed) setMode('mix');
     else if (params.get('two') === '1' || (parsed.ok && parsed.pairs)) setMode('two');
     if (setPattern(parsed.ok ? parsed : JLS.parse(state.zipMode ? lastZips : state.twoMode ? lastTwo : lastRolls), n)) setPattern(JLS.parse('1234'), 3);
     if (params.get('start') === 'left') state.startRight = false;
@@ -904,7 +1095,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* ---------- pattern list ---------- */
   /* The groups shown in the pattern list for the current mode, each item as [name, pattern]. */
   function listGroups() {
-    if (state.zipMode || state.revMode) return (state.zipMode ? ZIP_LIST : REV_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return ['', t]; }) }; });
+    if (state.zipMode || state.revMode || state.mixMode) return (state.zipMode ? ZIP_LIST : state.revMode ? REV_LIST : MIX_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return ['', t]; }) }; });
     return state.twoMode ? PAIR_LIST.concat(JLS.CATALOGUE) : JLS.CATALOGUE;
   }
   function fillPatternList() {
@@ -951,6 +1142,21 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       t.dataset.b = i;
       return t;
     }
+    function withBeats(t, beats) {                            // a tile with its beat count underneath
+      const cell = document.createElement('span'); cell.className = 'cell';
+      const small = document.createElement('small'); small.textContent = beats;
+      cell.appendChild(t); cell.appendChild(small);
+      return cell;
+    }
+    if (pat.mixed) {
+      pat.turns.forEach(function (turn, i) {
+        holder = strip;
+        if (turn.length === 2) { holder = document.createElement('span'); holder.className = 'pair br'; strip.appendChild(holder); }
+        turn.forEach(function (lane, k) { holder.appendChild(withBeats(tile(lane, i), mplan.vals[i][k])); });
+      });
+      lastActive = '';
+      return;
+    }
     pat.seq.forEach(function (lane, i) {
       if (pat.pairs) {                                        // one bracket: the two lanes a person rolls together
         holder = document.createElement('span'); holder.className = 'pair br'; strip.appendChild(holder);
@@ -978,7 +1184,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   let lastActive = '';
   function markStrip() {
-    const act = JLS.active(u, state.pat, plan ? 1 : state.pat.pairs ? state.n / 2 : state.n);
+    const act = JLS.active(u, state.pat, plan || mplan ? 1 : state.pat.pairs ? state.n / 2 : state.n);
     const key = act.join(',');
     if (key === lastActive) return;
     lastActive = key;
@@ -989,7 +1195,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function showInfo() {
     if (error) { info.className = 'info bad'; info.textContent = error; return; }
     const n = state.n, who = state.twoMode ? 'people' : 'hands';
-    const turns = plan ? true : state.pat.pairs ? (n / 2) % 2 === 1 : n % 2 === 1;
+    const turns = plan || mplan ? true : state.pat.pairs ? (n / 2) % 2 === 1 : n % 2 === 1;
     info.className = 'info';
     let html = '<span class="nw"><b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + who + (turns ? ' take turns' : ' roll together') + '</span>';
     if (state.zipMode) {
@@ -1007,7 +1213,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* The next ball count up or down that this pattern can be played with, or 0 if there is none. */
   function nextBalls(by) {
     for (let n = state.n + by * ballStep(); n >= ballLimits()[0] && n <= ballLimits()[1]; n += by * ballStep()) {
-      if (state.pat.zip ? JLS.zipPlan(state.pat, n) : !state.pat.rev || JLS.revOk(state.pat, n)) return n;
+      if (state.pat.zip ? JLS.zipPlan(state.pat, n) : state.pat.mixed ? JLS.mixedPlan(state.pat, n) : !state.pat.rev || JLS.revOk(state.pat, n)) return n;
     }
     return 0;
   }
@@ -1030,6 +1236,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     revBtn.textContent = state.revMode ? 'Reverses on' : 'Reverses off';
     revBtn.setAttribute('aria-pressed', String(state.revMode));
     // only one of these can be on at a time, so the others are greyed out until it is turned off
+    mixBtn.textContent = state.mixMode ? 'Mixed on' : 'Mixed off';
+    mixBtn.setAttribute('aria-pressed', String(state.mixMode));
+    mixBtn.disabled = !state.twoMode;            // mixed patterns are only for two people
     twoBtn.disabled = state.zipMode || state.revMode;
     zipBtn.disabled = state.twoMode || state.revMode;
     revBtn.disabled = state.twoMode || state.zipMode;
@@ -1058,8 +1267,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   inCustom.addEventListener('input', function () {
     const parsed = JLS.parse(inCustom.value);
     if (!inCustom.value.trim()) { error = ''; inCustom.classList.remove('bad'); showInfo(); return; }
-    const needs = !parsed.ok ? '' : parsed.zip ? 'zip' : parsed.pairs ? 'two' : parsed.rev ? 'rev' : '';
-    if (needs && modeName() !== needs) { setMode(needs); fillPatternList(); }
+    const needs = !parsed.ok ? '' : parsed.zip ? 'zip' : parsed.mixed ? 'mix' : parsed.pairs ? 'two' : parsed.rev ? 'rev' : '';
+    if (needs && modeName() !== needs && !(needs === 'two' && state.twoMode)) { setMode(needs); fillPatternList(); }
     const changed = !parsed.ok || parsed.text !== state.pat.text;
     error = setPattern(parsed, state.n);
     if (error) { inCustom.classList.add('bad'); showInfo(); return; }
@@ -1096,6 +1305,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     setMode(state.twoMode ? '' : 'two');
     fillPatternList();
     choose(state.twoMode ? lastTwo : lastRolls);
+  });
+  mixBtn.addEventListener('click', function () {
+    setMode(state.mixMode ? 'two' : 'mix');
+    fillPatternList();
+    choose(state.mixMode ? lastMix : lastTwo);
   });
   revBtn.addEventListener('click', function () {
     setMode(state.revMode ? '' : 'rev');         // lanes that change direction are for one person, without zips
@@ -1143,6 +1357,10 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       wallTitle.textContent = 'All zip patterns';
       wallNote.textContent = 'Every pattern with zips of up to 8 rolls in which no hand move happens twice. A z is a zip: a handoff from one hand to the other. Tap one to play it.' + same;
       add(ALL_ZIPS, '');
+    } else if (state.mixMode) {
+      wallTitle.textContent = 'All mixed patterns';
+      wallNote.textContent = 'Two-person patterns that mix single rolls and pairs. The people take turns; a turn is one lane, or two lanes in brackets rolled together. Up to 8 rolls a loop. They need 5 or more balls (a few work with 4). Swapping the numbers inside a bracket swaps which ball goes where. Tap one to play it.' + same;
+      add(ALL_MIX, '');
     } else if (state.revMode) {
       wallTitle.textContent = 'All reversing patterns';
       wallNote.textContent = 'Patterns in which lanes change direction. A lane can only be rolled the other way once it is empty, so each pattern has a top number of balls. These are the ones of up to 8 rolls (7 on five lanes) that work with at least 3 balls. Tap one to play it.' + same + ' Running backwards also counts as the same.';
@@ -1330,6 +1548,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const paths = [];
     if (plan) {
       for (const p of JLS.zipPaths(plan)) paths.push({ side: sideOf(p.hand), from: p.from, to: p.to });
+    } else if (mplan) {
+      for (const p of JLS.mixedPaths(mplan)) paths.push({ side: sideOf(p.hand), from: { lane: p.from }, to: { lane: p.to } });
     } else {
       // pairs are two ordinary patterns side by side, each with half the balls
       const tracks = state.pat.pairs ? state.pat.slots.map(function (q) { return [q, state.n / 2]; }) : [[seq, state.n]];
@@ -1431,15 +1651,16 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       bs = JLS.zipBalls(u, plan, tm);
       hs = JLS.zipHands(u, plan, tm);
     } else {
-      bs = (pairs ? JLS.pairBalls(u, pat, n, tm) : JLS.balls(u, pat, n, tm)).map(function (b) {
+      bs = (mplan ? JLS.mixedBalls(u, mplan, tm) : pairs ? JLS.pairBalls(u, pat, n, tm) : JLS.balls(u, pat, n, tm)).map(function (b) {
         return b.state === 'roll' ? b : { id: b.id, state: 'held', hand: b.hand, from: { lane: b.from }, to: { lane: b.to }, p: b.p };
       });
       if (state.twoMode) {
-        hs = (pairs ? JLS.pairHands(u, pat, n, tm) : JLS.hands2(u, pat, n, tm)).map(function (h) {
+        const fixed = pairs || !!mplan;                       // each hand keeps to its own side of the person
+        hs = (mplan ? JLS.mixedHands(u, mplan, tm) : pairs ? JLS.pairHands(u, pat, n, tm) : JLS.hands2(u, pat, n, tm)).map(function (h) {
           // Letters are each person's own right and left. Taking turns, a person leads with their right hand.
           // Rolling pairs, hand 1 is the one further up the screen: the right person's right, the left person's left.
-          const up = pairs ? h.which === 1 : null;
-          const right = pairs ? (sideOf(h.end) === RIGHT ? up : !up) : h.which === 0;
+          const up = fixed ? h.which === 1 : null;
+          const right = fixed ? (sideOf(h.end) === RIGHT ? up : !up) : h.which === 0;
           // seen from above, the right person's left thumb and the left person's right thumb point up the screen
           const thumbUp = (sideOf(h.end) === RIGHT) !== right;
           return { hand: h.end, holding: h.holding, from: { lane: h.from }, to: { lane: h.to }, p: h.p, letter: right ? 'R' : 'L', thumbUp: thumbUp };

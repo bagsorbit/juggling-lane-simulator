@@ -1130,10 +1130,19 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   // Slope patterns can't be typed, so they are looked up by the way they are written in the list.
   const SLOPE = {};
-  const SLOPE_LIST = JLS.SLOPE_PATTERNS.map(function (g) {
-    return { group: g.group, items: g.items.map(function (spec) { const t = JLS.slopeText(spec); SLOPE[t] = spec; return [spec.name, t]; }) };
+  const TOP_SLOPE_START = JLS.slopeText(JLS.SLOPE_PATTERNS[0].items[0]);   // the cascade
+  const SLOPE_LIST = [];                                     // grouped by number of balls
+  JLS.SLOPE_PATTERNS.forEach(function (g) {
+    g.items.forEach(function (spec) {
+      const t = JLS.slopeText(spec), n = JLS.slopePlan(spec).balls;
+      SLOPE[t] = spec;
+      let group = SLOPE_LIST.find(function (x) { return x.balls === n; });
+      if (!group) { group = { group: n + ' balls', balls: n, items: [] }; SLOPE_LIST.push(group); }
+      group.items.push([spec.name, t]);
+    });
   });
-  let lastSlope = SLOPE_LIST[0].items[0][1];
+  SLOPE_LIST.sort(function (x, y) { return x.balls - y.balls; });
+  let lastSlope = TOP_SLOPE_START;
   function parseAny(text) {
     if (SLOPE[text]) { const sp = SLOPE[text]; return { ok: true, text: text, slope: sp, seq: [0], lanes: sp.lanes, hand: [], zip: false }; }
     return JLS.parse(text);

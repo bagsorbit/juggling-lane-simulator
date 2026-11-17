@@ -263,7 +263,9 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   .info { font-size: 13px; }
   .tile { width: 27px; height: 31px; font-size: 17px; }
   .strip { gap: 4px; }
-  .infobtn { display: flex; }
+  .strip { position: relative; padding-left: 28px; padding-right: 28px; }   /* room for the (i) on both sides keeps the numbers centred */
+  .infobtn { display: flex; position: absolute; right: 0; top: 50%; margin: 0; transform: translateY(-50%); }
+  .infobtn:active:not(:disabled) { transform: translateY(-50%); }
   body:not(.info-open) .info:not(.bad) { display: none; }
   .f-pattern > span small { display: none; }
 }

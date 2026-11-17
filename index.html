@@ -266,6 +266,9 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   .strip { position: relative; padding-left: 28px; padding-right: 28px; }   /* room for the (i) on both sides keeps the numbers centred */
   .infobtn { display: flex; position: absolute; right: 0; top: 50%; margin: 0; transform: translateY(-50%); }
   .infobtn:active:not(:disabled) { transform: translateY(-50%); }
+  .strip.long { gap: 3px; }
+  .strip.long .tile { width: 22px; height: 28px; font-size: 15px; }
+  .strip.long .pair.br .tile { width: 16px; height: 26px; font-size: 13px; }
   body:not(.info-open) .info:not(.bad) { display: none; }
   .f-pattern > span small { display: none; }
 }
@@ -1362,6 +1365,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   });
   function buildStrip() {
     buildStripTiles();
+    strip.classList.toggle('long', strip.querySelectorAll('.tile').length > 8);   // phones shrink long patterns to fit one line
     strip.appendChild(infoBtn);
   }
   function buildStripTiles() {

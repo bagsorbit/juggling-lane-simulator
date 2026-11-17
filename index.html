@@ -665,11 +665,11 @@ const JLS = (function () {
       if (t + v >= 0) landings.push((t + v) * 2 + dest[mod(t, L)][k]);
     }
     landings.sort(function (a, b) { return a - b; });
-    // which of a person's two hands takes a ball: the lower hand for the lower half of the lanes that reach them
-    const incoming = [[], []];
-    for (let lane = 1; lane <= pat.lanes; lane++) if (pat.hand[lane] !== -1) incoming[1 - pat.hand[lane]].push(lane);
+    // for swapping hands on single rolls: how many single rolls each person makes per loop, and how many come before each turn
+    const singles = [0, 0], before = [];
+    for (let t = 0; t < L; t++) { before.push(singles[t % 2]); if (turns[t].length === 1) singles[t % 2]++; }
     return { turns: turns, L: L, n: n, lanes: pat.lanes, vals: vals, flat: flat, src: src, dest: dest, maxV: maxV,
-             landings: landings, incoming: incoming, average: n * L / rolls, ids: new Map() };
+             landings: landings, singles: singles, before: before, average: n * L / rolls, ids: new Map() };
   }
   function mxBallId(plan, t, k) {
     const chain = [];
@@ -704,16 +704,17 @@ const JLS = (function () {
     }
     return out;
   }
-  /* The jobs at turn t: for each ball rolled, the lane it was caught from, the lane it goes into, and which hand does it. */
+  /* The jobs at turn t: for each ball rolled, the lane it was caught from, the lane it goes into, and which hand does it.
+   * In a pair, hand 0 takes the ball from the lower lane. Single rolls are done by each hand in turn. */
   function mxJobs(plan, t) {
-    const r = mod(t, plan.L), mine = plan.incoming[mod(t, 2)];
+    const r = mod(t, plan.L);
     const jobs = plan.turns[r].map(function (lane, k) {
       const s = plan.src[r][k];
       return { c: plan.turns[mod(t - s.v, plan.L)][s.k], r: lane };
     });
     jobs.sort(function (a, b) { return a.c - b.c; });
     if (jobs.length === 2) { jobs[0].q = 0; jobs[1].q = 1; }
-    else jobs[0].q = mine.indexOf(jobs[0].c) < mine.length / 2 ? 0 : 1;
+    else jobs[0].q = mod(Math.floor(t / plan.L) * plan.singles[mod(t, 2)] + plan.before[r], 2);   // single rolls swap hands each time
     return jobs;
   }
   function mixedHands(u, plan, tm) {

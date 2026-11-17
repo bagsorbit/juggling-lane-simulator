@@ -423,26 +423,24 @@ const JLS = (function () {
   const MAX_BRACKETS = 12;
   const MAX_RHYTHM_BEATS = 8;
 
-  // [name, pattern]. Names that end in a number share one picture.
+  // [name, pattern]. Versions of one name (Helter Skelter Triple, Quad, Quin, Hex) share one picture.
   const CATALOGUE = [
     { group: '2 lanes', items: [['Loop', '12']] },
-    { group: '3 lanes', items: [['Helter Skelter 3', '1232'], ['Baby Onion', '1213']] },
+    { group: '3 lanes', items: [['Helter Skelter Triple', '1232'], ['Baby Onion', '1213']] },
     { group: '4 lanes, 4 rolls', items: [['Scarf', '1234'], ['Mobius', '1243'], ['Loop de Loop', '1324']] },
     { group: '4 lanes, 6 rolls', items: [
-      ['Helter Skelter 4', '123432'],
+      ['Helter Skelter Quad', '123432'],
       ['Snowman', '121343'], ['Burger', '121434'], ['Jumble', '131242'], ['Roundabout', '131424'],
       ['Double Yolk', '141232'], ['Horus', '141323'], ['Twin Moons', '132423'],
       ['Onion', '121314'], ['Honeypot', '132343']] },
     { group: '4 lanes, 8 rolls', items: [
-      ['Pancakes 1', '12341432'], ['Pancakes 2', '12343214'], ['Pancakes 3', '12321434'], ['Pancakes 4', '12143234'],
-      ['Crazy Eights 1', '12134243'], ['Crazy Eights 2', '12421343'], ['Crazy Eights 3', '13124342'], ['Crazy Eights 4', '12431342'],
-      ['Loop de Loop de Loop 1', '13142324'], ['Loop de Loop de Loop 2', '14132423'],
-      ['Loop de Loop de Loop 3', '13231424'], ['Loop de Loop de Loop 4', '13241423']] },
+      // one version of each: the one where each half of the loop visits all four lanes
+      ['Pancakes', '12341432'], ['Crazy Eights', '12431342'], ['Loop de Loop de Loop', '13241423']] },
     { group: '5 lanes', items: [
-      ['Helter Skelter 5', '12345432'], ['Giant Onion', '12131415'], ['Cheeseburger', '12143454'],
+      ['Helter Skelter Quin', '12345432'], ['Giant Onion', '12131415'], ['Cheeseburger', '12143454'],
       ['Top Hat Snowman', '12134353'], ['Fountain', '12343532'], ['Pretzel', '124253'], ['Spaghetti', '13241525']] },
     { group: '6 lanes', items: [
-      ['Helter Skelter 6', '1234565432'], ['Long Scarf', '123456'], ['Ribbon', '124653'], ['Zigzag', '135246'],
+      ['Helter Skelter Hex', '1234565432'], ['Long Scarf', '123456'], ['Ribbon', '124653'], ['Zigzag', '135246'],
       ['Slinky', '142536'], ['Onion Rings', '12131456'], ['Surf Break', '12345632'], ['Triple Decker', '12143656']] }
   ];
 
@@ -1152,7 +1150,7 @@ const ICONS = (function () {
   };
 })();
 function iconSvg(name) {
-  const body = ICONS[String(name).replace(/ \d+$/, '').replace(/ for Two$/, '')];
+  const body = ICONS[String(name).replace(/ (\d+|Triple|Quad|Quin|Hex)$/, '').replace(/ for Two$/, '')];
   if (!body) return '';
   return '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><g stroke="#2d2a4a" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">' + body + '</g></svg>';
 }
@@ -1259,7 +1257,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   // The five patterns picked out in each mode: starred in the list, and what the "Random top 5" button plays.
   const TOP5 = {
-    one: ['1213', '123432', '1243', '121434', '12134243'],
+    one: ['1213', '123432', '1243', '121434', '12431342'],
     zip: ['121z', '1z', '123z', '12zz', '12143z'],
     zip2: ['1zs2zs', '12s43s', '1s24s3', '1z2zs3zs', '121z'],
     two: ['1232', '[13][24][31][42]', '[14][23][41][32]', '[12][34][21][43]', '[13][24][13][42][31][42]'],

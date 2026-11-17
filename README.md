@@ -24,7 +24,7 @@ The "Reverses" button switches to patterns in which a lane is rolled from both e
 
 The "1 person / 2 people" button puts a person at each end, with two hands each. Every ordinary pattern can be played this way, each person swapping hands from roll to roll. There are also patterns where each person rolls two balls at once, written with brackets: `[14][23]` means the right person rolls lanes 1 and 4 together, then the left person rolls lanes 2 and 3 together. The first number in each bracket is one ball's path and the second number is the other's. These use 2, 4, 6 or 8 balls.
 
-With two people on, the "Mixed" button switches to patterns that mix single rolls and pairs, such as `12[13][24]`. The people take strict turns and both roll the same number of balls each loop. Like zips, these need uneven timing, so the beat counts are shown under the numbers; most need 5 or more balls.
+With two people on, the "Mixed" button switches to patterns that mix single rolls and pairs, such as `12[13][24]`. The people take strict turns and both roll the same number of balls each loop. Like zips, these need uneven timing, so the beat counts are shown under the numbers. The two balls of a pair always roll at the same speed, which leaves 6 balls for the 6-roll patterns and 8 (sometimes 4) for the 8-roll ones.
 
 A link can open on a chosen pattern, for example `index.html?p=121434&b=3&start=left`.
 

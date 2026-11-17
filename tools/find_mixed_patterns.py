@@ -8,7 +8,9 @@ happens twice, and the pattern is not a shorter one repeated.
 Timing works like zips: every roll gets a number of beats until that ball is
 rolled again (odd, because it changes ends; at least 3 unless everything is 1).
 Each turn must receive exactly as many balls as it rolls, and a ball can never
-overtake another in the same lane. The most even timing is kept.
+overtake another in the same lane. The two balls of a pair must take the same
+number of beats, because they are rolled together at one speed. The most even
+timing is kept.
 
 Patterns that only differ by starting turn, by being upside down or by being a
 mirror image are counted once.
@@ -52,7 +54,8 @@ def timing(seq, balls):
             return
         t, s = sites[i]
         rest = R - i - 1
-        for v in range(low, cap + 1, 2):
+        # the two balls of a pair are rolled together, so they must take the same time
+        for v in ([vals[i - 1]] if s == 1 else range(low, cap + 1, 2)):
             if left - v < rest * low: break
             lt = (t + v) % L
             if got[lt] >= need[lt]: continue
@@ -89,6 +92,12 @@ def images(seq, k):
             out.append(s[r:] + s[:r])
     return out
 
+def symmetric(seq, k):
+    """True if the pattern looks the same upside down (allowing a different starting turn)."""
+    flipped = tuple(tuple(k + 1 - x for x in t) for t in seq)
+    same = lambda a, b: all(sorted(x) == sorted(y) for x, y in zip(a, b))
+    return any(same(flipped[r:] + flipped[:r], seq) for r in range(len(seq)))
+
 def search(k, max_rolls=8, ball_counts=range(1, 9)):
     lanes = range(1, k + 1)
     turns = [(a,) for a in lanes] + [(a, b) for a in lanes for b in lanes if a != b]
@@ -98,8 +107,7 @@ def search(k, max_rolls=8, ball_counts=range(1, 9)):
             ims = images(seq, k)
             canon = min(ims)
             if canon not in found:
-                starts = [s for s in ims if s[0][0] == 1] or ims
-                disp = min(starts)
+                disp = min(ims, key=lambda s: (s[0][0] != 1, 1 not in s[0], s))   # start on lane 1 where possible
                 tm = {b: timing(disp, b) for b in ball_counts}
                 found[canon] = (disp, {b: v for b, v in tm.items() if v})
         if len(seq) >= 8: return
@@ -140,17 +148,17 @@ def embed(path="index.html"):
         by[sum(len(t) for t in d)].append(show(d))
         expected[show(d)] = {str(b): list(v) for b, v in tm.items()}
     everything = {"4": {str(r): " ".join(sorted(v)) for r, v in sorted(by.items())}}
-    six = sorted(by[6])[:8]
-    eight = [t for t in sorted(by[8]) if "4" in expected[t]][:2]
-    short = [{"group": "6 rolls", "items": six}, {"group": "8 rolls", "items": eight}]
+    sym = sorted(show(d) for d, tm in found.values() if symmetric(d, 4))
+    short = [{"group": "Symmetric, 4 or 8 balls", "items": sym}]
+    top = [sym[i] for i in (0, 3, 6, 8, 12)]
     block = ('<script id="mixed-patterns">\nconst MIX_LIST = ' + json.dumps(short, separators=(",", ":")) +
-             ';\nconst ALL_MIX = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')
+             ';\nconst MIX_TOP = ' + json.dumps(top) + ';\nconst ALL_MIX = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')
     html = open(path, encoding="utf-8").read()
     html, n = re.subn(r'<script id="mixed-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     assert n == 1
     open(path, "w", encoding="utf-8").write(html)
     json.dump(expected, open("tests/mixed-timings.json", "w"), separators=(",", ":"))
-    print("mixed:", {r: len(v.split()) for r, v in everything["4"].items()}, "list:", six, eight)
+    print("mixed:", {r: len(v.split()) for r, v in everything["4"].items()}, "symmetric:", len(sym), "top:", top)
 
 if __name__ == "__main__" and "--embed" in sys.argv:
     embed()

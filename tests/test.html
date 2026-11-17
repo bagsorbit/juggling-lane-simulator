@@ -182,6 +182,75 @@
     }
     if (JLS.parse('12z').ok || JLS.parse('zz').ok || !JLS.parse('121Z').ok) fail('zip parsing rules');
     if (JLS.zipPlan(JLS.parse('121z'), 4)) fail('zips should not work with an even ball count');
+    /* ---------- two people ---------- */
+    const lists = new Function(html.match(/<script id="pair-patterns">([\s\S]*?)<\/script>/)[1] + '; return {PAIR_LIST: PAIR_LIST, ALL_PAIRS: ALL_PAIRS};')();
+    const pairTexts = [];
+    for (const k of Object.keys(lists.ALL_PAIRS)) for (const b of Object.keys(lists.ALL_PAIRS[k])) pairTexts.push(...lists.ALL_PAIRS[k][b].split(' '));
+    for (const g of lists.PAIR_LIST) for (const it of g.items) if (!pairTexts.includes(it[1])) fail('listed pair pattern ' + it[1] + ' is not in the full list');
+    let twoChecks = 0;
+    // every held ball must be in exactly one hand at its end, moving along the same path, and no hand may hold a ball that isn't there
+    function checkHands(tag, u, bs, hs) {
+      const held = bs.filter(b => b.state === 'carry');
+      const busy = hs.filter(h => h.holding);
+      if (hs.length !== 4) return fail(tag + hs.length + ' hands'), false;
+      if (held.length !== busy.length) return fail(tag + held.length + ' held balls but ' + busy.length + ' busy hands at u=' + u), false;
+      const taken = new Set();
+      for (const b of held) {
+        const h = busy.findIndex((x, j) => !taken.has(j) && x.end === b.hand && x.from === b.from && x.to === b.to && Math.abs(x.p - b.p) < 1e-6);
+        if (h === -1) return fail(tag + 'a held ball has no hand at u=' + u), false;
+        taken.add(h);
+      }
+      for (const h of hs) if (!(h.p >= -1e-9 && h.p <= 1 + 1e-9) || h.from === h.to) return fail(tag + 'hand moving wrongly at u=' + u), false;
+      return true;
+    }
+    for (const text of pairTexts) {
+      const pat = JLS.parse(text);
+      if (!pat.ok || !pat.pairs) { fail('pair pattern ' + text + ' does not parse: ' + pat.error); continue; }
+      for (const m of [1, 2, 3, 4]) {
+        const tag = text + ' with ' + 2 * m + ': ', tm = JLS.timing(m), L = pat.seq.length;
+        const last = [new Map(), new Map()];
+        for (let k = 0; k * 0.013 < 2 * L + 3; k++) {
+          const u = 0.0031 + k * 0.013;
+          const bs = JLS.pairBalls(u, pat, m, tm), hs = JLS.pairHands(u, pat, m, tm);
+          twoChecks++;
+          if (bs.length !== 2 * m || new Set(bs.map(b => b.id)).size !== 2 * m) { fail(tag + 'wrong balls at u=' + u); break; }
+          const rolling = bs.filter(b => b.state === 'roll');
+          if (new Set(rolling.map(b => b.lane + ':' + b.p.toFixed(6))).size !== rolling.length) { fail(tag + 'two balls on top of each other at u=' + u); break; }
+          if (!checkHands(tag, u, bs, hs)) break;
+          // each hand must carry on from where it was
+          let jump = false;
+          for (const h of hs) {
+            const was = last[h.end].get(h.which);
+            if (was && was.holding && !h.holding && was.to !== h.from) jump = true;
+            if (was && !was.holding && h.holding && was.to !== h.from) jump = true;
+            last[h.end].set(h.which, h);
+          }
+          if (jump) { fail(tag + 'a hand jumped at u=' + u); break; }
+        }
+      }
+    }
+    for (const [name, text] of patterns) {
+      const pat = JLS.parse(text);
+      for (let n = 1; n <= JLS.MAX_BALLS; n++) {
+        const tag = text + ' two people with ' + n + ': ', tm = JLS.timing(n), L = pat.seq.length;
+        const last = [new Map(), new Map()];
+        for (let k = 0; k * 0.013 < 2 * L + 3; k++) {
+          const u = 0.0031 + k * 0.013;
+          const hs = JLS.hands2(u, pat, n, tm);
+          twoChecks++;
+          if (!checkHands(tag, u, JLS.balls(u, pat, n, tm), hs)) break;
+          let jump = false;
+          for (const h of hs) {
+            const was = last[h.end].get(h.which);
+            if (was && was.holding !== h.holding && was.to !== h.from) jump = true;
+            last[h.end].set(h.which, h);
+          }
+          if (jump) { fail(tag + 'a hand jumped at u=' + u); break; }
+        }
+      }
+    }
+    for (const bad of ['[14]', '[11][23]', '[14][21]', '1[23]4', '[14][23', '[147][23]']) if (JLS.parse(bad).ok) fail('"' + bad + '" should be refused');
+    lines.push(pairTexts.length + ' two-at-once patterns, ' + twoChecks + ' moments checked');
     lines.push(zipPatterns.length + ' zip patterns, ' + zipChecks + ' moments checked');
     lines.push(failures ? failures + ' FAILURES' : 'ALL PASSED');
     lines.push(patterns.length + ' patterns, ' + checks + ' moments checked');

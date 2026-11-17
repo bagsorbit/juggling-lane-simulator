@@ -76,13 +76,9 @@ h1 {
   pointer-events: none;
 }
 .badge:empty { display: none; }
-.zipbtn {
-  position: absolute; top: 8px; left: 8px; z-index: 1;
-  height: 34px; margin: 0; padding: 0 12px;
-  font-size: 14px; border-radius: 17px;
-}
-.zipbtn[aria-pressed="true"] { background: #c0eb75; }
-.badge svg { width: 80%; height: 80%; display: block; }
+.modes { position: absolute; top: 8px; left: 8px; z-index: 1; display: flex; gap: 6px; }
+.modebtn { height: 34px; margin: 0; padding: 0 12px; font-size: 14px; border-radius: 17px; white-space: nowrap; }
+.modebtn[aria-pressed="true"] { background: #c0eb75; }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
 .strip {
@@ -109,6 +105,8 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 }
 .tile.r { background: var(--red-soft); }
 .tile.b { background: var(--blue-soft); }
+h1, .strip, .info, .controls { flex: none; }
+.pair.br { background: none; padding: 2px 5px; border: 3px solid var(--ink); border-top-color: transparent; border-bottom-color: transparent; border-radius: 9px; }
 .tile.z { background: #c0eb75; font-style: italic; }
 .tile.tap { cursor: pointer; user-select: none; -webkit-user-select: none; }
 .tile.on { background: var(--sun); transform: translateY(-4px); box-shadow: 0 4px 0 var(--ink); }
@@ -210,7 +208,11 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   #openWall, #play { font-size: 14px; padding: 0 2px; }
   #custom { font-size: 16px; padding-left: 9px; background-position: 9px calc(100% - 8px); }
   .badge { width: 46px; height: 46px; top: 6px; right: 6px; }
-  .zipbtn { top: 6px; left: 6px; height: 30px; padding: 0 9px; font-size: 13px; }
+  .pair.br { gap: 1px; padding: 2px 3px; border-width: 2.5px; }
+  .pair.br .tile { width: 20px; height: 28px; font-size: 15px; border-width: 2px; border-radius: 7px; }
+  .strip:has(.br) { gap: 3px; }
+  .modes { top: 6px; left: 6px; gap: 5px; }
+  .modebtn { height: 30px; padding: 0 9px; font-size: 13px; }
   .seg button { font-size: 14px; }
   .info { font-size: 13px; }
   .tile { width: 27px; height: 31px; font-size: 17px; }
@@ -254,7 +256,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
 <main class="app">
   <h1>Juggling Lane Simulator</h1>
 
-  <div class="stage" id="stage"><button type="button" class="zipbtn" id="zipMode" aria-pressed="false">Zips off</button><div class="badge" id="badge" aria-hidden="true"></div><canvas id="board" role="img" aria-label="Animation of balls rolling across lanes and being carried between them by two hands"></canvas></div>
+  <div class="stage" id="stage"><div class="modes"><button type="button" class="modebtn" id="twoMode" aria-pressed="false">1 person</button><button type="button" class="modebtn" id="zipMode" aria-pressed="false">Zips off</button></div><div class="badge" id="badge" aria-hidden="true"></div><canvas id="board" role="img" aria-label="Animation of balls rolling across lanes and being carried between them by two hands"></canvas></div>
 
   <div class="strip" id="strip" aria-label="Pattern, one number per roll"></div>
   <p class="info" id="info" role="status"></p>
@@ -318,6 +320,7 @@ const JLS = (function () {
   const MAX_BEATS = 24;
   const MAX_BALLS = 9;
   const MAX_ZIP_BEATS = 10;
+  const MAX_BRACKETS = 12;
 
   // [name, pattern]. Names that end in a number share one picture.
   const CATALOGUE = [
@@ -344,11 +347,36 @@ const JLS = (function () {
 
   function mod(a, m) { return ((a % m) + m) % m; }
 
+  /* Two-person patterns where each person rolls two balls at once, written [14][23].
+   * The first number in each bracket is one ball's path and the second number is the other's,
+   * so the pattern is really two ordinary patterns played side by side: `slots`. */
+  function parsePairs(s) {
+    if (!/^(\[[^\[\]]*\])+$/.test(s)) return { ok: false, error: 'Mixing single rolls and pairs is not possible yet. Put every roll in brackets, like [14][23].' };
+    const parts = s.slice(1, -1).split('][');
+    for (const part of parts) {
+      if (!/^[1-6]{2}$/.test(part)) return { ok: false, error: 'Each pair of brackets needs two lane numbers from 1 to ' + MAX_LANES + ', like [14].' };
+      if (part[0] === part[1]) return { ok: false, error: 'One person cannot roll two balls into lane ' + part[0] + ' at the same moment.' };
+    }
+    if (parts.length > MAX_BRACKETS) return { ok: false, error: 'That is too long. Keep it to ' + MAX_BRACKETS + ' brackets or fewer.' };
+    if (parts.length % 2) return { ok: false, error: 'A pattern needs an even number of brackets, because the two people take turns.' };
+    const slots = [parts.map(function (x) { return Number(x[0]); }), parts.map(function (x) { return Number(x[1]); })];
+    const lanes = Math.max.apply(null, slots[0].concat(slots[1]));
+    const hand = new Array(lanes + 1).fill(-1);
+    for (let i = 0; i < parts.length; i++) {
+      for (const slot of slots) {
+        if (hand[slot[i]] === -1) hand[slot[i]] = i % 2;
+        else if (hand[slot[i]] !== i % 2) return { ok: false, error: 'Lane ' + slot[i] + ' is rolled from both ends, so it would have to run both ways.' };
+      }
+    }
+    return { ok: true, text: s, seq: slots[0], slots: slots, lanes: lanes, hand: hand, pairs: true, zip: false };
+  }
+
   /* Turn typed text into a pattern, or explain in plain words why it can't work.
    * A zip (z) is stored as lane 0. */
   function parse(text) {
     const s = String(text == null ? '' : text).replace(/[\s,.\-]/g, '').toLowerCase();
     if (!s) return { ok: false, error: 'Type some lane numbers, like 1234.' };
+    if (/[\[\]]/.test(s)) return parsePairs(s);
     if (/[^1-6z]/.test(s)) return { ok: false, error: 'Use only the digits 1 to ' + MAX_LANES + ' (and z for a zip), one for each roll.' };
     const zip = s.indexOf('z') !== -1;
     const most = zip ? MAX_ZIP_BEATS : MAX_BEATS;
@@ -444,6 +472,60 @@ const JLS = (function () {
     if (n % 2) return [mod(Math.floor(2 * u), L)];
     const j = Math.floor(u);
     return [mod(2 * j, L), mod(2 * j + 1, L)];
+  }
+
+  /* ================= two people =================
+   * One person at each end, two hands each. The balls move exactly as they do for one
+   * person; what changes is which hand does the work.
+   */
+
+  /* Single rolls: each person uses their two hands in turn, so each hand has twice as long between rolls.
+   * `end` is 0 for the person who rolls first, `which` is 0 for the hand that person uses first. */
+  function hands2(u, pat, n, tm) {
+    const L = pat.seq.length, out = [], free = 2 - tm.hold;
+    for (let e = 0; e < 2; e++) {
+      const offset = (n % 2 && e === 1) ? 0.5 : 0;
+      const k = Math.floor(u - offset);                     // that person's latest roll
+      for (let q = 0; q < 2; q++) {
+        const next = mod(k + 1, 2) === q ? k + 1 : k + 2;   // this hand's next roll
+        const f = u - offset - (next - 2);                  // time since this hand last rolled, 0 to 2
+        const done = 2 * (next - 2) + e, coming = 2 * next + e;
+        const catchLane = pat.seq[mod(prevRoll(coming, n), L)];
+        if (f < free) out.push({ end: e, which: q, holding: false, from: pat.seq[mod(done, L)], to: catchLane, p: f / free });
+        else out.push({ end: e, which: q, holding: true, from: catchLane, to: pat.seq[mod(coming, L)], p: (f - free) / tm.hold });
+      }
+    }
+    return out;
+  }
+
+  /* Pairs: m is the number of pairs of balls. Ball ids 0..m-1 follow the first path, m..2m-1 the second. */
+  function pairBalls(u, pat, m, tm) {
+    const out = [];
+    for (let s = 0; s < 2; s++) {
+      for (const b of balls(u, { seq: pat.slots[s] }, m, tm)) { b.id += s * m; out.push(b); }
+    }
+    return out;
+  }
+
+  /* Pairs: each person catches the two balls with a hand each (`which` 0 takes the ball in the lower lane),
+   * carries them to the lanes the pattern asks for, crossing arms when it has to, and rolls both together. */
+  function pairHands(u, pat, m, tm) {
+    const L = pat.slots[0].length, out = [];
+    function jobs(i) {                                      // for roll i: where each ball is caught and where it is rolled
+      const r = [0, 1].map(function (s) { return { c: pat.slots[s][mod(prevRoll(i, m), L)], r: pat.slots[s][mod(i, L)] }; });
+      r.sort(function (x, y) { return x.c - y.c; });
+      return r;
+    }
+    for (let e = 0; e < 2; e++) {
+      const offset = (m % 2 && e === 1) ? 0.5 : 0;
+      const k = Math.floor(u - offset), f = u - offset - k;
+      const was = jobs(2 * k + e), next = jobs(2 * k + e + 2);
+      for (let q = 0; q < 2; q++) {
+        if (f < 1 - tm.hold) out.push({ end: e, which: q, holding: false, from: was[q].r, to: next[q].c, p: f / (1 - tm.hold) });
+        else out.push({ end: e, which: q, holding: true, from: next[q].c, to: next[q].r, p: (f - (1 - tm.hold)) / tm.hold });
+      }
+    }
+    return out;
   }
 
   /* ================= zips =================
@@ -596,6 +678,7 @@ const JLS = (function () {
 
   return { MAX_LANES: MAX_LANES, MAX_BEATS: MAX_BEATS, MAX_BALLS: MAX_BALLS, CATALOGUE: CATALOGUE,
            parse: parse, timing: timing, nextRoll: nextRoll,
+           hands2: hands2, pairBalls: pairBalls, pairHands: pairHands,
            solveTiming: solveTiming, zipPlan: zipPlan, zipBalls: zipBalls, zipHands: zipHands, zipPaths: zipPaths, balls: balls, hands: hands, active: active };
 })();
 </script>
@@ -660,10 +743,15 @@ const ICONS = (function () {
   };
 })();
 function iconSvg(name) {
-  const body = ICONS[String(name).replace(/ \d+$/, '')];
+  const body = ICONS[String(name).replace(/ \d+$/, '').replace(/ for Two$/, '')];
   if (!body) return '';
   return '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><g stroke="#2d2a4a" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">' + body + '</g></svg>';
 }
+</script>
+
+<script id="pair-patterns">
+const PAIR_LIST = [{"group":"Two at once, 4 rolls","items":[["","[12][34]"],["","[12][43]"],["","[13][24]"],["","[13][42]"],["","[14][23]"],["","[14][32]"]]},{"group":"Two at once, 8 rolls","items":[["","[12][34][12][43]"],["Loop de Loop for Two","[12][34][21][43]"],["","[13][24][13][42]"],["Scarf for Two","[13][24][31][42]"],["","[14][23][14][32]"],["","[14][23][41][23]"],["Mobius for Two","[14][23][41][32]"],["","[14][32][41][23]"]]},{"group":"Two at once, 12 rolls","items":[["","[12][34][12][43][21][43]"],["","[12][34][21][34][12][43]"],["","[13][24][13][42][31][42]"],["","[13][24][31][24][13][42]"],["","[14][23][14][32][41][32]"],["","[14][23][41][23][14][32]"]]}];
+const ALL_PAIRS = {"4":{"4":"[12][34] [12][43] [13][24] [13][42] [14][23] [14][32]","8":"[12][34][12][43] [12][34][21][43] [13][24][13][42] [13][24][31][42] [14][23][14][32] [14][23][41][23] [14][23][41][32] [14][32][41][23]","12":"[12][34][12][43][21][43] [12][34][21][34][12][43] [13][24][13][42][31][42] [13][24][31][24][13][42] [14][23][14][32][41][32] [14][23][41][23][14][32]"},"5":{"8":"[12][34][12][45] [12][34][12][53] [12][34][15][43] [12][34][21][35] [12][34][21][45] [12][34][21][53] [12][34][21][54] [12][34][25][34] [12][34][25][43] [12][34][51][34] [12][34][51][43] [12][34][52][43] [12][35][12][43] [12][35][12][54] [12][35][14][53] [12][35][21][34] [12][35][21][45] [12][35][21][54] [12][35][24][35] [12][35][24][53] [12][35][41][35] [12][35][41][53] [12][35][42][53] [12][43][12][54] [12][43][15][34] [12][43][21][35] [12][43][21][45] [12][43][21][54] [12][43][25][34] [12][43][25][43] [12][43][51][34] [12][43][51][43] [12][43][52][34] [12][45][12][53] [12][45][21][35] [12][45][31][54] [12][53][14][35] [12][53][24][35] [12][53][24][53] [12][53][41][35] [12][53][41][53] [12][53][42][35] [13][24][13][52] [13][24][15][42] [13][24][31][25] [13][24][31][52] [13][24][35][24] [13][24][35][42] [13][24][51][24] [13][24][51][42] [13][24][53][42] [13][25][13][42] [13][25][14][52] [13][25][31][24] [13][25][34][25] [13][25][34][52] [13][25][41][25] [13][25][41][52] [13][25][43][52] [13][42][15][24] [13][42][31][25] [13][42][35][42] [13][42][51][24] [13][42][51][42] [13][42][53][24] [13][52][14][25] [13][52][34][25] [13][52][34][52] [13][52][41][25] [13][52][41][52] [13][52][43][25] [14][23][14][52] [14][23][15][32] [14][23][41][25] [14][23][41][52] [14][23][51][23] [14][23][51][32] [14][25][14][32] [14][25][41][23] [14][25][43][52] [14][32][15][23] [14][32][51][23] [14][32][51][32] [15][23][15][34] [15][23][15][42] [15][23][51][24] [15][23][51][34] [15][23][51][42] [15][23][51][43] [15][24][15][32] [15][24][51][23] [15][32][15][43] [15][32][51][24] [15][32][51][34]"}};
 </script>
 
 <script id="zip-patterns">
@@ -688,7 +776,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   const $ = function (id) { return document.getElementById(id); };
   const stage = $('stage'), canvas = $('board'), ctx = canvas.getContext('2d');
-  const strip = $('strip'), info = $('info'), badge = $('badge'), zipBtn = $('zipMode');
+  const strip = $('strip'), info = $('info'), badge = $('badge'), zipBtn = $('zipMode'), twoBtn = $('twoMode');
   const wall = $('wall'), wallBody = $('wallBody'), wallNote = $('wallNote'), wallTitle = $('wallTitle');
   const selPattern = $('pattern'), inCustom = $('custom');
   const btnLess = $('less'), btnMore = $('more'), outCount = $('count');
@@ -703,14 +791,15 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     startRight: true,
     speed: 1,
     playing: !reduceMotion,
-    zipMode: false
+    zipMode: false,
+    twoMode: false
   };
   let tm = JLS.timing(state.n);
   let plan = null;           // set when the pattern has zips
   let u = 0;                 // time, in hand cycles
   let error = '';
   let under = [];            // the numbers hidden under zips that were made by tapping
-  let lastRolls = '1234', lastZips = '121z';
+  let lastRolls = '1234', lastZips = '121z', lastTwo = '[13][24][31][42]';
 
   /* Switch to a pattern and ball count. Returns '' if it worked, or the reason it can't be played. */
   function setPattern(parsed, n) {
@@ -721,8 +810,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       p = JLS.zipPlan(parsed, n);
       if (!p) return 'No timing works for that pattern with ' + n + (n === 1 ? ' ball.' : ' balls.');
     }
-    plan = p; state.pat = parsed; state.n = n; tm = JLS.timing(n);
-    if (parsed.zip) lastZips = parsed.text; else if (!state.zipMode) lastRolls = parsed.text;
+    if (parsed.pairs) n = Math.max(2, Math.min(8, n % 2 ? n + 1 : n));   // pairs need an even number of balls
+    plan = p; state.pat = parsed; state.n = n;
+    tm = JLS.timing(parsed.pairs ? n / 2 : n);
+    if (parsed.zip) lastZips = parsed.text;
+    else if (parsed.pairs) lastTwo = parsed.text;
+    else if (!state.zipMode) lastRolls = parsed.text;
     return '';
   }
 
@@ -732,7 +825,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const n = b >= 1 && b <= JLS.MAX_BALLS ? b : state.n;
     const parsed = JLS.parse(params.get('p') || '');
     if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) state.zipMode = true;
-    if (setPattern(parsed.ok ? parsed : JLS.parse(state.zipMode ? lastZips : lastRolls), n)) setPattern(JLS.parse('1234'), 3);
+    else if (params.get('two') === '1' || (parsed.ok && parsed.pairs)) state.twoMode = true;
+    if (setPattern(parsed.ok ? parsed : JLS.parse(state.zipMode ? lastZips : state.twoMode ? lastTwo : lastRolls), n)) setPattern(JLS.parse('1234'), 3);
     if (params.get('start') === 'left') state.startRight = false;
     const sp = parseFloat(params.get('speed'));
     if (sp >= 0.25 && sp <= 2) state.speed = sp;
@@ -742,27 +836,36 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   })();
 
   /* ---------- pattern list ---------- */
+  /* The groups shown in the pattern list for the current mode, each item as [name, pattern]. */
+  function listGroups() {
+    if (state.zipMode) return ZIP_LIST.map(function (g) { return { group: g.group, items: g.items.map(function (t) { return ['', t]; }) }; });
+    return state.twoMode ? PAIR_LIST.concat(JLS.CATALOGUE) : JLS.CATALOGUE;
+  }
   function fillPatternList() {
     selPattern.textContent = '';
     const own = document.createElement('option');
     own.value = ''; own.textContent = 'Your own pattern'; own.hidden = true;
     selPattern.appendChild(own);
-    (state.zipMode ? ZIP_LIST : JLS.CATALOGUE).forEach(function (g) {
+    listGroups().forEach(function (g) {
       const og = document.createElement('optgroup');
       og.label = g.group;
       g.items.forEach(function (it) {
         const o = document.createElement('option');
-        o.value = state.zipMode ? it : it[1];
-        o.textContent = state.zipMode ? it : it[0] + '  ·  ' + it[1];
+        o.value = it[1];
+        o.textContent = it[0] ? it[0] + '  ·  ' + it[1] : it[1];
         og.appendChild(o);
       });
       selPattern.appendChild(og);
     });
     wallBody.textContent = '';
   }
+  function inList(text) {
+    for (const o of selPattern.options) if (o.value === text) return true;
+    return false;
+  }
 
   function knownPattern(text) {
-    for (const g of JLS.CATALOGUE) for (const it of g.items) if (it[1] === text) return it;
+    for (const g of JLS.CATALOGUE.concat(PAIR_LIST)) for (const it of g.items) if (it[0] && it[1] === text) return it;
     return null;
   }
 
@@ -771,15 +874,26 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   function buildStrip() {
     strip.textContent = '';
-    const pat = state.pat, together = !plan && state.n % 2 === 0;
+    const pat = state.pat, together = !plan && !pat.pairs && state.n % 2 === 0;
     let holder = strip;
-    pat.seq.forEach(function (lane, i) {
-      if (together && i % 2 === 0) { holder = document.createElement('span'); holder.className = 'pair'; strip.appendChild(holder); }
+    function tile(lane, i) {
       const t = document.createElement('span');
       t.className = 'tile ' + (lane ? (sideOf(i % 2) === RIGHT ? 'r' : 'b') : 'z');
       t.textContent = lane || 'z';
+      t.dataset.b = i;
+      return t;
+    }
+    pat.seq.forEach(function (lane, i) {
+      if (pat.pairs) {                                        // one bracket: the two lanes a person rolls together
+        holder = document.createElement('span'); holder.className = 'pair br'; strip.appendChild(holder);
+        holder.appendChild(tile(pat.slots[0][i], i));
+        holder.appendChild(tile(pat.slots[1][i], i));
+        return;
+      }
+      if (together && i % 2 === 0) { holder = document.createElement('span'); holder.className = 'pair'; strip.appendChild(holder); }
+      const t = tile(lane, i);
       if (state.zipMode) {
-        t.className += ' tap'; t.tabIndex = 0; t.setAttribute('role', 'button'); t.dataset.i = i;
+        t.className += ' tap'; t.tabIndex = 0; t.setAttribute('role', 'button');
         t.setAttribute('aria-label', lane ? 'Roll ' + (i + 1) + ', lane ' + lane + '. Tap to make it a zip' : 'Roll ' + (i + 1) + ', a zip. Tap to make it a roll again');
       }
       holder.appendChild(t);
@@ -789,40 +903,45 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   let lastActive = '';
   function markStrip() {
-    const act = JLS.active(u, state.pat, plan ? 1 : state.n);
+    const act = JLS.active(u, state.pat, plan ? 1 : state.pat.pairs ? state.n / 2 : state.n);
     const key = act.join(',');
     if (key === lastActive) return;
     lastActive = key;
     const tiles = strip.querySelectorAll('.tile');
-    for (let i = 0; i < tiles.length; i++) tiles[i].classList.toggle('on', act.indexOf(i) !== -1);
+    for (let i = 0; i < tiles.length; i++) tiles[i].classList.toggle('on', act.indexOf(Number(tiles[i].dataset.b)) !== -1);
   }
 
   function showInfo() {
     if (error) { info.className = 'info bad'; info.textContent = error; return; }
-    const n = state.n;
+    const n = state.n, who = state.twoMode ? 'people' : 'hands';
+    const turns = state.pat.pairs ? (n / 2) % 2 === 1 : n % 2 === 1;
     info.className = 'info';
-    let html = '<span class="nw"><b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + (n % 2 ? 'hands take turns' : 'hands roll together') + '</span>';
+    let html = '<span class="nw"><b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + who + (turns ? ' take turns' : ' roll together') + '</span>';
     if (state.zipMode) {
       html += '<span class="sep">|</span><span class="nw">tap a number to make it a zip</span>';
     } else {
-      html += '<span class="sep">|</span><span class="nw"><span class="dot r"></span>right hand &larr;</span>' +
-              '<span class="sep">|</span><span class="nw"><span class="dot b"></span>left hand &rarr;</span>';
+      const unit = state.twoMode ? ' person ' : ' hand ';
+      html += '<span class="sep">|</span><span class="nw"><span class="dot r"></span>right' + unit + '&larr;</span>' +
+              '<span class="sep">|</span><span class="nw"><span class="dot b"></span>left' + unit + '&rarr;</span>';
     }
     info.innerHTML = html;
   }
 
-  function ballStep() { return state.pat.zip ? 2 : 1; }
+  function ballStep() { return state.pat.zip || state.pat.pairs ? 2 : 1; }
+  function ballLimits() { return state.pat.pairs ? [2, 8] : [1, JLS.MAX_BALLS]; }
 
   function refresh(restart) {
     if (restart) u = 0;
     outCount.textContent = state.n;
-    btnLess.disabled = state.n - ballStep() < 1;
-    btnMore.disabled = state.n + ballStep() > JLS.MAX_BALLS;
+    btnLess.disabled = state.n - ballStep() < ballLimits()[0];
+    btnMore.disabled = state.n + ballStep() > ballLimits()[1];
     btnR.setAttribute('aria-pressed', String(state.startRight));
     btnL.setAttribute('aria-pressed', String(!state.startRight));
     btnPlay.textContent = state.playing ? 'Pause' : 'Play';
     zipBtn.textContent = state.zipMode ? 'Zips on' : 'Zips off';
     zipBtn.setAttribute('aria-pressed', String(state.zipMode));
+    twoBtn.textContent = state.twoMode ? '2 people' : '1 person';
+    twoBtn.setAttribute('aria-pressed', String(state.twoMode));
     inSpeed.value = state.speed;
     inCustom.setAttribute('inputmode', state.zipMode ? 'text' : 'numeric');
     selPattern.value = state.pat.text;
@@ -839,7 +958,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function choose(text) {
     error = setPattern(JLS.parse(text), state.n);
     under = [];
-    inCustom.value = selPattern.querySelector('option[value="' + text + '"]') ? '' : (error ? inCustom.value : text);
+    inCustom.value = inList(text) ? '' : (error ? inCustom.value : text);
     refresh(!error);
   }
 
@@ -848,7 +967,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   inCustom.addEventListener('input', function () {
     const parsed = JLS.parse(inCustom.value);
     if (!inCustom.value.trim()) { error = ''; inCustom.classList.remove('bad'); showInfo(); return; }
-    if (parsed.ok && parsed.zip && !state.zipMode) { state.zipMode = true; fillPatternList(); }
+    if (parsed.ok && parsed.zip && !state.zipMode) { state.zipMode = true; state.twoMode = false; fillPatternList(); }
+    if (parsed.ok && parsed.pairs && !state.twoMode) { state.twoMode = true; state.zipMode = false; fillPatternList(); }
     const changed = !parsed.ok || parsed.text !== state.pat.text;
     error = setPattern(parsed, state.n);
     if (error) { inCustom.classList.add('bad'); showInfo(); return; }
@@ -860,7 +980,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   });
   function changeBalls(by) {
     const n = state.n + by * ballStep();
-    if (n < 1 || n > JLS.MAX_BALLS) return;
+    if (n < ballLimits()[0] || n > ballLimits()[1]) return;
     const problem = setPattern(state.pat, n);
     if (problem) { error = problem; showInfo(); return; }
     error = '';
@@ -874,8 +994,15 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   btnPlay.addEventListener('click', function () { state.playing = !state.playing; btnPlay.textContent = state.playing ? 'Pause' : 'Play'; kick(); });
   zipBtn.addEventListener('click', function () {
     state.zipMode = !state.zipMode;
+    state.twoMode = false;                       // zips are for one person
     fillPatternList();
     choose(state.zipMode ? lastZips : lastRolls);
+  });
+  twoBtn.addEventListener('click', function () {
+    state.twoMode = !state.twoMode;
+    state.zipMode = false;
+    fillPatternList();
+    choose(state.twoMode ? lastTwo : lastRolls);
   });
 
   /* In zip mode, tapping a number in the strip turns it into a zip, and tapping the zip turns it back. */
@@ -895,31 +1022,45 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const problem = setPattern(JLS.parse(chars.join('')), state.n);
     if (problem) { under = before; error = problem; showInfo(); return; }
     error = '';
-    inCustom.value = selPattern.querySelector('option[value="' + state.pat.text + '"]') ? '' : state.pat.text;
+    inCustom.value = inList(state.pat.text) ? '' : state.pat.text;
     refresh(true);
   }
   strip.addEventListener('click', function (e) {
     const t = e.target.closest ? e.target.closest('.tile.tap') : null;
-    if (t) tapTile(Number(t.dataset.i));
+    if (t) tapTile(Number(t.dataset.b));
   });
   strip.addEventListener('keydown', function (e) {
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('tap')) { e.preventDefault(); tapTile(Number(e.target.dataset.i)); }
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('tap')) { e.preventDefault(); tapTile(Number(e.target.dataset.b)); }
   });
 
   /* ---------- the pop-up list of every pattern ---------- */
   function buildWall() {
     if (wallBody.firstChild) return;
-    const all = state.zipMode ? ALL_ZIPS : ALL_PATTERNS;
-    wallTitle.textContent = state.zipMode ? 'All zip patterns' : 'All patterns';
-    wallNote.textContent = state.zipMode
-      ? 'Every pattern with zips of up to 8 rolls in which no hand move happens twice. A z is a zip: a handoff from one hand to the other. Tap one to play it. Patterns that only differ by where they start, by being upside down or by being a mirror image are listed once.'
-      : 'Every pattern of up to 8 rolls in which no hand move happens twice. Tap one to play it. The underlined ones have names in the pattern list. Patterns that only differ by where they start, by being upside down or by being a mirror image are listed once.';
-    for (const k of Object.keys(all).sort()) {
+    const same = ' Patterns that only differ by where they start, by being upside down or by being a mirror image are listed once.';
+    const sections = [];      // [heading, {rolls: 'pattern pattern ...'}]
+    function add(all, label) {
+      for (const k of Object.keys(all).sort()) sections.push([k + (k === '1' ? ' lane' : ' lanes') + label, all[k]]);
+    }
+    if (state.zipMode) {
+      wallTitle.textContent = 'All zip patterns';
+      wallNote.textContent = 'Every pattern with zips of up to 8 rolls in which no hand move happens twice. A z is a zip: a handoff from one hand to the other. Tap one to play it.' + same;
+      add(ALL_ZIPS, '');
+    } else if (state.twoMode) {
+      wallTitle.textContent = 'All two-person patterns';
+      wallNote.textContent = 'In brackets, each person rolls two balls at once: [14] means lanes 1 and 4 together. Below those are the one-at-a-time patterns, played with each person swapping hands. Tap one to play it. The underlined ones have names in the pattern list.' + same;
+      add(ALL_PAIRS, ', two at once');
+      add(ALL_PATTERNS, ', one at a time');
+    } else {
+      wallTitle.textContent = 'All patterns';
+      wallNote.textContent = 'Every pattern of up to 8 rolls in which no hand move happens twice. Tap one to play it. The underlined ones have names in the pattern list.' + same;
+      add(ALL_PATTERNS, '');
+    }
+    for (const sec of sections) {
       const h3 = document.createElement('h3');
-      h3.textContent = k + (k === '1' ? ' lane' : ' lanes');
+      h3.textContent = sec[0];
       wallBody.appendChild(h3);
-      for (const beats of Object.keys(all[k]).sort()) {
-        const list = all[k][beats].split(' ');
+      for (const beats of Object.keys(sec[1]).sort(function (x, y) { return x - y; })) {
+        const list = sec[1][beats].split(' ');
         const h4 = document.createElement('h4');
         h4.textContent = beats + ' rolls (' + list.length + ')';
         wallBody.appendChild(h4);
@@ -959,11 +1100,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function geometry() {
     const K = state.pat.lanes;
     const handZone = clamp(W * 0.18, 54, 160);
-    const pitch = Math.min((H - 44) / K, 92);
+    const top = H < 330 ? 36 : 44;                          // room for the buttons along the top of the square
+    const pitch = Math.min((H - top - 26) / K, 92);
     const rb = clamp(Math.min(pitch * 0.3, W * 0.04), 6, 20);
     const trackH = Math.min(pitch - 6, rb * 2 + 12);
     const bx0 = handZone, bx1 = W - handZone;
-    const bh = K * pitch + 16, by0 = (H - bh) / 2 - 2;
+    const bh = K * pitch + 16, by0 = Math.max(top, (H - bh) / 2 - 2);
     const inset = 8 + trackH / 2;
     const room = handZone + inset;
     const minReach = inset + rb * 1.3;
@@ -1084,7 +1226,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (plan) {
       for (const p of JLS.zipPaths(plan)) paths.push({ side: sideOf(p.hand), from: p.from, to: p.to });
     } else {
-      for (let i = 0; i < L; i++) paths.push({ side: sideOf(1 - i % 2), from: { lane: seq[i] }, to: { lane: seq[JLS.nextRoll(i, state.n) % L] } });
+      // pairs are two ordinary patterns side by side, each with half the balls
+      const tracks = state.pat.pairs ? state.pat.slots.map(function (q) { return [q, state.n / 2]; }) : [[seq, state.n]];
+      for (const tr of tracks) {
+        for (let i = 0; i < L; i++) paths.push({ side: sideOf(1 - i % 2), from: { lane: tr[0][i] }, to: { lane: tr[0][JLS.nextRoll(i, tr[1]) % L] } });
+      }
     }
     for (const p of paths) {
       const key = p.side + ':' + (p.from.lane || 'm' + p.from.mid) + '>' + (p.to.lane || 'm' + p.to.mid);
@@ -1131,7 +1277,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   }
 
   /* A cartoon glove, seen from above. `side` is the side of the board it works on; its fingers point at the board. */
-  function drawHand(g, x, y, side) {
+  function drawHand(g, x, y, side, letter) {
     const r = g.rb * 1.25;
     const line = clamp(r * 0.13, 1.5, 2.6);
     const fat = r * 0.54;
@@ -1161,7 +1307,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     ctx.fillStyle = '#ffffff';
     ctx.font = '700 ' + Math.round(r * 0.8) + 'px ' + FONT;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(side === RIGHT ? 'R' : 'L', x + side * r * 1.18, y + r * 0.06);
+    ctx.fillText(letter || (side === RIGHT ? 'R' : 'L'), x + side * r * 1.18, y + r * 0.06);
   }
 
   function draw() {
@@ -1174,22 +1320,33 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
     // hands first, so a ball always shows on top of the glove that holds it
     const handOffset = g.rb * 0.5;
+    const pat = state.pat, pairs = !!pat.pairs, n = pairs ? state.n / 2 : state.n;
     let bs, hs;
     if (plan) {
       bs = JLS.zipBalls(u, plan, tm);
       hs = JLS.zipHands(u, plan, tm);
     } else {
-      bs = JLS.balls(u, state.pat, state.n, tm).map(function (b) {
+      bs = (pairs ? JLS.pairBalls(u, pat, n, tm) : JLS.balls(u, pat, n, tm)).map(function (b) {
         return b.state === 'roll' ? b : { id: b.id, state: 'held', hand: b.hand, from: { lane: b.from }, to: { lane: b.to }, p: b.p };
       });
-      hs = JLS.hands(u, state.pat, state.n, tm).map(function (h) {
-        return { hand: h.hand, holding: h.state === 'carry', from: { lane: h.from }, to: { lane: h.to }, p: h.p };
-      });
+      if (state.twoMode) {
+        hs = (pairs ? JLS.pairHands(u, pat, n, tm) : JLS.hands2(u, pat, n, tm)).map(function (h) {
+          // Letters are each person's own right and left. Taking turns, a person leads with their right hand.
+          // Rolling pairs, hand 1 is the one further up the screen: the right person's right, the left person's left.
+          const up = pairs ? h.which === 1 : null;
+          const right = pairs ? (sideOf(h.end) === RIGHT ? up : !up) : h.which === 0;
+          return { hand: h.end, holding: h.holding, from: { lane: h.from }, to: { lane: h.to }, p: h.p, letter: right ? 'R' : 'L' };
+        });
+      } else {
+        hs = JLS.hands(u, pat, n, tm).map(function (h) {
+          return { hand: h.hand, holding: h.state === 'carry', from: { lane: h.from }, to: { lane: h.to }, p: h.p };
+        });
+      }
     }
     for (const h of hs) {
       const side = sideOf(h.hand);
       const pt = segPoint(g, side, h.from, h.to, h.p, h.holding);
-      drawHand(g, pt.x + side * handOffset, pt.y, side);
+      drawHand(g, pt.x + side * handOffset, pt.y, side, h.letter);
     }
     for (const b of bs) {
       if (b.state === 'roll') {
@@ -1236,7 +1393,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { draw(); });
 
   fillPatternList();
-  inCustom.value = selPattern.querySelector('option[value="' + state.pat.text + '"]') ? '' : state.pat.text;
+  inCustom.value = inList(state.pat.text) ? '' : state.pat.text;
   const startAt = u;
   refresh(false);
   u = startAt;

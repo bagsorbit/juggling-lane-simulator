@@ -81,7 +81,7 @@ def search(k, max_brackets):
                 found[canon] = min(s for s in ims if s[0][0] == 1)
     return found
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--embed" not in sys.argv:
     for k, mx in ((4, 6), (5, 4), (6, 4)):
         found = search(k, mx)
         by_len = defaultdict(list)
@@ -95,3 +95,29 @@ if __name__ == "__main__":
                     p = paths(d)
                     twin = p[1] in [p[0][r:] + p[0][:r] for r in range(len(p[0]))]
                     print(f"  {show(d):<26} paths {p[0]} and {p[1]}{'  (same path, out of step)' if twin else ''}")
+
+
+NAMES = {"[13][24][31][42]": "Scarf for Two", "[14][23][41][32]": "Mobius for Two", "[12][34][21][43]": "Loop de Loop for Two"}
+
+def embed(path="index.html"):
+    """Rewrite the two-person pair lists inside index.html."""
+    import json, re
+    four = defaultdict(list)
+    for d in search(4, 6).values():
+        four[len(d)].append(show(d))
+    five = defaultdict(list)
+    for d in search(5, 4).values():
+        five[len(d)].append(show(d))
+    short = [{"group": f"Two at once, {2 * n} rolls", "items": [[NAMES.get(t, ""), t] for t in sorted(v)]} for n, v in sorted(four.items())]
+    everything = {"4": {str(2 * n): " ".join(sorted(v)) for n, v in sorted(four.items())},
+                  "5": {str(2 * n): " ".join(sorted(v)) for n, v in sorted(five.items())}}
+    block = ('<script id="pair-patterns">\nconst PAIR_LIST = ' + json.dumps(short, separators=(",", ":")) +
+             ';\nconst ALL_PAIRS = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')
+    html = open(path, encoding="utf-8").read()
+    html, n = re.subn(r'<script id="pair-patterns">.*?</script>', lambda m: block, html, flags=re.S)
+    assert n == 1
+    open(path, "w", encoding="utf-8").write(html)
+    print("pairs:", {k: {b: len(v.split()) for b, v in d.items()} for k, d in everything.items()})
+
+if __name__ == "__main__" and "--embed" in sys.argv:
+    embed()

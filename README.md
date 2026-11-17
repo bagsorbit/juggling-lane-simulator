@@ -16,6 +16,10 @@ Open `index.html` in a browser. Pick a pattern from the list or type your own, t
 
 The "Zips" button switches to patterns with zips. A zip, written `z`, is a handoff: the hand passes its ball straight to the other hand, which rolls it on the next beat. Zips need an odd number of balls. Because a zipped ball jumps the queue, the rolls stop taking equal time; the simulator picks the most even timing that works. In zip mode, tapping a number under the lanes turns it into a zip and back.
 
+### Slope
+
+The "Slope" button turns the lanes to run up the screen, sloping down towards one person at the bottom. A hand carries a ball up a lane and lets go, and the ball rolls back. These are toss-juggling patterns: each is written as the lanes in the order the hands use them, then the siteswap in brackets, such as `12 (siteswap 3)` for the cascade. Every ball rolls at the same speed, so a bigger siteswap number starts higher up the lane. A `z` is a zip (a siteswap 1). The patterns come from a fixed list.
+
 ### Lanes that change direction
 
 The "Reverses" button switches to patterns in which a lane is rolled from both ends, such as `123` with 3 balls, where each ball rocks back and forth in its own lane. A lane can only be rolled the other way once it is empty, so each of these patterns has a top number of balls. They can have an odd number of rolls.

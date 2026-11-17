@@ -277,7 +277,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
 <main class="app">
   <h1>Juggling Lane Simulator</h1>
 
-  <div class="stage" id="stage"><div class="modes"><button type="button" class="modebtn" id="twoMode" aria-pressed="false"><svg class="one" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="12" cy="7" r="3.6"/><path d="M5 21c0-5 3-8 7-8s7 3 7 8"/></svg><svg class="two" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 21c0-4 2.5-6.5 6-6.5s6 2.5 6 6.5M15 14.6c.6-.1 1.300-.1 2-.1 3.300 0 5.500 2.500 5.500 6.500"/></svg><span>1 person</span></button><button type="button" class="modebtn" id="zipMode" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M13 2L5 13.500h6L10 22l9-12h-6z"/></svg><span>Zips</span></button><button type="button" class="modebtn" id="revMode" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 8h15l-3.500-3.500M20 16H5l3.500 3.500"/></svg><span>Reverses</span></button><button type="button" class="modebtn" id="mixMode" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M5 5H2.500v9H5M12 5h2.500v9H12"/><circle cx="6" cy="9.500" r="1.300"/><circle cx="11" cy="9.500" r="1.300"/><circle cx="20" cy="9.500" r="1.300"/><path d="M3 20h18"/></svg><span>Mixed</span></button><button type="button" class="modebtn keybtn" id="keyBtn" aria-label="What the buttons mean">?</button></div><button type="button" class="modebtn lucky" id="lucky" aria-label="Play a random pattern from the top five"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#fff" stroke="#2d2a4a" stroke-width="2.4"/><g fill="#2d2a4a"><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="8" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="8" cy="16" r="1.9"/><circle cx="16" cy="16" r="1.9"/></g></svg><span>Random top 5</span></button><div class="badge" id="badge" aria-hidden="true"></div><canvas id="board" role="img" aria-label="Animation of balls rolling across lanes and being carried between them by two hands"></canvas></div>
+  <div class="stage" id="stage"><div class="modes"><button type="button" class="modebtn" id="twoMode" aria-pressed="false"><svg class="one" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="12" cy="7" r="3.6"/><path d="M5 21c0-5 3-8 7-8s7 3 7 8"/></svg><svg class="two" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 21c0-4 2.5-6.5 6-6.5s6 2.5 6 6.5M15 14.6c.6-.1 1.300-.1 2-.1 3.300 0 5.500 2.500 5.500 6.500"/></svg><span>1 person</span></button><button type="button" class="modebtn" id="zipMode" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M7 2l3.500 6M17 2l-3.500 6M12 14v8M9.500 16.500h5M9.500 19.500h5"/><path d="M9 8h6l-1 5.500h-4z" fill="#2d2a4a"/></svg><span>Zips</span></button><button type="button" class="modebtn" id="revMode" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 8h15l-3.500-3.500M20 16H5l3.500 3.500"/></svg><span>Reverses</span></button><button type="button" class="modebtn" id="mixMode" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M5 5H2.500v9H5M12 5h2.500v9H12"/><circle cx="6" cy="9.500" r="1.300"/><circle cx="11" cy="9.500" r="1.300"/><circle cx="20" cy="9.500" r="1.300"/><path d="M3 20h18"/></svg><span>Mixed</span></button><button type="button" class="modebtn" id="slopeMode" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M3 20h18V8z"/><circle cx="8" cy="11.500" r="2.300"/></svg><span>Slope</span></button><button type="button" class="modebtn keybtn" id="keyBtn" aria-label="What the buttons mean">?</button></div><button type="button" class="modebtn lucky" id="lucky" aria-label="Play a random pattern from the top five"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#fff" stroke="#2d2a4a" stroke-width="2.4"/><g fill="#2d2a4a"><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="8" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="8" cy="16" r="1.9"/><circle cx="16" cy="16" r="1.9"/></g></svg><span>Random top 5</span></button><div class="badge" id="badge" aria-hidden="true"></div><canvas id="board" role="img" aria-label="Animation of balls rolling across lanes and being carried between them by two hands"></canvas></div>
 
   <div class="strip" id="strip" aria-label="Pattern, one number per roll"></div>
   <p class="info" id="info" role="status"></p>
@@ -319,9 +319,10 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
   <ul class="keylist">
     <li><svg class="one" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="12" cy="7" r="3.6"/><path d="M5 21c0-5 3-8 7-8s7 3 7 8"/></svg><span><b>1 person</b>: a hand at each end of the lanes. Tap for 2 people.</span></li>
     <li><svg class="two" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 21c0-4 2.5-6.5 6-6.5s6 2.5 6 6.5M15 14.6c.6-.1 1.300-.1 2-.1 3.300 0 5.500 2.500 5.500 6.500"/></svg><span><b>2 people</b>: a person at each end, two hands each.</span></li>
-    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M13 2L5 13.500h6L10 22l9-12h-6z"/></svg><span><b>Zips</b>: patterns with handoffs from one hand to the other.</span></li>
+    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M7 2l3.500 6M17 2l-3.500 6M12 14v8M9.500 16.500h5M9.500 19.500h5"/><path d="M9 8h6l-1 5.500h-4z" fill="#2d2a4a"/></svg><span><b>Zips</b>: patterns with handoffs from one hand to the other.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 8h15l-3.500-3.500M20 16H5l3.500 3.500"/></svg><span><b>Reverses</b>: patterns in which lanes change direction.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M5 5H2.500v9H5M12 5h2.500v9H12"/><circle cx="6" cy="9.500" r="1.300"/><circle cx="11" cy="9.500" r="1.300"/><circle cx="20" cy="9.500" r="1.300"/><path d="M3 20h18"/></svg><span><b>Mixed</b>: two people, each keeping their own rhythm of single rolls and pairs.</span></li>
+    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M3 20h18V8z"/><circle cx="8" cy="11.500" r="2.300"/></svg><span><b>Slope</b>: toss-juggling patterns. You sit at the bottom, place balls up the sloping lanes, and they roll back to you.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#fff" stroke="#2d2a4a" stroke-width="2.4"/><g fill="#2d2a4a"><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="8" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="8" cy="16" r="1.9"/><circle cx="16" cy="16" r="1.9"/></g></svg><span><b>Random top 5</b>: plays one of the five starred patterns.</span></li>
   </ul>
   <p class="keynote">A green button is switched on. A faded button cannot be used until the green one is switched off.</p>
@@ -699,6 +700,129 @@ const JLS = (function () {
     return out;
   }
 
+  /* ================= slope =================
+   * One person sits at the bottom. Every lane slopes towards them. A hand carries a ball up a lane,
+   * lets go, and the ball rolls back down to be caught. These are ordinary toss-juggling patterns:
+   * each throw has a siteswap number, which is how many beats until that ball is thrown again.
+   * Every ball rolls at the same speed, so a bigger number just starts higher up the lane.
+   * 0 is an empty hand, 2 is a ball held, a 1 (or 2x when the hands work together) is a zip.
+   * Time here is counted in beats (two per cycle). Hand 0 is the right hand.
+   */
+  const SLOPE_HOLD = 1;        // beats between catching a ball at the bottom and letting it go up the lane
+  // rolls: the lane for each beat (z = zip, - = no lane). together: [right hand, left hand] for each beat.
+  const SLOPE_PATTERNS = [
+    { group: 'Hands take turns', items: [
+      { name: 'Cascade', lanes: 2, rolls: '12', ss: '3' },
+      { name: 'Fountain', lanes: 2, rolls: '21', ss: '4' },
+      { name: 'Five-Ball Cascade', lanes: 2, rolls: '12', ss: '5' },
+      { name: 'Shower', lanes: 2, rolls: '1z', ss: '51' },
+      { name: '531', lanes: 2, rolls: '12z21z', ss: '531' },
+      { name: '441', lanes: 2, rolls: '21z12z', ss: '441' },
+      { name: '423', lanes: 2, rolls: '2-11-2', ss: '423' },
+      { name: 'Mills Mess', lanes: 3, rolls: '123321', ss: '3' }] },
+    { group: 'Hands together', items: [
+      { name: 'Sync Fountain', lanes: 2, together: [['2', '1']], ss: [['4', '4']] },
+      { name: 'Wimpy', lanes: 2, together: [['1', '2']], ss: [['4x', '4x']] },
+      { name: 'Box', lanes: 2, together: [['2', 'z'], ['z', '1']], ss: [['4', '2x'], ['2x', '4']] },
+      { name: 'Splits', lanes: 4, together: [['4', '1'], ['3', '2']], ss: [['4', '4']] }] }
+  ];
+  function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+  function slopeText(spec) {
+    if (!spec.together) return spec.rolls + ' (siteswap ' + spec.ss + ')';
+    return spec.together.map(function (b) { return '[' + b[0] + b[1] + ']'; }).join('') +
+           ' (siteswap ' + spec.ss.map(function (b) { return '(' + b[0] + ',' + b[1] + ')'; }).join('') + ')';
+  }
+  function slopePlan(spec) {
+    const events = [], sync = !!spec.together;
+    let period;
+    function add(t, hand, token, laneChar) {
+      const v = parseInt(token, 10), x = /x/.test(token);
+      const lane = /[1-9]/.test(laneChar) ? Number(laneChar) : 0;
+      const kind = v === 0 ? 'none' : (!sync && v === 1) || (sync && v === 2 && x) ? 'zip' : v === 2 ? 'hold' : 'roll';
+      events.push({ t: t, hand: hand, v: v, lane: lane, kind: kind, toHand: (sync ? x : v % 2 === 1) ? 1 - hand : hand });
+    }
+    if (sync) {
+      const steps = spec.together.length * spec.ss.length / gcd(spec.together.length, spec.ss.length);
+      for (let j = 0; j < steps; j++) for (let h = 0; h < 2; h++) add(2 * j, h, spec.ss[j % spec.ss.length][h], spec.together[j % spec.together.length][h]);
+      period = 2 * steps;
+    } else {
+      period = spec.rolls.length * spec.ss.length / gcd(spec.rolls.length, spec.ss.length);
+      if (period % 2) period *= 2;
+      for (let t = 0; t < period; t++) add(t, t % 2, spec.ss[t % spec.ss.length], spec.rolls[t % spec.rolls.length]);
+    }
+    const at = {}, src = {};
+    let total = 0, top = 5;
+    for (const e of events) { at[e.t + ':' + e.hand] = e; total += e.v; top = Math.max(top, e.v); }
+    for (const e of events) if (e.v) src[mod(e.t + e.v, period) + ':' + e.toHand] = e;
+    const plan = { spec: spec, sync: sync, period: period, events: events, at: at, src: src, top: top, lanes: spec.lanes,
+                   balls: total / period, text: slopeText(spec), ids: new Map(), landings: [] };
+    for (let t = -top; t < 0; t++) for (let h = 0; h < 2; h++) {
+      const e = slEvent(plan, t, h);
+      if (e && e.v && t + e.v >= 0) plan.landings.push((t + e.v) * 2 + e.toHand);
+    }
+    plan.landings.sort(function (a, b) { return a - b; });
+    return plan;
+  }
+  function slEvent(plan, t, hand) { return plan.at[mod(t, plan.period) + ':' + hand]; }
+  function slSource(plan, t, hand) { return plan.src[mod(t, plan.period) + ':' + hand]; }   // the throw that lands for (t, hand)
+  /* Where a hand is when it lets go: up a lane, at the meeting point for a zip, or at home.
+   * { lane: 2, up: 0.5 } is half-way up lane 2; up: 0 is the bottom, where balls are caught. */
+  function slPlace(plan, e) {
+    if (e.kind === 'roll') return { lane: e.lane, up: (e.v - SLOPE_HOLD) / (plan.top - SLOPE_HOLD) };
+    if (e.kind === 'zip' && !plan.sync) return { mid: true };
+    return { home: e.hand };
+  }
+  function slBallId(plan, t, hand) {
+    const chain = [];
+    let id;
+    for (;;) {
+      const key = t * 2 + hand;
+      id = plan.ids.get(key);
+      if (id !== undefined) break;
+      chain.push(key);
+      const e = slEvent(plan, t, hand);
+      if (t < 0) { id = plan.landings.indexOf((t + e.v) * 2 + e.toHand); break; }
+      const s = slSource(plan, t, hand);
+      t -= s.v; hand = s.hand;
+    }
+    if (plan.ids.size > 5000) plan.ids.clear();
+    for (const c of chain) plan.ids.set(c, id);
+    return id;
+  }
+  /* What each hand is doing at time u: moving from place `from` to place `to`, `p` of the way, `holding` a ball or not. */
+  function slopeHands(u, plan) {
+    const b = 2 * u, out = [];
+    for (let h = 0; h < 2; h++) {
+      let T = Math.floor(b) + 1;                              // this hand's next throw
+      if (plan.sync ? mod(T, 2) : mod(T, 2) !== h) T++;
+      const next = slEvent(plan, T, h), last = slEvent(plan, T - 2, h), s = next.v ? slSource(plan, T, h) : null;
+      const to = slPlace(plan, next), from = slPlace(plan, last);
+      if (!s) { out.push({ hand: h, holding: false, from: from, to: to, p: (b - (T - 2)) / 2 }); continue; }
+      let got, at;                                            // when and where the ball for the next throw reaches this hand
+      if (s.kind === 'roll') { got = T - SLOPE_HOLD; at = { lane: s.lane, up: 0 }; }
+      else if (s.kind === 'hold') { got = T - 2; at = from; }
+      else if (plan.sync) { got = T - 1; at = { home: h }; }  // a zip between hands working together arrives a beat later
+      else { got = T - 1; at = { mid: true }; }
+      if (b < got) out.push({ hand: h, holding: false, from: from, to: at, p: (b - (T - 2)) / (got - (T - 2)) });
+      else out.push({ hand: h, holding: true, from: at, to: to, p: (b - got) / (T - got) });
+    }
+    return out;
+  }
+  /* state 'roll': coming down `lane` from height `up`, `p` of the way to the bottom.
+   * state 'held': in `hand`. state 'pass': a zip crossing from hand `from` to hand `to`. */
+  function slopeBalls(u, plan) {
+    const b = 2 * u, out = [], top = Math.floor(b);
+    for (let t = top; t > top - plan.top; t--) for (let h = 0; h < 2; h++) {
+      const e = slEvent(plan, t, h);
+      if (!e || !e.v || b >= t + e.v) continue;
+      const age = b - t, id = slBallId(plan, t, h);
+      if (e.kind === 'roll' && age < e.v - SLOPE_HOLD) out.push({ id: id, state: 'roll', lane: e.lane, up: (e.v - SLOPE_HOLD) / (plan.top - SLOPE_HOLD), p: age / (e.v - SLOPE_HOLD) });
+      else if (e.kind === 'zip' && plan.sync && age < 1) out.push({ id: id, state: 'pass', from: e.hand, to: e.toHand, p: age });
+      else out.push({ id: id, state: 'held', hand: e.toHand });
+    }
+    return out;
+  }
+
   /* ================= zips =================
    * A zip is a handoff: the hand passes its ball straight to the other hand, which
    * rolls it on the very next beat. That ball jumps the queue, so the rolls can no
@@ -848,6 +972,7 @@ const JLS = (function () {
 
   return { MAX_LANES: MAX_LANES, MAX_BEATS: MAX_BEATS, MAX_BALLS: MAX_BALLS, CATALOGUE: CATALOGUE,
            parse: parse, timing: timing, nextRoll: nextRoll,
+           SLOPE_PATTERNS: SLOPE_PATTERNS, slopeText: slopeText, slopePlan: slopePlan, slopeHands: slopeHands, slopeBalls: slopeBalls,
            revOk: revOk, laneHands: laneHands,
            mixedPlan: mixedPlan, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths,
            hands2: hands2, pairBalls: pairBalls, pairHands: pairHands,
@@ -959,7 +1084,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   const $ = function (id) { return document.getElementById(id); };
   const stage = $('stage'), canvas = $('board'), ctx = canvas.getContext('2d');
-  const strip = $('strip'), info = $('info'), badge = $('badge'), zipBtn = $('zipMode'), twoBtn = $('twoMode'), revBtn = $('revMode'), mixBtn = $('mixMode');
+  const strip = $('strip'), info = $('info'), badge = $('badge'), zipBtn = $('zipMode'), twoBtn = $('twoMode'), revBtn = $('revMode'), mixBtn = $('mixMode'), slopeBtn = $('slopeMode');
   const wall = $('wall'), wallBody = $('wallBody'), wallNote = $('wallNote'), wallTitle = $('wallTitle');
   const selPattern = $('pattern'), inCustom = $('custom');
   const btnLess = $('less'), btnMore = $('more'), outCount = $('count');
@@ -977,17 +1102,30 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     zipMode: false,
     twoMode: false,
     revMode: false,
-    mixMode: false           // mixed single rolls and pairs; always with two people
+    mixMode: false,          // mixed single rolls and pairs; always with two people
+    slopeMode: false         // toss-juggling patterns on lanes that slope towards one person
   };
   let tm = JLS.timing(state.n);
   let plan = null;           // set when the pattern has zips
   let mplan = null;          // set when the pattern mixes single rolls and pairs
+  let splan = null;          // set for a slope pattern
   let u = 0;                 // time, in hand cycles
   let error = '';
   let under = [];            // the numbers hidden under zips that were made by tapping
   let lastRolls = '1234', lastZips = '121z', lastTwo = '[13][24][31][42]', lastRev = '123', lastMix = MIX_TOP[0];
   /* Only one of the three special modes can be on at a time. */
-  function setMode(name) { state.zipMode = name === 'zip'; state.twoMode = name === 'two' || name === 'mix'; state.revMode = name === 'rev'; state.mixMode = name === 'mix'; }
+  function setMode(name) { state.zipMode = name === 'zip'; state.twoMode = name === 'two' || name === 'mix'; state.revMode = name === 'rev'; state.mixMode = name === 'mix'; state.slopeMode = name === 'slope'; }
+
+  // Slope patterns can't be typed, so they are looked up by the way they are written in the list.
+  const SLOPE = {};
+  const SLOPE_LIST = JLS.SLOPE_PATTERNS.map(function (g) {
+    return { group: g.group, items: g.items.map(function (spec) { const t = JLS.slopeText(spec); SLOPE[t] = spec; return [spec.name, t]; }) };
+  });
+  let lastSlope = SLOPE_LIST[0].items[0][1];
+  function parseAny(text) {
+    if (SLOPE[text]) { const sp = SLOPE[text]; return { ok: true, text: text, slope: sp, seq: [0], lanes: sp.lanes, hand: [], zip: false }; }
+    return JLS.parse(text);
+  }
 
   // The five patterns picked out in each mode: starred in the list, and what the "Random top 5" button plays.
   const TOP5 = {
@@ -995,9 +1133,10 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     zip: ['121z', '1z', '123z', '12zz', '12143z'],
     two: ['1232', '[13][24][31][42]', '[14][23][41][32]', '[12][34][21][43]', '[13][24][13][42][31][42]'],
     rev: ['123', '12345', '12342', '123132', '13524'],
-    mix: MIX_TOP
+    mix: MIX_TOP,
+    slope: ['Cascade', 'Shower', '441', 'Mills Mess', 'Splits'].map(function (name) { for (const t in SLOPE) if (SLOPE[t].name === name) return t; })
   };
-  function modeName() { return state.zipMode ? 'zip' : state.mixMode ? 'mix' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
+  function modeName() { return state.slopeMode ? 'slope' : state.zipMode ? 'zip' : state.mixMode ? 'mix' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
 
   /* Switch to a pattern and ball count. Returns '' if it worked, or the reason it can't be played. */
   function setPattern(parsed, n) {
@@ -1011,6 +1150,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       }
       if (!p) return 'No timing works for that pattern with ' + n + (n === 1 ? ' ball.' : ' balls.');
     }
+    let sp = null;
+    if (parsed.slope) { sp = JLS.slopePlan(parsed.slope); n = sp.balls; }
     let mp = null;
     if (parsed.mixed) {
       for (let d = 0; d < JLS.MAX_BALLS && !mp; d++) {
@@ -1028,9 +1169,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       n = m;
     }
     if (parsed.pairs) n = Math.max(2, Math.min(8, n % 2 ? n + 1 : n));   // pairs need an even number of balls
-    plan = p; mplan = mp; state.pat = parsed; state.n = n;
-    tm = JLS.timing(mp ? mp.average : parsed.pairs ? n / 2 : n);
-    if (parsed.zip) lastZips = parsed.text;
+    plan = p; mplan = mp; splan = sp; state.pat = parsed; state.n = n;
+    tm = sp ? { cycle: 1.5, hold: 0, roll: 0 } : JLS.timing(mp ? mp.average : parsed.pairs ? n / 2 : n);
+    if (sp) lastSlope = parsed.text;
+    if (parsed.slope) { /* remembered above */ }
+    else if (parsed.zip) lastZips = parsed.text;
     else if (parsed.pairs) lastTwo = parsed.text;
     else if (parsed.mixed) lastMix = parsed.text;
     else if (parsed.rev) lastRev = parsed.text;
@@ -1043,11 +1186,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const b = parseInt(params.get('b'), 10);
     const n = b >= 1 && b <= JLS.MAX_BALLS ? b : state.n;
     const parsed = JLS.parse(params.get('p') || '');
-    if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) setMode('zip');
+    if (params.get('slope')) { setMode('slope'); const want = params.get('slope'); for (const t in SLOPE) if (SLOPE[t].name.toLowerCase() === want.toLowerCase()) lastSlope = t; }
+    else if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) setMode('zip');
     else if (parsed.ok && parsed.rev) setMode('rev');
     else if (parsed.ok && parsed.mixed) setMode('mix');
     else if (params.get('two') === '1' || (parsed.ok && parsed.pairs)) setMode('two');
-    if (setPattern(parsed.ok ? parsed : JLS.parse(state.zipMode ? lastZips : state.twoMode ? lastTwo : lastRolls), n)) setPattern(JLS.parse('1234'), 3);
+    if (setPattern(state.slopeMode ? parseAny(lastSlope) : parsed.ok ? parsed : JLS.parse(state.zipMode ? lastZips : state.twoMode ? lastTwo : lastRolls), n)) setPattern(JLS.parse('1234'), 3);
     if (params.get('start') === 'left') state.startRight = false;
     const sp = parseFloat(params.get('speed'));
     if (sp >= 0.25 && sp <= 2) state.speed = sp;
@@ -1059,6 +1203,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* ---------- pattern list ---------- */
   /* The groups shown in the pattern list for the current mode, each item as [name, pattern]. */
   function listGroups() {
+    if (state.slopeMode) return SLOPE_LIST;
     if (state.zipMode || state.revMode || state.mixMode) return (state.zipMode ? ZIP_LIST : state.revMode ? REV_LIST : MIX_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return ['', t]; }) }; });
     return state.twoMode ? PAIR_LIST.concat(JLS.CATALOGUE) : JLS.CATALOGUE;
   }
@@ -1088,7 +1233,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   }
 
   function knownPattern(text) {
-    for (const g of JLS.CATALOGUE.concat(PAIR_LIST)) for (const it of g.items) if (it[0] && it[1] === text) return it;
+    for (const g of JLS.CATALOGUE.concat(PAIR_LIST, SLOPE_LIST)) for (const it of g.items) if (it[0] && it[1] === text) return it;
     return null;
   }
 
@@ -1111,6 +1256,21 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       const small = document.createElement('small'); small.textContent = beats;
       cell.appendChild(t); cell.appendChild(small);
       return cell;
+    }
+    if (pat.slope) {                                          // lane for each throw, with its siteswap number underneath
+      const ev = splan.events;
+      for (let i = 0; i < ev.length; i++) {
+        const e = ev[i];
+        if (splan.sync && e.hand === 0) { holder = document.createElement('span'); holder.className = 'pair br'; strip.appendChild(holder); }
+        const t = document.createElement('span');
+        t.className = 'tile ' + (e.kind === 'zip' ? 'z' : e.kind === 'roll' ? (e.hand === 0 ? 'r' : 'b') : 'rest');
+        t.textContent = e.kind === 'zip' ? 'z' : e.kind === 'roll' ? e.lane : '–';
+        t.dataset.b = splan.sync ? e.t / 2 : e.t;
+        const token = splan.sync ? splan.spec.ss[(e.t / 2) % splan.spec.ss.length][e.hand] : String(e.v);
+        (splan.sync ? holder : strip).appendChild(withBeats(t, token));
+      }
+      lastActive = '';
+      return;
     }
     if (pat.mixed) {                                          // a row for each person, beat by beat
       const rows = document.createElement('span'); rows.className = 'rows';
@@ -1162,7 +1322,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   let lastActive = '';
   function markStrip() {
-    const act = JLS.active(u, state.pat, plan || mplan ? 1 : state.pat.pairs ? state.n / 2 : state.n);
+    const act = splan ? [Math.floor(((2 * u) % splan.period + splan.period) % splan.period / (splan.sync ? 2 : 1))] : JLS.active(u, state.pat, plan || mplan ? 1 : state.pat.pairs ? state.n / 2 : state.n);
     const key = act.join(',');
     if (key === lastActive) return;
     lastActive = key;
@@ -1173,10 +1333,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function showInfo() {
     if (error) { info.className = 'info bad'; info.textContent = error; return; }
     const n = state.n, who = state.twoMode ? 'people' : 'hands';
-    const turns = plan || mplan ? true : state.pat.pairs ? (n / 2) % 2 === 1 : n % 2 === 1;
+    const turns = splan ? !splan.sync : plan || mplan ? true : state.pat.pairs ? (n / 2) % 2 === 1 : n % 2 === 1;
     info.className = 'info';
     let html = '<span class="nw"><b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + (mplan ? 'each person keeps their own rhythm' : who + (turns ? ' take turns' : ' roll together')) + '</span>';
-    if (mplan) {
+    if (splan) {
+      html += '<span class="sep">|</span><span class="nw">small numbers are the siteswap</span>';
+    } else if (mplan) {
       // the rows under the lanes already say who is who
     } else if (state.zipMode) {
       html += '<span class="sep">|</span><span class="nw">tap a number to make it a zip</span>';
@@ -1192,6 +1354,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function ballStep() { return state.pat.pairs ? 2 : 1; }
   /* The next ball count up or down that this pattern can be played with, or 0 if there is none. */
   function nextBalls(by) {
+    if (state.pat.slope) return 0;                           // a slope pattern has one ball count
     for (let n = state.n + by * ballStep(); n >= ballLimits()[0] && n <= ballLimits()[1]; n += by * ballStep()) {
       if (state.pat.zip ? JLS.zipPlan(state.pat, n) : state.pat.mixed ? JLS.mixedPlan(state.pat, n) : !state.pat.rev || JLS.revOk(state.pat, n)) return n;
     }
@@ -1216,10 +1379,13 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     revBtn.setAttribute('aria-pressed', String(state.revMode));
     // only one of these can be on at a time, so the others are greyed out until it is turned off
     mixBtn.setAttribute('aria-pressed', String(state.mixMode));
+    slopeBtn.setAttribute('aria-pressed', String(state.slopeMode));
     mixBtn.disabled = !state.twoMode;            // mixed patterns are only for two people
-    twoBtn.disabled = state.zipMode || state.revMode;
-    zipBtn.disabled = state.twoMode || state.revMode;
-    revBtn.disabled = state.twoMode || state.zipMode;
+    twoBtn.disabled = state.zipMode || state.revMode || state.slopeMode;
+    zipBtn.disabled = state.twoMode || state.revMode || state.slopeMode;
+    revBtn.disabled = state.twoMode || state.zipMode || state.slopeMode;
+    slopeBtn.disabled = state.twoMode || state.zipMode || state.revMode;
+    inCustom.disabled = state.slopeMode;         // slope patterns come from the list only
     inSpeed.value = state.speed;
     inCustom.setAttribute('inputmode', state.zipMode ? 'text' : 'numeric');
     selPattern.value = state.pat.text;
@@ -1234,7 +1400,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   /* Load a pattern picked from a list, the pop-up, or the mode switch. */
   function choose(text) {
-    error = setPattern(JLS.parse(text), state.n);
+    error = setPattern(parseAny(text), state.n);
     under = [];
     inCustom.value = inList(text) ? '' : (error ? inCustom.value : text);
     refresh(!error);
@@ -1292,6 +1458,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     fillPatternList();
     choose(state.mixMode ? lastMix : lastTwo);
   });
+  slopeBtn.addEventListener('click', function () {
+    setMode(state.slopeMode ? '' : 'slope');
+    fillPatternList();
+    choose(state.slopeMode ? lastSlope : lastRolls);
+  });
   revBtn.addEventListener('click', function () {
     setMode(state.revMode ? '' : 'rev');         // lanes that change direction are for one person, without zips
     fillPatternList();
@@ -1333,6 +1504,17 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const sections = [];      // [heading, {rolls: 'pattern pattern ...'}]
     function add(all, label) {
       for (const k of Object.keys(all).sort()) sections.push([k + (k === '1' ? ' lane' : ' lanes') + label, all[k]]);
+    }
+    if (state.slopeMode) {
+      wallTitle.textContent = 'All slope patterns';
+      wallNote.textContent = 'Toss-juggling patterns on lanes that slope towards you. The numbers are the lanes in the order the hands use them, then the siteswap in brackets. Tap one to play it.';
+      for (const g of SLOPE_LIST) {
+        const h3 = document.createElement('h3'); h3.textContent = g.group; wallBody.appendChild(h3);
+        const box = document.createElement('div'); box.className = 'wall-list';
+        for (const it of g.items) { const b = document.createElement('button'); b.type = 'button'; b.textContent = it[1]; b.title = it[0]; b.className = 'named'; box.appendChild(b); }
+        wallBody.appendChild(box);
+      }
+      return;
     }
     if (state.zipMode) {
       wallTitle.textContent = 'All zip patterns';
@@ -1583,7 +1765,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   }
 
   /* A cartoon glove, seen from above. `side` is the side of the board it works on; its fingers point at the board. */
-  function drawHand(g, x, y, side, letter, thumbUp) {
+  function drawHand(g, x, y, side, letter, thumbUp, upright) {
     const r = g.rb * 1.25;
     const line = clamp(r * 0.13, 1.5, 2.6);
     const fat = r * 0.54;
@@ -1591,6 +1773,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const digits = [[-0.5, 1.5], [0, 1.64], [0.5, 1.5], [1.5, 1.34]];
     ctx.save();
     ctx.translate(x, y); ctx.scale(side, thumbUp ? -1 : 1);       // +x now points away from the board
+    if (upright) ctx.rotate(Math.PI / 2);                    // slope: fingers point up the screen, cuff below
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     // cuff
     roundRect(r * 0.6, -r * 0.62, r * 1.1, r * 1.24, r * 0.3);
@@ -1613,13 +1796,70 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     ctx.fillStyle = '#ffffff';
     ctx.font = '700 ' + Math.round(r * 0.8) + 'px ' + FONT;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(letter || (side === RIGHT ? 'R' : 'L'), x + side * r * 1.18, y + r * 0.06);
+    if (upright) ctx.fillText(letter, x, y + r * 1.2);
+    else ctx.fillText(letter || (side === RIGHT ? 'R' : 'L'), x + side * r * 1.18, y + r * 0.06);
+  }
+
+  /* Slope: the lanes run up the screen and slope down towards the person at the bottom. */
+  function drawSlope() {
+    const K = splan.lanes, mirror = !state.startRight;
+    const top = H < 330 ? 44 : 50;
+    const zone = clamp(H * 0.2, 46, 84);                      // room below the lanes for the hands
+    const pitch = Math.min((W - 40) / (K + 1.2), 120);
+    const rb = clamp(Math.min(pitch * 0.28, (H - top - zone) * 0.07), 6, 20);
+    const trackW = Math.min(pitch - 8, rb * 2 + 12);
+    const bw = K * pitch + 16, bx0 = (W - bw) / 2, by0 = top, bh = H - top - zone - 6;
+    const inset = 8 + trackW / 2;
+    const yBottom = by0 + bh - inset, len = bh - 2 * inset, yHands = by0 + bh + zone * 0.5;
+    const flip = function (x) { return mirror ? W - x : x; };
+    const laneX = function (lane) { return flip(bx0 + 8 + (lane - 0.5) * pitch); };
+    const homeX = function (hand) { return flip(hand === 0 ? bx0 + bw - pitch * 0.15 : bx0 + pitch * 0.15); };
+    function point(place) {
+      if (place.lane) return { x: laneX(place.lane), y: yBottom - place.up * len };
+      if (place.mid) return { x: W / 2, y: yHands };
+      return { x: homeX(place.home), y: yHands };
+    }
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    roundRect(bx0, by0 + 6, bw, bh, 20); ctx.fillStyle = INK; ctx.fill();
+    roundRect(bx0, by0, bw, bh, 20); ctx.fillStyle = '#fffdf5'; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = INK; ctx.stroke();
+    const line = clamp(trackW * 0.07, 1.5, 2.5), badge = clamp(trackW * 0.34, 6, 13);
+    for (let lane = 1; lane <= K; lane++) {
+      const x = laneX(lane), y0 = by0 + 8, y1 = by0 + bh - 8;
+      roundRect(x - trackW / 2, y0, trackW, y1 - y0, trackW / 2);
+      ctx.fillStyle = '#d3f1c4'; ctx.fill();
+      ctx.lineWidth = line; ctx.strokeStyle = INK; ctx.stroke();
+      const a = trackW * 0.19, gap = Math.max(34, a * 5);
+      ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = clamp(trackW * 0.09, 2, 4);
+      for (let y = y0 + badge * 2 + gap * 0.7; y < y1 - trackW * 0.5; y += gap) {
+        ctx.beginPath(); ctx.moveTo(x - a, y - a * 0.5); ctx.lineTo(x, y + a * 0.5); ctx.lineTo(x + a, y - a * 0.5); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(x, y0 + trackW / 2, badge, 0, Math.PI * 2);
+      ctx.fillStyle = '#fffdf5'; ctx.fill(); ctx.lineWidth = line; ctx.strokeStyle = INK; ctx.stroke();
+      ctx.fillStyle = INK; ctx.font = '700 ' + Math.round(badge * 1.35) + 'px ' + FONT;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(lane), x, y0 + trackW / 2 + badge * 0.08);
+    }
+    const hs = JLS.slopeHands(u, splan), at = [];
+    for (const h of hs) {
+      const a = point(h.from), b = point(h.to), t = smooth(h.p);
+      const pt = { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) };
+      at[h.hand] = pt;
+      const right = (h.hand === 0) !== mirror;                // which side of the screen this hand lives on
+      drawHand({ rb: rb }, pt.x, pt.y + rb * 0.45, right ? RIGHT : LEFT, right ? 'R' : 'L', false, true);
+    }
+    for (const b of JLS.slopeBalls(u, splan)) {
+      if (b.state === 'roll') drawBall({ rb: rb }, laneX(b.lane), yBottom - b.up * len * (1 - b.p), b.id);
+      else if (b.state === 'pass') drawBall({ rb: rb }, lerp(homeX(b.from), homeX(b.to), smooth(b.p)), yHands, b.id);
+      else drawBall({ rb: rb }, at[b.hand].x, at[b.hand].y, b.id);
+    }
   }
 
   function draw() {
     if (!W || !H) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
+    if (splan) { drawSlope(); return; }
     const g = geometry();
     drawBoard(g);
     drawLoops(g);

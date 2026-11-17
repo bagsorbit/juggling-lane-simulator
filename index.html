@@ -89,6 +89,8 @@ h1 {
 .lucky { position: absolute; left: 8px; bottom: 10px; z-index: 1; display: flex; align-items: center; gap: 6px; padding: 0 12px 0 8px; background: var(--sun); }
 .lucky svg { width: 20px; height: 20px; flex: none; }
 .lucky.all { left: auto; right: 8px; }
+.stage.slope .lucky { width: 36px; padding: 0; justify-content: center; }
+.stage.slope .lucky span { display: none; }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
 .strip {
@@ -1463,6 +1465,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     // only one of these can be on at a time, so the others are greyed out until it is turned off
     mixBtn.setAttribute('aria-pressed', String(state.mixMode));
     slopeBtn.setAttribute('aria-pressed', String(state.slopeMode));
+    stage.classList.toggle('slope', state.slopeMode);   // small dice buttons, so they stay clear of the lanes
     mixBtn.disabled = !state.twoMode || state.zipMode || state.revMode;   // mixed patterns are only for two people, on their own
     twoBtn.disabled = state.mixMode || state.slopeMode;
     zipBtn.disabled = state.mixMode || state.revMode || state.slopeMode;
@@ -1919,13 +1922,13 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function drawSlope() {
     const K = splan.lanes, mirror = false;                    // lane 1 is always on the left
     const top = H < 330 ? 44 : 50;
-    const zone = clamp(H * 0.2, 46, 84);                      // room below the lanes for the hands
     const pitch = Math.min((W - 40) / (K + 1.2), 120);
-    const rb = clamp(Math.min(pitch * 0.28, (H - top - zone) * 0.07), 6, 20);
+    const rb = clamp(Math.min(pitch * 0.28, (H - top) * 0.06), 6, 20);
     const trackW = Math.min(pitch - 8, rb * 2 + 12);
-    const bw = K * pitch + 16, bx0 = (W - bw) / 2, by0 = top, bh = H - top - zone - 6;
+    // the lanes run all the way down the blue box; the hands work over the bottom ends of the lanes
+    const bw = K * pitch + 16, bx0 = (W - bw) / 2, by0 = top, bh = H - top - 10;
     const inset = 8 + trackW / 2;
-    const yBottom = by0 + bh - inset, len = bh - 2 * inset, yHands = by0 + bh + zone * 0.5;
+    const yBottom = by0 + bh - Math.max(inset, rb * 2.6 + 4), len = yBottom - by0 - inset, yHands = yBottom;
     const flip = function (x) { return mirror ? W - x : x; };
     const laneX = function (lane) { return flip(bx0 + 8 + (lane - 0.5) * pitch); };
     const homeX = function (hand) { return flip(hand === 0 ? bx0 + bw - pitch * 0.15 : bx0 + pitch * 0.15); };

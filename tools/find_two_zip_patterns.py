@@ -116,10 +116,20 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     html = open("index.html", encoding="utf-8").read()
     groups = [{"group": f"Self zips, {k} lanes", "items": v} for k, v in sorted(self_only.items())]
     groups.append({"group": "Self and pass zips", "items": both})
-    block = '<script id="zip2-patterns">\nconst ZIP2_LIST = ' + json.dumps(groups, separators=(",", ":")) + ';\n</script>'
+    # every pattern the search finds, for the All patterns page: {lanes: {beats: "p p p"}}
+    walls = {"self": defaultdict(dict), "both": defaultdict(dict)}
+    for k in range(1, 5):
+        by = defaultdict(list)
+        for disp, tm in search(k).values():
+            if any(tm.values()): by[("both" if Z in disp else "self", len(disp))].append(disp)
+        for (kind, n), v in sorted(by.items()):
+            walls[kind][str(k)][str(n)] = " ".join(show(d) for d in sorted(v, key=key))
+    block = ('<script id="zip2-patterns">\nconst ZIP2_LIST = ' + json.dumps(groups, separators=(",", ":")) +
+             ';\nconst ALL_ZIPS2_SELF = ' + json.dumps(walls["self"], separators=(",", ":")) +
+             ';\nconst ALL_ZIPS2_BOTH = ' + json.dumps(walls["both"], separators=(",", ":")) + ';\n</script>')
     if '<script id="zip2-patterns">' in html:
         html = re.sub(r'<script id="zip2-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     else:
         html = html.replace('<script id="zip-patterns">', block + '\n<script id="zip-patterns">', 1)
     open("index.html", "w", encoding="utf-8").write(html)
-    print(json.dumps(groups, indent=0))
+    print({kind: sum(len(x.split()) for d in w.values() for x in d.values()) for kind, w in walls.items()})

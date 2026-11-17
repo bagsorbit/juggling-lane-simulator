@@ -1183,6 +1183,19 @@ const ICONS = (function () {
     'Helter Zip': '<path d="M16 42l3.5-27h9L32 42z" fill="#fff"/><g stroke="none" fill="#ff7b6e"><path d="M19 19.5l9.6-2.6.5 4-10.6 2.9z"/><path d="M18 27.5l11.6-3.2.6 4.4L17.4 32z"/><path d="M17 36l13.7-3.8.6 4.6-14.9 4z"/></g><path d="M16 42l3.5-27h9L32 42z" fill="none"/><path d="M14.5 15L24 6l9.5 9z" fill="#ffd43b"/><path d="M24 6V2.5h5" fill="none" stroke-width="2"/><path d="M10 42h28" stroke-width="2.6"/>' + '<path d="M31 26c7 2 10 7 7 11s-8 4-12 4" fill="none" stroke-width="5.4"/><path d="M31 26c7 2 10 7 7 11s-8 4-12 4" fill="none" stroke="#c0c4cc" stroke-width="2.4" stroke-dasharray="1.6 1.6"/>' +
       '<rect x="22" y="38" width="5" height="7" rx="1.5" fill="#c0c4cc" stroke-width="1.8"/>'
   });
+  Object.assign(zipIcons, {
+    'Wave': '<path d="M4 40c0-14 8-26 21-26 9 0 14 6 14 12 0 5-4 8-8 8-4 0-6-3-6-5 0-3 3-4 5-3-1-4-4-6-8-5-6 1-9 9-9 19z" fill="#4ea8ff"/>' +
+      '<path d="M2 41h44" stroke-width="2.6"/><path d="M12 33c1-7 5-12 10-13" fill="none" stroke="#fff" stroke-width="2" opacity=".75"/>' +
+      '<g fill="#fff" stroke-width="1.6"><circle cx="39" cy="12" r="2.2"/><circle cx="44" cy="17" r="1.6"/></g>',
+    'Hot Dog': '<path d="M6 25c0 9 8 13 18 13s18-4 18-13z" fill="#f4b860"/><rect x="4" y="18" width="40" height="10" rx="5" fill="#e8590c"/>' +
+      '<path d="M8 23c3-3 5 3 8 0s5 3 8 0 5 3 8 0 5 3 8 0" fill="none" stroke="#ffd43b" stroke-width="2.4"/>' +
+      '<path d="M6 25c0-3 1-4 3-4M42 25c0-3-1-4-3-4" fill="none" stroke-width="2"/>',
+    'Space Invader': '<path d="M16 9l3 5M32 9l-3 5" stroke-width="2.6"/><circle cx="15" cy="8" r="2.2" fill="#51cf66" stroke-width="1.8"/><circle cx="33" cy="8" r="2.2" fill="#51cf66" stroke-width="1.8"/>' +
+      '<path d="M12 18h24v4h4v10h-4v4h-6v-4h-12v4h-6v-4H8V22h4z" fill="#51cf66"/>' +
+      '<rect x="16" y="22" width="5" height="5" rx="1" fill="#fff" stroke-width="1.6"/><rect x="27" y="22" width="5" height="5" rx="1" fill="#fff" stroke-width="1.6"/>' +
+      '<g stroke="none" fill="' + I + '"><rect x="18" y="24" width="2.4" height="2.4"/><rect x="29" y="24" width="2.4" height="2.4"/></g>' +
+      '<path d="M20 31h8" stroke-width="2.2"/>'
+  });
   return Object.assign(zipIcons, {
     'Loop': rope('M24 13c9 0 17 5 17 11s-8 11-17 11S7 30 7 24s8-11 17-11z', '#ffd43b') + '<path d="M21 9l7 4-7 4z" fill="#ffd43b" stroke-width="2"/>',
     'Helter Skelter': '<path d="M16 42l3.5-27h9L32 42z" fill="#fff"/><g stroke="none" fill="#ff7b6e"><path d="M19 19.5l9.6-2.6.5 4-10.6 2.9z"/><path d="M18 27.5l11.6-3.2.6 4.4L17.4 32z"/><path d="M17 36l13.7-3.8.6 4.6-14.9 4z"/></g><path d="M16 42l3.5-27h9L32 42z" fill="none"/><path d="M14.5 15L24 6l9.5 9z" fill="#ffd43b"/><path d="M24 6V2.5h5" fill="none" stroke-width="2"/><path d="M10 42h28" stroke-width="2.6"/>' + rope('M31 26c7 2 10 7 7 11s-8 4-12 4', '#4ea8ff', 3),
@@ -1220,7 +1233,7 @@ const ICONS = (function () {
   });
 })();
 function iconSvg(name) {
-  const body = ICONS[String(name).replace(/ (\d+|Triple|Quad|Quin|Hex)$/, '').replace(/ for Two$/, '')];
+  const body = ICONS[String(name).replace(/ (\d+|Triple|Quad|Quin|Hex)$/, '').replace(/^(Triple|Quad|Quin|Hex) /, '').replace(/ for Two$/, '')];
   if (!body) return '';
   return '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><g stroke="#2d2a4a" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">' + body + '</g></svg>';
 }
@@ -1416,9 +1429,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (state.zipMode && state.twoMode) {
       // the one-person zip list works as it is, with each z a pass between the two people
       const pass = ZIP_LIST.map(function (g) { return { group: 'Pass zips, ' + g.group, items: g.items }; });
-      return ZIP2_LIST.concat(pass).filter(function (g) { return g.items.length; }).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [ZIP_NAMES[t] || '', t]; }) }; });
+      return ZIP2_LIST.concat(pass).filter(function (g) { return g.items.length; }).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [EXTRA_NAMES[t] || '', t]; }) }; });
     }
-    if (state.zipMode || state.revMode || state.mixMode) return (state.zipMode ? ZIP_LIST : state.revMode ? (state.twoMode ? REV_PAIR_LIST.concat(REV_LIST) : REV_LIST) : MIX_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [ZIP_NAMES[t] || '', t]; }) }; });
+    if (state.zipMode || state.revMode || state.mixMode) return (state.zipMode ? ZIP_LIST : state.revMode ? (state.twoMode ? REV_PAIR_LIST.concat(REV_LIST) : REV_LIST) : MIX_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [EXTRA_NAMES[t] || '', t]; }) }; });
     return state.twoMode ? PAIR_LIST.concat(JLS.CATALOGUE) : JLS.CATALOGUE;
   }
   function fillPatternList() {
@@ -1452,8 +1465,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
                       '12zz': 'Hand Off', '12z21z': 'Heart', '123z': 'Face', '12z3': 'Bird', '13z2': 'Bill', '121z13': 'Double Hearts',
                       '12z213': 'Big M', '12321z': '4-Eyed Bird', '1232z2': 'Bird Burger', '13z21z': 'Double Beak',
                       '12134z': 'Quad Cheeks', '12143z': 'Bug Eyed', '1213z4': 'Wings', '13234z': 'Helter Zip' };
+  // names for reversing patterns
+  const REV_NAMES = { '123': 'Triple Wave', '12345': 'Quin Wave', '12342143': 'Quad Wave', '121323': 'Hot Dog', '123132': 'Space Invader' };
+  const EXTRA_NAMES = Object.assign({}, ZIP_NAMES, REV_NAMES);
   function knownPattern(text) {
-    if (ZIP_NAMES[text]) return [ZIP_NAMES[text], text];
+    if (EXTRA_NAMES[text]) return [EXTRA_NAMES[text], text];
     for (const g of JLS.CATALOGUE.concat(PAIR_LIST, SLOPE_LIST)) for (const it of g.items) if (it[0] && it[1] === text) return it;
     return null;
   }

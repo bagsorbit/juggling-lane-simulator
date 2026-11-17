@@ -109,9 +109,7 @@ def embed(path="index.html"):
             expected[text(d)] = counts
     short = [
         {"group": "3 lanes", "items": ["123", "121323", "123132"]},
-        {"group": "4 lanes, 5 rolls", "items": everything["4"]["5"].split()},
-        {"group": "5 lanes, 5 rolls", "items": everything["5"]["5"].split()},
-        {"group": "1 lane, 1 ball", "items": ["1"]},
+        {"group": "5 lanes", "items": ["12345"]},   # trimmed at the user's request (2026-11-17); the rest stay on All patterns
     ]
     block = ('<script id="reverse-patterns">\nconst REV_LIST = ' + json.dumps(short, separators=(",", ":")) +
              ';\nconst ALL_REVS = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')

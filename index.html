@@ -146,6 +146,8 @@ h1, .strip, .info, .controls { flex: none; }
 .info .nw { white-space: nowrap; }
 .info { flex-wrap: wrap; }
 .info.bad { color: var(--warn); font-weight: 600; }
+.infobtn { display: none; flex: none; width: 26px; height: 26px; min-height: 0; margin: 0 0 0 2px; padding: 0; border-radius: 50%; font: italic 700 16px/1 Georgia, serif; align-items: center; justify-content: center; box-shadow: none; }
+body.info-open .infobtn { background: var(--sun); }
 
 .controls {
   display: grid;
@@ -260,6 +262,10 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   .seg button { font-size: 14px; }
   .info { font-size: 13px; }
   .tile { width: 27px; height: 31px; font-size: 17px; }
+  .strip { gap: 4px; }
+  .infobtn { display: flex; }
+  body:not(.info-open) .info:not(.bad) { display: none; }
+  .f-pattern > span small { display: none; }
 }
 @media (max-width: 380px) {
   .field > span { font-size: 12px; }
@@ -1343,7 +1349,20 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* ---------- keeping the page in step with the state ---------- */
   function sideOf(hand) { return (hand === 0) === state.startRight ? RIGHT : LEFT; }
 
+  /* On a phone the line under the numbers is folded away behind an (i) button at the end of the numbers;
+     problems are still shown straight away. */
+  const infoBtn = document.createElement('button');
+  infoBtn.type = 'button'; infoBtn.className = 'infobtn'; infoBtn.textContent = 'i';
+  infoBtn.setAttribute('aria-label', 'Show what the numbers mean'); infoBtn.setAttribute('aria-expanded', 'false');
+  infoBtn.addEventListener('click', function () {
+    const open = document.body.classList.toggle('info-open');
+    infoBtn.setAttribute('aria-expanded', String(open));
+  });
   function buildStrip() {
+    buildStripTiles();
+    strip.appendChild(infoBtn);
+  }
+  function buildStripTiles() {
     strip.textContent = '';
     const pat = state.pat, together = !plan && !pat.pairs && state.n % 2 === 0 && pat.seq.length % 2 === 0;
     let holder = strip;

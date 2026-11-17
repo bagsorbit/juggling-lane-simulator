@@ -16,6 +16,8 @@ Open `index.html` in a browser. Pick a pattern from the list or type your own, t
 
 The "Zips" button switches to patterns with zips. A zip, written `z`, is a handoff: the hand passes its ball straight to the other hand, which rolls it on the next beat. Zips need an odd number of balls. Because a zipped ball jumps the queue, the rolls stop taking equal time; the simulator picks the most even timing that works. In zip mode, tapping a number under the lanes turns it into a zip and back.
 
+Zips also work with 2 people on. Then a `z` is a pass zip: the two people meet in the middle of the board and hand the ball across, and it is rolled on the next beat. An `s` is a self zip: a person hands the ball to their own other hand, which rolls it on that person's next turn. The list has every one-person zip pattern (played as pass zips), patterns where both people self zip, and patterns where each person does both. Tapping a number cycles roll, pass zip, self zip.
+
 ### Slope
 
 The "Slope" button turns the lanes to run up the screen, sloping down towards one person at the bottom. A hand carries a ball up a lane and lets go, and the ball rolls back. These are toss-juggling patterns: each is written as the lanes in the order the hands use them, then the siteswap in brackets, such as `12 (siteswap 3)` for the cascade. Every ball rolls at the same speed, so a bigger siteswap number starts higher up the lane. A `z` is a zip (a siteswap 1). The patterns come from a fixed list.
@@ -40,6 +42,7 @@ A link can open on a chosen pattern, for example `index.html?p=121434&b=3&start=
 - `tests/icons.html`: shows every pattern picture at once.
 - `tests/filmstrip.html`: freezes a pattern at a row of moments, for checking the motion by eye.
 - `tools/find_zip_patterns.py`: searches for every zip pattern and its timing; `zip-patterns.txt` is its output.
+- `tools/find_two_zip_patterns.py`: searches for two-person patterns with self zips; `--embed` writes the picked list into `index.html`.
 - `tools/find_pair_patterns.py`: searches for the two-at-once patterns for two people.
 - `tools/find_reverse_patterns.py`: searches for patterns with lanes that change direction.
 - `tools/find_rhythm_patterns.py`: searches for the two-person patterns where each person keeps their own rhythm.

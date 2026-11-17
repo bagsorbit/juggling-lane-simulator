@@ -1202,7 +1202,11 @@ const ICONS = (function () {
       '<g stroke="none" fill="' + I + '"><rect x="18" y="24" width="2.4" height="2.4"/><rect x="29" y="24" width="2.4" height="2.4"/></g>' +
       '<path d="M20 31h8" stroke-width="2.2"/>'
   });
-  zipIcons['Double Hot Dog'] = '<g transform="translate(4 -9) scale(.8)">' + zipIcons['Hot Dog'] + '</g><g transform="translate(5 10) scale(.8)">' + zipIcons['Hot Dog'] + '</g>';
+  // one bun, a big sausage, and a small sausage riding on top of it
+  zipIcons['Double Hot Dog'] = '<path d="M6 30c0 9 8 13 18 13s18-4 18-13z" fill="#f4b860"/>' +
+    '<rect x="4" y="23" width="40" height="10" rx="5" fill="#e8590c"/><path d="M8 28c3-3 5 3 8 0s5 3 8 0 5 3 8 0 5 3 8 0" fill="none" stroke="#ffd43b" stroke-width="2.4"/>' +
+    '<rect x="13" y="13" width="22" height="8.5" rx="4.25" fill="#e8590c"/><path d="M16.5 17.3c2.5-2.4 4 2.4 6 0s4 2.4 6 0 4 2.4 4.5 .4" fill="none" stroke="#ffd43b" stroke-width="2.2"/>' +
+    '<path d="M6 30c0-3 1-4 3-4M42 30c0-3-1-4-3-4" fill="none" stroke-width="2"/>';
   return Object.assign(zipIcons, {
     'Loop': rope('M24 13c9 0 17 5 17 11s-8 11-17 11S7 30 7 24s8-11 17-11z', '#ffd43b') + '<path d="M21 9l7 4-7 4z" fill="#ffd43b" stroke-width="2"/>',
     'Helter Skelter': '<path d="M16 42l3.5-27h9L32 42z" fill="#fff"/><g stroke="none" fill="#ff7b6e"><path d="M19 19.5l9.6-2.6.5 4-10.6 2.9z"/><path d="M18 27.5l11.6-3.2.6 4.4L17.4 32z"/><path d="M17 36l13.7-3.8.6 4.6-14.9 4z"/></g><path d="M16 42l3.5-27h9L32 42z" fill="none"/><path d="M14.5 15L24 6l9.5 9z" fill="#ffd43b"/><path d="M24 6V2.5h5" fill="none" stroke-width="2"/><path d="M10 42h28" stroke-width="2.6"/>' + rope('M31 26c7 2 10 7 7 11s-8 4-12 4', '#4ea8ff', 3),

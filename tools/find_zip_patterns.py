@@ -163,6 +163,13 @@ def embed(path="index.html"):
                 if disp in listed and disp not in picks:
                     picks.append(disp)
                     break
+    # asked for by name: three zips by the same hand, which the no-repeats rule leaves out of the search
+    for extra, k, n in (("1z2z3z", "3", "6"),):
+        seq = tuple(Z if c == "z" else int(c) for c in extra)
+        timings[extra] = {str(b): list(v) for b in (1, 2, 3, 4, 5) for v in [timing(seq, b)] if v}
+        everything[k][n] += " " + extra
+        for g in short:
+            if g["group"] == "3 lanes, 6 beats": g["items"].append(extra)
     short.append({"group": "4 lanes, a few to try", "items": picks})
     block = ('<script id="zip-patterns">\nconst ZIP_LIST = ' + json.dumps(short, separators=(",", ":")) +
              ';\nconst ALL_ZIPS = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')

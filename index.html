@@ -714,13 +714,19 @@ const JLS = (function () {
   const SLOPE_PATTERNS = [
     { group: 'Hands take turns', items: [
       { name: 'Cascade', lanes: 2, rolls: '12', ss: '3' },
-      { name: 'Fountain', lanes: 2, rolls: '21', ss: '4' },
+      { name: 'Async Fountain', lanes: 2, rolls: '21', ss: '4' },
       { name: 'Five-Ball Cascade', lanes: 2, rolls: '12', ss: '5' },
+      { name: 'Two-Ball Shower', lanes: 2, rolls: '1z', ss: '31' },
       { name: 'Shower', lanes: 2, rolls: '1z', ss: '51' },
-      { name: '531', lanes: 2, rolls: '12z21z', ss: '531' },
-      { name: '441', lanes: 2, rolls: '21z12z', ss: '441' },
+      { name: 'Four-Ball Shower', lanes: 2, rolls: '1z', ss: '71' },
+      { name: 'Four-Ball Half Shower', lanes: 2, rolls: '12', ss: '53' },
       { name: '423', lanes: 2, rolls: '2-11-2', ss: '423' },
-      { name: 'Mills Mess', lanes: 3, rolls: '123321', ss: '3' }] },
+      { name: '441', lanes: 2, rolls: '21z12z', ss: '441' },
+      { name: '531', lanes: 2, rolls: '12z21z', ss: '531' },
+      { name: '534', lanes: 2, rolls: '122211', ss: '534' },
+      { name: '552', lanes: 2, rolls: '12-21-', ss: '552' },
+      { name: 'Mills Mess', lanes: 3, rolls: '123321', ss: '3' },
+      { name: 'Boston Mess', lanes: 3, rolls: '123', ss: '3' }] },
     { group: 'Hands together', items: [
       { name: 'Sync Fountain', lanes: 2, together: [['2', '1']], ss: [['4', '4']] },
       { name: 'Wimpy', lanes: 2, together: [['1', '2']], ss: [['4x', '4x']] },
@@ -768,9 +774,13 @@ const JLS = (function () {
   function slSource(plan, t, hand) { return plan.src[mod(t, plan.period) + ':' + hand]; }   // the throw that lands for (t, hand)
   /* Where a hand is when it lets go: up a lane, at the meeting point for a zip, or at home.
    * { lane: 2, up: 0.5 } is half-way up lane 2; up: 0 is the bottom, where balls are caught. */
-  function slPlace(plan, e) {
+  function slPlace(plan, e, t) {
     if (e.kind === 'roll') return { lane: e.lane, up: (e.v - SLOPE_HOLD) / (plan.top - SLOPE_HOLD) };
     if (e.kind === 'zip' && !plan.sync) return { mid: true };
+    if (e.kind === 'hold') {                                  // a held ball just stays in the hand where it was caught
+      const s = slSource(plan, t, e.hand);
+      if (s && s.kind === 'roll') return { lane: s.lane, up: 0 };
+    }
     return { home: e.hand };
   }
   function slBallId(plan, t, hand) {
@@ -797,7 +807,7 @@ const JLS = (function () {
       let T = Math.floor(b) + 1;                              // this hand's next throw
       if (plan.sync ? mod(T, 2) : mod(T, 2) !== h) T++;
       const next = slEvent(plan, T, h), last = slEvent(plan, T - 2, h), s = next.v ? slSource(plan, T, h) : null;
-      const to = slPlace(plan, next), from = slPlace(plan, last);
+      const to = slPlace(plan, next, T), from = slPlace(plan, last, T - 2);
       if (!s) { out.push({ hand: h, holding: false, from: from, to: to, p: (b - (T - 2)) / 2 }); continue; }
       let got, at;                                            // when and where the ball for the next throw reaches this hand
       if (s.kind === 'roll') { got = T - SLOPE_HOLD; at = { lane: s.lane, up: 0 }; }

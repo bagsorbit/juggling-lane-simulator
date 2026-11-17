@@ -106,7 +106,7 @@ def steady(row):
 
 def text(R, L):
     row = lambda r: "".join("-" if not a else str(a[0]) if len(a) == 1 else f"[{a[0]}{a[1]}]" for a in r)
-    return row(R) + "/" + row(L)
+    return row(R) + ":" + row(L)
 
 def display(R, L, k):
     """The same pattern written to start on lane 1 with the first person, where possible."""

@@ -1612,7 +1612,8 @@ const ICONS = (function () {
 function iconSvg(name) {
   // a name's own picture first; otherwise the shared one for its family (Helter Skelter Quad, Triple Wave, Mobius Sync...)
   const n = String(name);
-  const body = ICONS[n] || ICONS[n.replace(/ (\d+|Triple|Quad|Quin|Hex)$/, '').replace(/^(Triple|Quad|Quin|Hex|Mixed) /, '').replace(/ (Sync|Reverse)$/, '')];
+  const base = n.replace(/ (Sync|Reverse)$/, '');
+  const body = ICONS[n] || ICONS[base] || ICONS[base.replace(/ (\d+|Solo|Double|Triple|Quad|Quin|Hex)$/, '').replace(/^(Triple|Quad|Quin|Hex|Mixed) /, '')];
   if (!body) return '';
   return '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><g stroke="#2d2a4a" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">' + body + '</g></svg>';
 }
@@ -1866,7 +1867,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* The groups shown in the pattern list for the current mode, each item as [name, pattern]. */
   function listGroups() {
     if (state.slopeMode) return SLOPE_LIST;
-    if (state.pingMode) return PING_LIST.map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [EXTRA_NAMES[t] || '', t]; }) }; });
+    if (state.pingMode) return PING_LIST.map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [PING_NAMES[t] || '', t]; }) }; });
     if (state.zipMode && state.twoMode) {
       // the one-person zip list works as it is, with each z a pass between the two people; one group per lane count
       const out = [], byLanes = {};
@@ -1931,7 +1932,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   }
 
   // names for zip patterns (they have no pictures)
-  const ZIP_NAMES = { '1z': 'Parade', '121z': 'Cheeky', '1z2z': 'X Factor', '1z2z3z': 'Shuffle', '1z2z3z4z': 'Stairs',
+  const ZIP_NAMES = { '1z': 'Parade Solo', '121z': 'Cheeky', '1z2z': 'Parade Double', '1z2z3z': 'Parade Triple', '1z2z3z4z': 'Parade Quad',
                       '12zz': 'Hand Off', '12z21z': 'Heart', '123z': 'Face', '12z3': 'Bird', '13z2': 'Bill', '121z13': 'Double Hearts',
                       '12z213': 'Big M', '12321z': '4-Eyed Bird', '1232z2': 'Bird Burger', '13z21z': 'Double Beak',
                       '12134z': 'Quad Cheeks', '12143z': 'Bug Eyed', '1213z4': 'Wings', '13234z': 'Helter Zip',
@@ -1955,8 +1956,10 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   // passes two at once: each is a named zip pattern played by both hands, "... Sync"
   PAIR_ZIP_LIST.forEach(function (x) { if (ZIP_NAMES[x[0]]) ZIP2_NAMES[x[1]] = ZIP_NAMES[x[0]] + ' Sync'; });
   const EXTRA_NAMES = Object.assign({}, ZIP_NAMES, REV_NAMES, MIX_NAMES);
+  const PING_NAMES = { '1': 'Shuffle' };   // Ping Pong (kept apart: 1 means something else in other modes)
   function knownPattern(text) {
-    if (zip2Context()) { if (ZIP2_NAMES[text]) return [ZIP2_NAMES[text], text]; }
+    if (state.pingMode) { if (PING_NAMES[text]) return [PING_NAMES[text], text]; }
+    else if (zip2Context()) { if (ZIP2_NAMES[text]) return [ZIP2_NAMES[text], text]; }
     else if (EXTRA_NAMES[text]) return [EXTRA_NAMES[text], text];
     for (const g of JLS.CATALOGUE.concat(PAIR_LIST, SLOPE_LIST)) for (const it of g.items) if (it[0] && it[1] === text) return it;
     return null;
@@ -2291,6 +2294,10 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       let changed = false;
       v.forEach(function (f) {                                // saved before p: z was a pass, s a self zip
         if (f.name === 'Loop') { f.name = 'Ring'; changed = true; }   // renamed 2026-11-18
+        const zipRename = { 'Parade': 'Parade Solo', 'X Factor': 'Parade Double', 'Shuffle': 'Parade Triple', 'Stairs': 'Parade Quad' };   // 2026-11-18
+        if (/zips=1|z/.test(f.q || '')) for (const old in zipRename) {
+          if (f.name === old || f.name === old + ' Sync') { f.name = f.name.replace(old, zipRename[old]); changed = true; break; }
+        }
         const q = new URLSearchParams(f.q || '');
         const sq = q.get('p') || '';
         if (/[\[\]]/.test(sq)) {                               // saved before round brackets

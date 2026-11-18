@@ -239,7 +239,7 @@ if __name__ == "__main__" and "--embed" in sys.argv:
             wall.setdefault(k, {})[L] = (wall[k].get(L, "") + " " + t).strip()
     picks = {1: ["1"],
              2: ["1122", "111222", "(12)(21)", "(12)(12)(21)"],
-             3: ["(12)(31)", "(12)(21)(13)(31)"],
+             3: ["(12)(21)(13)(31)"],
              4: ["(14)(32)(23)(41)"]}
     everything = {p for w in (wall, wall4) for d in w.values() for v in d.values() for p in v.split()}
     assert all(p in everything for v in picks.values() for p in v), [p for v in picks.values() for p in v if p not in everything]
@@ -266,7 +266,7 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     # then both at the same moment (the solo four-ball favourites played by two people).
     picks2 = {1: ["1"],
               2: ["1122", "111222", "(12)(12)", "12|21", "112|221"],
-              3: ["123", "112332", "1223", "(12)(23)(23)(12)", "13|21", "1213|2131"],
+              3: ["123", "112332", "1223", "(12)(23)(23)(12)", "1213|2131"],
               4: ["(13)(24)(24)(13)", "(14)(23)(23)(14)", "(12)(23)(34)(23)", "1324|4231"]}
     every2 = {p for w in wall2.values() for d in w.values() for v in d.values() for p in v.split()}
     assert all(p in every2 for v in picks2.values() for p in v), [p for v in picks2.values() for p in v if p not in every2]

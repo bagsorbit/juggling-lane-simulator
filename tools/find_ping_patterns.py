@@ -260,7 +260,7 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     # then both at the same moment (the solo four-ball favourites played by two people).
     picks2 = {2: ["(12)(12)", "12|21", "112|221"],
               3: ["(12)(23)(23)(12)", "1213|2131"],
-              4: ["(14)(23)(23)(14)", "(12)(23)(34)(23)", "1324|4231"]}
+              4: ["(14)(23)(23)(14)", "(12)(23)(34)(23)", "1324|4231", "123|432"]}
     every2 = {p for w in wall2.values() for d in w.values() for v in d.values() for p in v.split()}
     assert all(p in every2 for v in picks2.values() for p in v), [p for v in picks2.values() for p in v if p not in every2]
     groups2 = [{"group": str(k) + (" lane" if k == 1 else " lanes"), "items": v} for k, v in picks2.items()]

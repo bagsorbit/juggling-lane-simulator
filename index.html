@@ -1960,6 +1960,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       html += '<span class="sep">|</span><span class="nw"><span class="dot b"></span>left' + unit + '&rarr;</span>' +
               '<span class="sep">|</span><span class="nw">&larr; right' + unit + '<span class="dot r"></span></span>';
     }
+    html += '<span class="sep">|</span>' + startInfo();
     info.innerHTML = html.replace(/<span class="sep">/g, ' <span class="sep">');   // a space lets the line wrap on narrow screens
   }
 
@@ -2629,17 +2630,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     }
   }
 
-  function draw() {
-    if (!W || !H) return;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
-    if (splan) { drawSlope(); return; }
-    const g = geometry();
-    drawBoard(g);
-    drawLoops(g);
-
-    // hands first, so a ball always shows on top of the glove that holds it
-    const handOffset = g.rb * 0.5;
+  /* Where every ball and hand is at time u, in one form for all the board modes (not the slope). */
+  function scene(u) {
     const pat = state.pat, pairs = !!pat.pairs, n = pairs ? state.n / 2 : state.n;
     let bs, hs;
     if (plan && state.twoMode) {
@@ -2672,6 +2664,84 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         });
       }
     }
+    return { bs: bs, hs: hs };
+  }
+
+  /* How to start: how many balls each hand holds before the first roll. The pattern is run forward from its
+     first roll, and each ball starts in the hand that first lets go of it (rolls it, or zips it across). */
+  function letterOf(b, hs) {
+    let best = null, score = 1e9;
+    for (const h of hs) {
+      if (h.hand !== b.hand || !h.holding) continue;
+      const s = Math.abs(h.p - b.p) + (JSON.stringify(h.to) === JSON.stringify(b.to) ? 0 : 1);
+      if (s < score) { score = s; best = h.letter; }
+    }
+    return best || '?';
+  }
+  function startCounts() {
+    const one = !state.twoMode, count = {}, done = new Set(), seen = new Set(), last = new Map();
+    for (let i = 0; i < 6000; i++) {
+      const t = (i - 5) / 100;                                   // a moment before the first roll, then forward
+      const sc = splan ? { bs: JLS.slopeBalls(t, splan), hs: [] } : scene(t);
+      for (const b of sc.bs) {
+        seen.add(b.id);
+        if (done.has(b.id)) continue;
+        const moving = b.state === 'roll' || b.state === 'pass';
+        const end = moving ? null : b.hand;
+        const key = moving ? null : one ? String(b.hand) : b.hand + '|' + letterOf(b, sc.hs);
+        const was = last.get(b.id);
+        let from = null;
+        if (was && !was.moving && (moving || end !== was.end)) from = was.key;          // rolled, or zipped to another hand
+        else if (was && was.moving && b.state === 'roll' && (b.lane !== was.lane || b.hand !== was.hand))
+          from = one ? String(b.hand) : b.hand + '|?';                                // sent straight back with no hold
+        if (from !== null && t >= 0) { count[from] = (count[from] || 0) + 1; done.add(b.id); }
+        last.set(b.id, { moving: moving, key: key, end: end, lane: b.lane, hand: b.hand });
+      }
+      if (t > 0 && done.size === seen.size) break;
+    }
+    return count;
+  }
+  function handWords(r, l) {
+    if (r === l) return r + ' in each hand';
+    const parts = [];
+    if (r) parts.push(r + ' in the right hand');
+    if (l) parts.push(l + ' in the left');
+    return parts.join(', ');
+  }
+  let startKey = '', startHtml = '';
+  function startInfo() {
+    const key = [state.pat.text, state.n, state.startRight, state.twoMode, state.zipMode, state.revMode, state.mixMode, state.slopeMode].join(' ');
+    if (key === startKey) return startHtml;
+    const c = startCounts();
+    let html;
+    if (!state.twoMode) {
+      const right = splan ? 0 : (sideOf(0) === RIGHT ? 0 : 1);  // on the slope hand 0 is always the right hand
+      html = '<span class="nw">start with ' + handWords(c[right] || 0, c[1 - right] || 0) + '</span>';
+    } else {
+      const parts = [];
+      for (const side of [RIGHT, LEFT]) {
+        const e = sideOf(0) === side ? 0 : 1, r = c[e + '|R'] || 0, l = c[e + '|L'] || 0, q = c[e + '|?'] || 0;
+        const words = q ? (r + l + q) + (r + l + q === 1 ? ' ball' : ' balls') : r + l ? handWords(r, l) : 'no balls';
+        parts.push('<span class="nw">' + (side === RIGHT ? 'right' : 'left') + ' person starts with ' + words + '</span>');
+      }
+      html = parts.join(' <span class="sep">|</span> ');
+    }
+    startKey = key; startHtml = html;
+    return html;
+  }
+
+  function draw() {
+    if (!W || !H) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    if (splan) { drawSlope(); return; }
+    const g = geometry();
+    drawBoard(g);
+    drawLoops(g);
+
+    // hands first, so a ball always shows on top of the glove that holds it
+    const handOffset = g.rb * 0.5;
+    const sc = scene(u), bs = sc.bs, hs = sc.hs;
     for (const h of hs) {
       const side = sideOf(h.hand);
       const pt = segPoint(g, side, h.from, h.to, h.p, h.holding);

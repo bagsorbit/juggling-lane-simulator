@@ -97,7 +97,8 @@ h1 {
 .lucky.all { left: auto; right: 8px; }
 .stage.tight .lucky { width: 36px; padding: 0; justify-content: center; }   /* slope: only when the full buttons would cover the lanes */
 .stage.tight .lucky span { display: none; }
-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y; cursor: pointer; }   /* sideways drags scrub, up and down still scrolls */
+canvas.scrubbing { cursor: ew-resize; }
 
 .strip {
   display: flex;
@@ -441,6 +442,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
   <p class="keynote top">A green button is switched on. A faded button cannot be used until the green one is switched off.</p>
   <ul class="keylist">
     <li class="keyhead">On the board</li>
+    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg><span><b>The lanes</b>: tap to pause or play. Drag sideways to move the pattern forward or back.</span></li>
     <li><svg class="one" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="12" cy="7" r="3.6"/><path d="M5 21c0-5 3-8 7-8s7 3 7 8"/></svg><span><b>1 person</b>: a hand at each end of the lanes. Tap for 2 people.</span></li>
     <li><svg class="two" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 21c0-4 2.5-6.5 6-6.5s6 2.5 6 6.5M15 14.6c.6-.1 1.300-.1 2-.1 3.300 0 5.500 2.500 5.500 6.500"/></svg><span><b>2 people</b>: a person at each end, two hands each.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M7 2l3.500 6M17 2l-3.500 6M12 14v8M9.500 16.500h5M9.500 19.500h5"/><path d="M9 8h6l-1 5.500h-4z" fill="#2d2a4a"/></svg><span><b>Zips</b>: patterns with handoffs from one hand to the other. With 2 people, z is a pass to the other person and s a pass to your own other hand.</span></li>
@@ -2830,6 +2832,30 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     else lastStamp = null;
   }
   function kick() { if (!raf) raf = requestAnimationFrame(frame); }
+
+  /* Tap the lanes to pause or play. Drag sideways (mouse or finger) to move the pattern forward or back;
+     dragging pauses it, and it stays paused until the next tap or the Play button. */
+  const drag = { id: null, x: 0, u: 0, moved: false };
+  canvas.addEventListener('pointerdown', function (e) {
+    if (e.button > 0) return;
+    drag.id = e.pointerId; drag.x = e.clientX; drag.u = u; drag.moved = false;
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* fine without */ }
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    if (e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) < 8) return;            // a small wobble is still a tap
+    if (!drag.moved) { drag.moved = true; canvas.classList.add('scrubbing'); if (state.playing) { state.playing = false; showPlay(); } }
+    u = Math.max(0, drag.u + dx / Math.max(W, 1) * 4);      // the width of the board is four hand cycles (eight beats)
+    kick();
+  });
+  function endDrag(e, tap) {
+    if (e.pointerId !== drag.id) return;
+    drag.id = null; canvas.classList.remove('scrubbing');
+    if (tap && !drag.moved) { state.playing = !state.playing; showPlay(); kick(); }
+  }
+  canvas.addEventListener('pointerup', function (e) { endDrag(e, true); });
+  canvas.addEventListener('pointercancel', function (e) { endDrag(e, false); });
 
   function resize() {
     const box = stage.getBoundingClientRect();

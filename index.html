@@ -299,6 +299,46 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   select { font-size: 15px; }
 }
 
+/* phones on their side: little height, so no title, phone-style buttons and every control on one row */
+@media (orientation: landscape) and (max-height: 500px) {
+  h1 { display: none; }
+  .app { min-height: 0; padding: 6px 12px 8px; gap: 5px; }
+  .stage { min-height: 140px; }
+  .modes { top: 6px; left: 6px; gap: 4px; right: 54px; }
+  .modebtn { height: 30px; width: 32px; padding: 0; justify-content: center; }
+  .modebtn span { display: none; }
+  .keybtn { display: flex; width: 30px; }
+  .badge { width: 46px; height: 46px; top: 6px; right: 6px; }
+  .lucky { left: 6px; bottom: 8px; width: 32px; padding: 0; justify-content: center; }
+  .lucky span { display: none; }
+  .lucky.all { left: auto; right: 6px; }
+  .controls { grid-template-columns: repeat(16, 1fr); gap: 4px 6px; }
+  .f-pattern { grid-column: span 3; order: 0; }
+  .f-wall { grid-column: span 1; order: 0; }
+  .f-custom { grid-column: span 3; }
+  .f-balls { grid-column: span 2; }
+  .f-start { grid-column: span 2; }
+  .f-speed { grid-column: span 2; }
+  .f-play { grid-column: span 3; order: 0; }
+  .field > span { font-size: 11px; }
+  .f-pattern > span small { display: none; }
+  select, input[type="text"], button, input[type="range"], .stepper output { height: 38px; }
+  .stepper { gap: 3px; }
+  .stepper button { width: 32px; font-size: 20px; }
+  .stepper output { font-size: 20px; min-width: 20px; }
+  .seg button { font-size: 13px; padding: 0 3px; }
+  #openWall { display: flex; align-items: center; justify-content: center; padding: 0; }
+  #openWall svg { display: block; }
+  #openWall span { display: none; }
+  #play svg { display: block; }
+  #play span { display: none; }
+  .playrow { gap: 4px; }
+  .playrow #play, .playrow #sound, .playrow #favBtn, .playrow #share { width: auto; min-width: 0; flex: 1 1 0; padding: 0; }
+  .strip { position: relative; padding-left: 28px; padding-right: 28px; min-height: 40px; }
+  .infobtn { display: flex; position: absolute; right: 0; top: 50%; margin: 0; transform: translateY(-50%); }
+  .infobtn:active:not(:disabled) { transform: translateY(-50%); }
+  body:not(.info-open) .info:not(.bad) { display: none; }
+}
 dialog {
   width: min(94vw, 760px); max-height: 92vh;
   padding: 0; color: var(--ink); background: var(--paper);
@@ -1358,7 +1398,11 @@ const ICONS = (function () {
     'Giant Onion': bulb('#c98bdb', 1.22) + face(24, 28),
     'Onion Rings': rope('M15 9a9 9 0 1 0 .01 0z', '#f4b860', 3.6) + rope('M33 12a9 9 0 1 0 .01 0z', '#eea23d', 3.6) + rope('M23 22a9.5 9.5 0 1 0 .01 0z', '#f7c873', 3.6),
     'Scarf': '<path d="M6 13h29a6 6 0 0 1 6 6v20H30V25H6z" fill="#ff7b6e"/><g stroke="#fff" stroke-width="3" fill="none"><path d="M13 14.6v8.8M21 14.6v8.8M32 31h7.4"/></g><path d="M6 13h29a6 6 0 0 1 6 6v20H30V25H6z" fill="none"/><path d="M32 39v4M35.5 39v4M39 39v4" fill="none" stroke-width="2"/>',
-    'Tri-Scarf': rope('M7 11h31v13H10v13h31', '#22b8cf', 6.5) + '<path d="M4 8v6M4.2 11h3M44 34v6M41 37h3" fill="none" stroke-width="2"/>',
+    // a scarf with three ends meeting at a knot, each end with a fringe
+    'Tri-Scarf': rope('M24 24L12.5 12.5', '#22b8cf', 8) + rope('M24 24L35.5 12.5', '#22b8cf', 8) + rope('M24 24V36', '#22b8cf', 8) +
+      '<path d="M6.6 11.1l-2.8 -2.8M8.8 8.8l-2.8 -2.8M11.1 6.6l-2.8 -2.8M36.9 6.6l2.8 -2.8M39.2 8.8l2.8 -2.8M41.4 11.1l2.8 -2.8M27.2 41.2l0.0 4.0M24.0 41.2l0.0 4.0M20.8 41.2l0.0 4.0" fill="none" stroke-width="2.2"/>' +
+      '<g stroke="#fff" stroke-width="2.4"><path d="M16 16.5l-1.5 1.5M19.5 20l-1.5 1.5M32 16.5l1.5 1.5M28.5 20l1.5 1.5M21.5 31h5"/></g>' +
+      '<circle cx="24" cy="24" r="6.5" fill="#1098ad"/>',
     'Mobius': rope('M24 24C18 13 6 15 6 24s12 11 18 0c6-11 18-9 18 0s-12 11-18 0z', '#9775fa'),
     'Loop de Loop': rope('M3 37h17c15 0 17-24 4-24s-11 24 4 24h17', '#4ea8ff'),
     'Loop de Loop de Loop': rope('M2 37h9c12 0 13-21 4-21s-8 21 4 21h8c12 0 13-21 4-21s-8 21 4 21h11', '#51cf66', 3.8),
@@ -2185,11 +2229,15 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function lerp(a, b, t) { return a + (b - a) * t; }
   function smooth(t) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
 
+  // Where the stage's own buttons are, so the lanes are never drawn underneath them.
+  function buttonsTop() { const m = stage.querySelector('.modes'); return m ? m.offsetTop + m.offsetHeight + 6 : 0; }
+  function diceWidth() { return Math.max($('lucky').offsetWidth, $('luckyAll').offsetWidth); }
+  function diceHeight() { return H - $('lucky').offsetTop + 6; }
   function geometry() {
     const K = state.pat.lanes;
     const handZone = clamp(W * 0.18, 54, 160);
-    const top = H < 330 ? 44 : 50;                          // room for the buttons along the top of the square
-    const foot = H < 330 ? 8 : 42;                          // and for the button at the bottom, where there is space
+    const top = Math.max(H < 330 ? 44 : 50, buttonsTop());   // room for the buttons along the top of the square
+    const foot = diceWidth() + 10 > handZone ? diceHeight() : H < 330 ? 8 : 42;   // and the dice buttons at the bottom
     const pitch = Math.min((H - top - foot - 20) / K, 92);
     const rb = clamp(Math.min(pitch * 0.3, W * 0.04), 6, 20);
     const trackH = Math.min(pitch - 6, rb * 2 + 12);
@@ -2409,7 +2457,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* Slope: the lanes run up the screen and slope down towards the person at the bottom. */
   function drawSlope() {
     const K = splan.lanes, mirror = false;                    // lane 1 is always on the left
-    const top = H < 330 ? 44 : 50;
+    const top = Math.max(H < 330 ? 44 : 50, buttonsTop());
     const pitch = Math.min((W - 40) / (K + 1.2), 120);
     const rb = clamp(Math.min(pitch * 0.28, (H - top) * 0.06), 6, 20);
     const trackW = Math.min(pitch - 8, rb * 2 + 12);

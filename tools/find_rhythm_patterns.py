@@ -150,6 +150,10 @@ def embed(path="index.html"):
     for k, w in waves.items():
         everything.setdefault(str(k), {})[str(2 * k)] = (everything.get(str(k), {}).get(str(2 * k), "") + " " + w).strip()
         expected[w] = {str(k): k}
+    # the user's folding pattern (2026-11-17): pairs from the outside in, then the middle lane; the other sends them back
+    fold = "[15][24]3---|---[15][24]3"
+    everything.setdefault("5", {})["6"] = fold
+    expected[fold] = {"5": 3}
     for k, ps in both_ways.items():
         everything[k]["4"] = everything[k]["4"] + " " + " ".join(ps)
     expected.update({"111[12]|3[23]33": {"3": 1, "5": 2}, "-11[12]|3[23]-3": {"4": 2},
@@ -158,7 +162,7 @@ def embed(path="index.html"):
     groups = [
         {"group": "3 lanes", "items": ["[13]-|22", "11|-[23]", "123---|---123", "111[12]|3[23]33"]},
         {"group": "4 lanes", "items": ["12|-[34]", "13|-[24]", "[14]-|23", "1[12]-|4[34]-", "111|-2[34]", "1234----|----1234"]},
-        {"group": "5 lanes", "items": ["12345-----|-----12345"]},
+        {"group": "5 lanes", "items": ["12345-----|-----12345", "[15][24]3---|---[15][24]3"]},
     ]
     on_wall = {p for d in everything.values() for v in d.values() for p in v.split()}
     assert all(p in on_wall for g in groups for p in g["items"]), [p for g in groups for p in g["items"] if p not in on_wall]

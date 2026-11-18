@@ -119,14 +119,17 @@ if __name__ == "__main__" and "--embed" in sys.argv:
             r = sync_search(k, n)
             if r:
                 wall4.setdefault(str(k), {})[str(2 * n)] = " ".join(r)
-    # The list: 24 picked for the user (2026-11-18), most symmetric first, every lane used both ways where possible,
-    # not too long; grouped by lanes, three balls before four. Everything stays on the All patterns wall.
+    # The list: picked for the user (2026-11-18) and then pruned by them; grouped by lanes, three balls before four.
+    # 111222 was asked for by the user: it repeats a hand move, so the search leaves it out; it is added by hand
+    # (to the wall too) and was checked in the app's engine.
+    extra = {"2": {"6": "111222"}}
+    for k, d in extra.items():
+        for L, t in d.items():
+            wall.setdefault(k, {})[L] = (wall[k].get(L, "") + " " + t).strip()
     picks = {1: ["1"],
-             2: ["1122", "111122", "112122", "(12)(21)", "(12)(12)(21)"],
-             3: ["11232", "112332", "1123232", "11123332", "(12)(31)", "(12)(21)(13)(31)", "(12)(31)(13)(32)", "(12)(12)(31)(23)(31)"],
-             4: ["1123432", "11234432", "(13)(31)(24)(42)", "(14)(32)(23)(41)", "(13)(32)(24)(41)", "(14)(32)(23)(23)(32)",
-                 "(14)(32)(32)(14)(41)", "(14)(32)(23)(23)(41)", "(13)(32)(32)(24)(41)"],
-             5: ["(14)(32)(32)(14)(51)"]}
+             2: ["1122", "111222", "(12)(21)", "(12)(12)(21)"],
+             3: ["(12)(31)", "(12)(21)(13)(31)"],
+             4: ["(14)(32)(23)(41)"]}
     everything = {p for w in (wall, wall4) for d in w.values() for v in d.values() for p in v.split()}
     assert all(p in everything for v in picks.values() for p in v), [p for v in picks.values() for p in v if p not in everything]
     groups = [{"group": str(k) + (" lane" if k == 1 else " lanes"), "items": v} for k, v in picks.items()]

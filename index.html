@@ -387,6 +387,13 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
 .wall-list button:hover { background: var(--sun); }
 .wall-list button:active:not(:disabled) { transform: none; box-shadow: none; background: var(--sun); }
 .wall-list button.named { font-weight: 800; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+/* phones: the explanation scrolls away with the patterns, so they get the whole screen; the title and Close stay */
+@media (max-width: 640px), (orientation: landscape) and (max-height: 500px) {
+  #wall { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #wall[open] { display: block; }
+  #wall .wall-head { position: sticky; top: 0; z-index: 1; background: var(--paper); }
+  #wallBody { overflow: visible; }
+}
 </style>
 </head>
 <body>

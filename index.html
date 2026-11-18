@@ -1955,7 +1955,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   // passes two at once: each is a named zip pattern played by both hands, "... Sync"
   PAIR_ZIP_LIST.forEach(function (x) { if (ZIP_NAMES[x[0]]) ZIP2_NAMES[x[1]] = ZIP_NAMES[x[0]] + ' Sync'; });
   const EXTRA_NAMES = Object.assign({}, ZIP_NAMES, REV_NAMES, MIX_NAMES);
-  const PING_NAMES = { '1': 'Shuffle' };   // Ping Pong (kept apart: 1 means something else in other modes)
+  const PING_NAMES = { '1': 'Shuffle', '1122': 'Two Step', '111222': "Back 'N' Forth", '(12)(21)': 'Origami', '(14)(32)(23)(41)': 'Riffle',
+                       '(12)(12)(21)': 'Hustle', '(12)(31)': 'Swap Shop', '(12)(21)(13)(31)': 'Shell Game' };   // Ping Pong (kept apart: 1 means something else in other modes)
   function knownPattern(text) {
     if (state.pingMode) { if (PING_NAMES[text]) return [PING_NAMES[text], text]; }
     else if (zip2Context()) { if (ZIP2_NAMES[text]) return [ZIP2_NAMES[text], text]; }

@@ -302,7 +302,9 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
 /* phones on their side: little height, so no title, phone-style buttons and every control on one row */
 @media (orientation: landscape) and (max-height: 500px) {
   h1 { display: none; }
-  .app { min-height: 0; padding: 6px 12px 8px; gap: 5px; }
+  .app { min-height: 0; height: 100vh; height: 100dvh; padding: 6px 12px 8px; gap: 5px; }   /* the whole screen, toolbars or not */
+  .w { display: none; }
+  .field > span { overflow: hidden; text-overflow: ellipsis; }
   .stage { min-height: 140px; }
   .modes { top: 6px; left: 6px; gap: 4px; right: 54px; }
   .modebtn { height: 30px; width: 32px; padding: 0; justify-content: center; }
@@ -315,9 +317,10 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   .controls { grid-template-columns: repeat(16, 1fr); gap: 4px 6px; }
   .f-pattern { grid-column: span 3; order: 0; }
   .f-wall { grid-column: span 1; order: 0; }
-  .f-custom { grid-column: span 3; }
+  .f-custom { grid-column: span 2; }
   .f-balls { grid-column: span 2; }
-  .f-start { grid-column: span 2; }
+  .f-start { grid-column: span 3; }
+  #custom { font-size: 15px; padding-left: 8px; background-position: 8px calc(100% - 7px); }
   .f-speed { grid-column: span 2; }
   .f-play { grid-column: span 3; order: 0; }
   .field > span { font-size: 11px; }
@@ -392,7 +395,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
         <button type="button" id="more" aria-label="One ball more">+</button>
       </div>
     </div>
-    <div class="field f-start"><span id="startLabel">First roll in lane 1</span>
+    <div class="field f-start"><span id="startLabel">First roll<span class="w"> in lane 1</span></span>
       <div class="seg" role="group" aria-labelledby="startLabel">
         <button type="button" id="startR" aria-pressed="true">Right hand</button>
         <button type="button" id="startL" aria-pressed="false">Left hand</button>
@@ -1871,8 +1874,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     btnR.setAttribute('aria-pressed', String(state.startRight));
     btnL.setAttribute('aria-pressed', String(!state.startRight));
     showPlay();
-    btnR.textContent = state.twoMode ? 'Right person' : 'Right hand';
-    btnL.textContent = state.twoMode ? 'Left person' : 'Left hand';
+    // the second word hides on a phone on its side, where the buttons are narrow
+    btnR.innerHTML = 'Right<span class="w"> ' + (state.twoMode ? 'person' : 'hand') + '</span>';
+    btnL.innerHTML = 'Left<span class="w"> ' + (state.twoMode ? 'person' : 'hand') + '</span>';
     zipBtn.setAttribute('aria-pressed', String(state.zipMode));
     twoBtn.querySelector('span').textContent = state.twoMode ? '2 people' : '1 person';
     twoBtn.setAttribute('aria-label', state.twoMode ? '2 people. Switch to 1 person' : '1 person. Switch to 2 people');

@@ -93,7 +93,9 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     # then round the other way. They repeat a hand move (each person rolls the same pair twice running), so the search's
     # no-repeat rule leaves them out; they were checked in the app's engine with 2 and 4 balls.
     loops = ["[12][34][12][34][34][12][34][12]", "[13][24][13][24][24][13][24][13]", "[14][23][14][23][23][14][23][14]"]
-    groups = [{"group": "Two at once, 4 lanes", "items": picks4 + loops}, {"group": "Two at once, 6 lanes", "items": picks}]
+    # the list keeps only the user's named ones (2026-11-17); everything above stays on the wall
+    groups = [{"group": "Two at once, 4 lanes", "items": ["[12][34][34][12]", "[13][24][24][13]", "[14][23][14][23][23][14][23][14]"]},
+              {"group": "Two at once, 6 lanes", "items": ["[12][34][56]", "[13][25][46]", "[16][25][43]"]}]
     wall = {"4": {"4": " ".join(even[4]), "8": " ".join(loops)}, "5": {"4": " ".join(even[5])}, "6": {"3": every}}
     block = ('<script id="rev-pair-patterns">\nconst REV_PAIR_LIST = ' +
              json.dumps(groups, separators=(",", ":")) +
@@ -104,4 +106,4 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     else:
         html = html.replace('<script id="reverse-patterns">', block + '\n<script id="reverse-patterns">', 1)
     open("index.html", "w", encoding="utf-8").write(html)
-    print(sum(len(v.split()) for d in wall.values() for v in d.values()), "on the wall,", len(picks) + len(picks4) + len(loops), "in the list")
+    print(sum(len(v.split()) for d in wall.values() for v in d.values()), "on the wall,", sum(len(g["items"]) for g in groups), "in the list")

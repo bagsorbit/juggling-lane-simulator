@@ -84,7 +84,9 @@ h1 {
 .clearbtn { padding: 0; width: 34px; justify-content: center; background: var(--red); }
 .clearbtn svg { width: 16px; height: 16px; }
 .keybtn { display: none; padding: 0; width: 34px; justify-content: center; font-size: 17px; font-weight: 700; }
-.keylist { list-style: none; margin: 0; padding: 4px 14px 10px; display: grid; gap: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; flex: 1 1 auto; }   /* scrolls when it is taller than the screen */
+.keylist { list-style: none; margin: 0; padding: 4px 14px 14px; display: grid; gap: 10px; }
+.keyscroll { overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; flex: 1 1 auto; }   /* the note and the list scroll together */
+.keynote.top { padding: 2px 14px 4px; }
 .keylist .keyhead { font-weight: 700; font-size: 17px; margin-top: 8px; }
 .keylist li { display: flex; align-items: center; gap: 10px; font-size: 15px; line-height: 1.3; }
 .keylist svg { width: 26px; height: 26px; flex: none; }
@@ -435,6 +437,8 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
 
 <dialog id="key" aria-labelledby="keyTitle">
   <div class="wall-head"><h2 id="keyTitle">The buttons</h2><button type="button" id="keyClose">Close</button></div>
+  <div class="keyscroll">
+  <p class="keynote top">A green button is switched on. A faded button cannot be used until the green one is switched off.</p>
   <ul class="keylist">
     <li class="keyhead">On the board</li>
     <li><svg class="one" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="12" cy="7" r="3.6"/><path d="M5 21c0-5 3-8 7-8s7 3 7 8"/></svg><span><b>1 person</b>: a hand at each end of the lanes. Tap for 2 people.</span></li>
@@ -458,7 +462,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
     <li><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#fffdf5" stroke="#2d2a4a" stroke-width="2.2"/><text x="12" y="17" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-weight="700" font-size="14" fill="#2d2a4a">i</text></svg><span><b>(i)</b>: shows what the numbers and colours mean.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" fill="#fffdf5" stroke-width="2.2"/><path d="M7.5 10l4.5 4.5 4.5-4.5"/></svg><span><b>Arrow</b>: on a phone on its side: hides the controls to give the lanes more room. Tap again to bring them back.</span></li>
   </ul>
-  <p class="keynote">A green button is switched on. A faded button cannot be used until the green one is switched off.</p>
+  </div>
 </dialog>
 
 <dialog id="favs" aria-labelledby="favsTitle">

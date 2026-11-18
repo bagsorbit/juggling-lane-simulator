@@ -492,12 +492,25 @@ const JLS = (function () {
     if (!/^(\[[^\[\]]*\])+$/.test(s)) return { ok: false, error: 'To mix single rolls and pairs, write a row for each person with a | between them, like [13]-|22.' };
     const parts = s.slice(1, -1).split('][');
     for (const part of parts) {
-      if (!/^[1-6]{2}$/.test(part)) return { ok: false, error: 'Each pair of brackets needs two lane numbers from 1 to ' + MAX_LANES + ', like [14].' };
+      if (part === 'zz') continue;                        // both balls handed across the middle together
+      if (!/^[1-6]{2}$/.test(part)) return { ok: false, error: 'Each pair of brackets needs two lane numbers from 1 to ' + MAX_LANES + ', like [14], or [zz] to hand both balls across.' };
       if (part[0] === part[1]) return { ok: false, error: 'One person cannot roll two balls into lane ' + part[0] + ' at the same moment.' };
     }
     if (parts.length > MAX_BRACKETS) return { ok: false, error: 'That is too long. Keep it to ' + MAX_BRACKETS + ' brackets or fewer.' };
-    const slots = [parts.map(function (x) { return Number(x[0]); }), parts.map(function (x) { return Number(x[1]); })];
+    const slots = [parts.map(function (x) { return x === 'zz' ? 0 : Number(x[0]); }), parts.map(function (x) { return x === 'zz' ? 0 : Number(x[1]); })];
     const lanes = Math.max.apply(null, slots[0].concat(slots[1]));
+    if (parts.indexOf('zz') !== -1) {
+      // Zip passes two at once: each position in the brackets is an ordinary zip pattern, and the two run in step.
+      if (!lanes) return { ok: false, error: 'A pattern needs at least one pair of rolls as well as its [zz].' };
+      if (parts.length % 2) return { ok: false, error: 'A pattern with [zz] needs an even number of brackets, because the two people take turns.' };
+      const hand = new Array(lanes + 1).fill(-1);
+      for (let i = 0; i < parts.length; i++) for (const slot of slots) {
+        if (!slot[i]) continue;
+        if (hand[slot[i]] === -1) hand[slot[i]] = i % 2;
+        else if (hand[slot[i]] !== i % 2) return { ok: false, error: 'Lane ' + slot[i] + ' is rolled from both ends. Lanes cannot change direction in a pattern with zips.' };
+      }
+      return { ok: true, text: s, seq: slots[0], slots: slots, lanes: lanes, hand: hand, pairs: true, zip: true };
+    }
     const hand = new Array(lanes + 1).fill(-1);
     // Lanes change direction when a lane is rolled from both ends: always with an odd number of brackets (next time
     // round each bracket is rolled from the other end), and with an even number when the same lane turns up at both ends.
@@ -1018,6 +1031,7 @@ const JLS = (function () {
 
   /* Everything needed to play a pattern with zips, or null if it can't be played with n balls. */
   function zipPlan(pat, n) {
+    if (pat.slots) return pairZipPlan(pat, n);
     const vals = solveTiming(pat.seq, n, pat.self);
     if (!vals) return null;
     const L = pat.seq.length, srcVal = new Array(L);
@@ -1027,6 +1041,20 @@ const JLS = (function () {
     for (let b = -maxV; b < 0; b++) if (b + vals[mod(b, L)] >= 0) landings.push(b + vals[mod(b, L)]);
     landings.sort(function (x, y) { return x - y; });
     return { seq: pat.seq, self: pat.self || null, L: L, n: n, lanes: pat.lanes, vals: vals, srcVal: srcVal, maxV: maxV, landings: landings, ids: new Map() };
+  }
+  /* [zz] patterns: n balls, n/2 on each path. Both paths need the same timing, so each pair moves together,
+   * and where they share a lane a ball on one path must never catch up with a ball on the other. */
+  function pairZipPlan(pat, n) {
+    if (n % 2) return null;
+    const plans = pat.slots.map(function (q) { return zipPlan({ seq: q, lanes: pat.lanes }, n / 2); });
+    if (!plans[0] || !plans[1] || plans[0].vals.join() !== plans[1].vals.join()) return null;
+    const v = plans[0].vals, L = v.length, a = pat.slots[0], b = pat.slots[1];
+    for (let i = 0; i < L; i++) for (let j = 0; j < L; j++) {
+      if (i === j || !a[i] || a[i] !== b[j]) continue;
+      const lo = Math.min(i, j), hi = Math.max(i, j), gap = hi - lo;
+      if (!(v[lo] - v[hi] < gap && v[hi] - v[lo] < L - gap)) return null;
+    }
+    return { pairs: true, plans: plans, seq: pat.seq, L: L, n: n, lanes: pat.lanes, vals: v };
   }
   function zSelf(plan, t) { return !!plan.self && plan.self[mod(t, plan.L)]; }
   function zSym(plan, t) { return plan.seq[mod(t, plan.L)]; }
@@ -1068,6 +1096,9 @@ const JLS = (function () {
    * state 'held': in `hand`, `p` of the way from place `from` to place `to`.
    * A place is { lane: 3 } (the end of that lane on the hand's side) or { mid: 2.5 } (see zMid). */
   function zipBalls(u, plan, tm) {
+    if (plan.pairs) {                                        // ids 0..n/2-1 on the first path, the rest on the second
+      return zipBalls(u, plan.plans[0], tm).concat(zipBalls(u, plan.plans[1], tm).map(function (b) { b.id += plan.n / 2; return b; }));
+    }
     const out = [], top = Math.floor(2 * u);
     for (let t = top; t > top - plan.maxV; t--) {
       const v = zVal(plan, t);
@@ -1102,6 +1133,12 @@ const JLS = (function () {
   /* The same for two people: person `end` throws on beats of their parity and uses hand `which`
      on every other one of their own beats, so each hand throws every 4 beats (2 cycles). */
   function zipHands2(u, plan, tm) {
+    if (plan.pairs) {
+      // each person works both paths at once, one hand each: on its own path, end e is that person
+      const out = [];
+      plan.plans.forEach(function (q, s) { zipHands(u, q, tm).forEach(function (h) { out.push({ end: h.hand, which: s, holding: h.holding, from: h.from, to: h.to, p: h.p }); }); });
+      return out;
+    }
     const out = [];
     for (let e = 0; e < 2; e++) for (let q = 0; q < 2; q++) {
       const r = e + 2 * q;
@@ -1116,6 +1153,7 @@ const JLS = (function () {
 
   /* Every path a hand carries a ball along, for drawing the loops. */
   function zipPaths(plan) {
+    if (plan.pairs) return zipPaths(plan.plans[0]).concat(zipPaths(plan.plans[1]));
     const out = [];
     for (let t = 0; t < plan.L; t++) out.push({ hand: t % 2, from: zCatchPlace(plan, t), to: zThrowPlace(plan, t) });
     return out;
@@ -1377,6 +1415,10 @@ const PAIR_LIST = [{"group":"Two at once, 4 rolls","items":[["Paired Loops","[12
 const ALL_PAIRS = {"4":{"4":"[12][34] [12][43] [13][24] [13][42] [14][23] [14][32]","8":"[12][34][12][43] [12][34][21][43] [13][24][13][42] [13][24][31][42] [14][23][14][32] [14][23][41][23] [14][23][41][32] [14][32][41][23]","12":"[12][34][12][43][21][43] [12][34][21][34][12][43] [13][24][13][42][31][42] [13][24][31][24][13][42] [14][23][14][32][41][32] [14][23][41][23][14][32]"},"5":{"8":"[12][34][12][45] [12][34][12][53] [12][34][15][43] [12][34][21][35] [12][34][21][45] [12][34][21][53] [12][34][21][54] [12][34][25][34] [12][34][25][43] [12][34][51][34] [12][34][51][43] [12][34][52][43] [12][35][12][43] [12][35][12][54] [12][35][14][53] [12][35][21][34] [12][35][21][45] [12][35][21][54] [12][35][24][35] [12][35][24][53] [12][35][41][35] [12][35][41][53] [12][35][42][53] [12][43][12][54] [12][43][15][34] [12][43][21][35] [12][43][21][45] [12][43][21][54] [12][43][25][34] [12][43][25][43] [12][43][51][34] [12][43][51][43] [12][43][52][34] [12][45][12][53] [12][45][21][35] [12][45][31][54] [12][53][14][35] [12][53][24][35] [12][53][24][53] [12][53][41][35] [12][53][41][53] [12][53][42][35] [13][24][13][52] [13][24][15][42] [13][24][31][25] [13][24][31][52] [13][24][35][24] [13][24][35][42] [13][24][51][24] [13][24][51][42] [13][24][53][42] [13][25][13][42] [13][25][14][52] [13][25][31][24] [13][25][34][25] [13][25][34][52] [13][25][41][25] [13][25][41][52] [13][25][43][52] [13][42][15][24] [13][42][31][25] [13][42][35][42] [13][42][51][24] [13][42][51][42] [13][42][53][24] [13][52][14][25] [13][52][34][25] [13][52][34][52] [13][52][41][25] [13][52][41][52] [13][52][43][25] [14][23][14][52] [14][23][15][32] [14][23][41][25] [14][23][41][52] [14][23][51][23] [14][23][51][32] [14][25][14][32] [14][25][41][23] [14][25][43][52] [14][32][15][23] [14][32][51][23] [14][32][51][32] [15][23][15][34] [15][23][15][42] [15][23][51][24] [15][23][51][34] [15][23][51][42] [15][23][51][43] [15][24][15][32] [15][24][51][23] [15][32][15][43] [15][32][51][24] [15][32][51][34]"}};
 </script>
 
+<script id="pair-zip-patterns">
+const PAIR_ZIP_LIST = [["1z","[12][zz]"],["121z","[13][24][13][zz]"],["1z2z","[12][zz][21][zz]"],["12zz","[13][24][zz][zz]"],["12z21z","[13][24][zz][24][13][zz]"],["123z","[13][24][31][zz]"],["12z3","[14][23][zz][32]"],["13z2","[14][32][zz][23]"],["1z2z3z","[12][zz][23][zz][31][zz]"],["121z13","[14][23][14][zz][14][32]"],["12z213","[14][23][zz][23][14][32]"],["12321z","[13][24][31][24][13][zz]"],["1232z2","[13][24][31][24][zz][24]"],["13z21z","[14][32][zz][23][14][zz]"],["1z2z3z4z","[12][zz][21][zz][34][zz][43][zz]"],["12134z","[14][23][14][32][41][zz]"],["12143z","[13][24][13][42][31][zz]"],["1213z4","[15][23][15][34][zz][42]"],["13234z","[12][35][24][35][41][zz]"],["14z3241z","[12][43][zz][34][21][43][12][zz]"]];
+const ALL_PAIR_ZIPS = {"2":{"4":"[12][zz]","8":"[12][zz][21][zz] [12][zz][zz][zz]","12":"[12][zz][21][zz][zz][zz]"},"3":{"8":"[12][zz][23][zz] [12][zz][31][zz]","12":"[12][zz][23][zz][31][zz] [12][zz][23][zz][zz][zz] [12][zz][31][zz][zz][zz] [12][zz][zz][zz][31][zz]"},"4":{"8":"[12][34][12][zz] [12][34][21][zz] [12][34][zz][34] [12][34][zz][43] [12][34][zz][zz] [12][43][12][zz] [12][43][21][zz] [12][43][zz][34] [12][43][zz][43] [12][43][zz][zz] [12][zz][34][zz] [12][zz][43][zz] [12][zz][zz][34] [12][zz][zz][43] [13][24][13][zz] [13][24][31][zz] [13][24][zz][24] [13][24][zz][42] [13][24][zz][zz] [13][42][13][zz] [13][42][31][zz] [13][42][zz][24] [13][42][zz][42] [13][42][zz][zz] [13][zz][24][zz] [13][zz][42][zz] [13][zz][zz][24] [13][zz][zz][42] [14][23][14][zz] [14][23][41][zz] [14][23][zz][23] [14][23][zz][32] [14][23][zz][zz] [14][32][14][zz] [14][32][41][zz] [14][32][zz][23] [14][32][zz][32] [14][32][zz][zz] [14][zz][23][zz] [14][zz][32][zz] [14][zz][zz][23] [14][zz][zz][32] [23][14][23][zz] [23][14][32][zz] [23][14][zz][14] [23][14][zz][41] [23][14][zz][zz] [23][41][23][zz] [23][41][32][zz] [23][41][zz][14] [23][41][zz][41] [23][41][zz][zz] [23][zz][zz][14] [23][zz][zz][41]","12":"[12][34][12][43][12][zz] [12][34][12][43][21][zz] [12][34][12][43][zz][43] [12][34][12][43][zz][zz] [12][34][12][zz][12][43] [12][34][12][zz][21][43] [12][34][12][zz][21][zz] [12][34][12][zz][zz][43] [12][34][12][zz][zz][zz] [12][34][21][34][12][zz] [12][34][21][34][zz][34] [12][34][21][34][zz][43] [12][34][21][34][zz][zz] [12][34][21][43][12][zz] [12][34][21][43][zz][34] [12][34][21][43][zz][43] [12][34][21][43][zz][zz] [12][34][21][zz][12][43] [12][34][21][zz][21][34] [12][34][21][zz][zz][34] [12][34][21][zz][zz][43] [12][34][21][zz][zz][zz] [12][34][zz][34][12][43] [12][34][zz][34][12][zz] [12][34][zz][34][21][34] [12][34][zz][34][21][zz] [12][34][zz][43][12][zz] [12][34][zz][43][21][34] [12][34][zz][43][21][zz] [12][34][zz][43][zz][34] [12][34][zz][43][zz][zz] [12][34][zz][zz][12][43] [12][34][zz][zz][21][34] [12][34][zz][zz][21][zz] [12][34][zz][zz][zz][34] [12][34][zz][zz][zz][43] [12][43][12][zz][21][34] [12][43][12][zz][21][zz] [12][43][12][zz][zz][34] [12][43][12][zz][zz][zz] [12][43][21][34][12][zz] [12][43][21][34][zz][34] [12][43][21][34][zz][43] [12][43][21][34][zz][zz] [12][43][21][zz][zz][34] [12][43][21][zz][zz][43] [12][43][21][zz][zz][zz] [12][43][zz][34][12][zz] [12][43][zz][34][21][zz] [12][43][zz][34][zz][43] [12][43][zz][34][zz][zz] [12][43][zz][43][12][zz] [12][43][zz][43][21][zz] [12][43][zz][zz][21][zz] [12][43][zz][zz][zz][34] [12][43][zz][zz][zz][43] [12][zz][21][zz][34][zz] [12][zz][21][zz][43][zz] [12][zz][21][zz][zz][34] [12][zz][21][zz][zz][43] [12][zz][23][zz][34][zz] [12][zz][23][zz][41][zz] [12][zz][24][zz][31][zz] [12][zz][24][zz][43][zz] [12][zz][31][zz][24][zz] [12][zz][31][zz][43][zz] [12][zz][34][zz][41][zz] [12][zz][34][zz][zz][zz] [12][zz][41][zz][23][zz] [12][zz][43][zz][zz][zz] [12][zz][zz][34][zz][43] [12][zz][zz][34][zz][zz] [12][zz][zz][43][zz][34] [12][zz][zz][43][zz][zz] [13][24][13][42][13][zz] [13][24][13][42][31][zz] [13][24][13][42][zz][42] [13][24][13][42][zz][zz] [13][24][13][zz][13][42] [13][24][13][zz][31][42] [13][24][13][zz][31][zz] [13][24][13][zz][zz][42] [13][24][13][zz][zz][zz] [13][24][31][24][13][zz] [13][24][31][24][zz][24] [13][24][31][24][zz][42] [13][24][31][24][zz][zz] [13][24][31][42][13][zz] [13][24][31][42][zz][24] [13][24][31][42][zz][42] [13][24][31][42][zz][zz] [13][24][31][zz][13][42] [13][24][31][zz][31][24] [13][24][31][zz][zz][24] [13][24][31][zz][zz][42] [13][24][31][zz][zz][zz] [13][24][zz][24][13][42] [13][24][zz][24][13][zz] [13][24][zz][24][31][24] [13][24][zz][24][31][zz] [13][24][zz][42][13][zz] [13][24][zz][42][31][24] [13][24][zz][42][31][zz] [13][24][zz][42][zz][24] [13][24][zz][42][zz][zz] [13][24][zz][zz][13][42] [13][24][zz][zz][31][24] [13][24][zz][zz][31][zz] [13][24][zz][zz][zz][24] [13][24][zz][zz][zz][42] [13][42][13][zz][31][24] [13][42][13][zz][31][zz] [13][42][13][zz][zz][24] [13][42][13][zz][zz][zz] [13][42][31][24][13][zz] [13][42][31][24][zz][24] [13][42][31][24][zz][42] [13][42][31][24][zz][zz] [13][42][31][zz][zz][24] [13][42][31][zz][zz][42] [13][42][31][zz][zz][zz] [13][42][zz][24][13][zz] [13][42][zz][24][31][zz] [13][42][zz][24][zz][42] [13][42][zz][24][zz][zz] [13][42][zz][42][13][zz] [13][42][zz][42][31][zz] [13][42][zz][zz][31][zz] [13][42][zz][zz][zz][24] [13][42][zz][zz][zz][42] [13][zz][24][zz][31][zz] [13][zz][24][zz][32][zz] [13][zz][24][zz][41][zz] [13][zz][24][zz][42][zz] [13][zz][24][zz][zz][zz] [13][zz][31][zz][zz][24] [13][zz][31][zz][zz][42] [13][zz][32][zz][41][zz] [13][zz][41][zz][32][zz] [13][zz][42][zz][zz][zz] [13][zz][zz][24][zz][42] [13][zz][zz][24][zz][zz] [13][zz][zz][42][zz][24] [13][zz][zz][42][zz][zz] [14][23][14][32][14][zz] [14][23][14][32][41][zz] [14][23][14][32][zz][32] [14][23][14][32][zz][zz] [14][23][14][zz][14][32] [14][23][14][zz][41][32] [14][23][14][zz][41][zz] [14][23][14][zz][zz][32] [14][23][14][zz][zz][zz] [14][23][41][23][14][zz] [14][23][41][23][zz][23] [14][23][41][23][zz][32] [14][23][41][23][zz][zz] [14][23][41][32][14][zz] [14][23][41][32][zz][23] [14][23][41][32][zz][32] [14][23][41][32][zz][zz] [14][23][41][zz][14][32] [14][23][41][zz][41][23] [14][23][41][zz][zz][23] [14][23][41][zz][zz][32] [14][23][41][zz][zz][zz] [14][23][zz][23][14][32] [14][23][zz][23][14][zz] [14][23][zz][23][41][23] [14][23][zz][23][41][zz] [14][23][zz][32][14][zz] [14][23][zz][32][41][23] [14][23][zz][32][41][zz] [14][23][zz][32][zz][23] [14][23][zz][32][zz][zz] [14][23][zz][zz][14][32] [14][23][zz][zz][41][23] [14][23][zz][zz][41][zz] [14][23][zz][zz][zz][23] [14][23][zz][zz][zz][32] [14][32][14][zz][41][23] [14][32][14][zz][41][zz] [14][32][14][zz][zz][23] [14][32][14][zz][zz][zz] [14][32][41][23][14][zz] [14][32][41][23][zz][23] [14][32][41][23][zz][32] [14][32][41][23][zz][zz] [14][32][41][zz][zz][23] [14][32][41][zz][zz][32] [14][32][41][zz][zz][zz] [14][32][zz][23][14][zz] [14][32][zz][23][41][zz] [14][32][zz][23][zz][32] [14][32][zz][23][zz][zz] [14][32][zz][32][14][zz] [14][32][zz][32][41][zz] [14][32][zz][zz][41][zz] [14][32][zz][zz][zz][23] [14][32][zz][zz][zz][32] [14][zz][23][zz][32][zz] [14][zz][23][zz][41][zz] [14][zz][23][zz][zz][zz] [14][zz][32][zz][23][zz] [14][zz][32][zz][41][zz] [14][zz][32][zz][zz][zz] [14][zz][41][zz][zz][23] [14][zz][41][zz][zz][32] [14][zz][zz][23][zz][32] [14][zz][zz][23][zz][zz] [14][zz][zz][32][zz][23] [14][zz][zz][32][zz][zz] [14][zz][zz][zz][23][zz] [14][zz][zz][zz][32][zz] [23][14][23][41][23][zz] [23][14][23][41][32][zz] [23][14][23][41][zz][41] [23][14][23][41][zz][zz] [23][14][23][zz][23][41] [23][14][23][zz][32][41] [23][14][23][zz][32][zz] [23][14][23][zz][zz][41] [23][14][23][zz][zz][zz] [23][14][32][14][23][zz] [23][14][32][14][zz][14] [23][14][32][14][zz][41] [23][14][32][14][zz][zz] [23][14][32][41][23][zz] [23][14][32][41][zz][14] [23][14][32][41][zz][41] [23][14][32][41][zz][zz] [23][14][32][zz][23][41] [23][14][32][zz][32][14] [23][14][32][zz][zz][14] [23][14][32][zz][zz][41] [23][14][32][zz][zz][zz] [23][14][zz][14][23][41] [23][14][zz][14][23][zz] [23][14][zz][14][32][14] [23][14][zz][14][32][zz] [23][14][zz][41][23][zz] [23][14][zz][41][32][14] [23][14][zz][41][32][zz] [23][14][zz][41][zz][14] [23][14][zz][41][zz][zz] [23][14][zz][zz][23][41] [23][14][zz][zz][32][14] [23][14][zz][zz][32][zz] [23][14][zz][zz][zz][14] [23][14][zz][zz][zz][41] [23][41][23][zz][32][14] [23][41][23][zz][32][zz] [23][41][23][zz][zz][14] [23][41][23][zz][zz][zz] [23][41][32][14][23][zz] [23][41][32][14][zz][14] [23][41][32][14][zz][41] [23][41][32][14][zz][zz] [23][41][32][zz][zz][14] [23][41][32][zz][zz][41] [23][41][32][zz][zz][zz] [23][41][zz][14][23][zz] [23][41][zz][14][32][zz] [23][41][zz][14][zz][41] [23][41][zz][14][zz][zz] [23][41][zz][41][23][zz] [23][41][zz][41][32][zz] [23][41][zz][zz][32][zz] [23][41][zz][zz][zz][14] [23][41][zz][zz][zz][41] [23][zz][32][zz][zz][14] [23][zz][32][zz][zz][41] [23][zz][zz][14][zz][41] [23][zz][zz][14][zz][zz] [23][zz][zz][41][zz][14] [23][zz][zz][41][zz][zz]","16":"[12][zz][21][zz][34][zz][43][zz] [12][43][zz][34][21][43][12][zz]"},"5":{"12":"[15][23][15][34][zz][42] [12][35][24][35][41][zz]"}};
+</script>
 <script id="zip2-patterns">
 const ZIP2_LIST = ["14z3241z","1zs2zs","1z3zs2zs","12s21s","12s43s","1s34s2"];
 const ALL_ZIPS2_SELF = {"2":{"4":"12ss","6":"12s21s 1ss2ss","8":"121ss2ss 12s21sss"},"3":{"6":"1213ss 121ss3 1232ss 123ss2 12s23s 12s31s 12ss13 131ss2 13s21s","8":"1213s31s 121s13s3 121ss3ss 1232s21s 123s32s2 123ss2ss 12s2131s 12s21s13 12s23sss 12s31sss 12ss1ss3 12ss3ss2 12sss23s 12sss31s 131ss2ss 13s21sss 13ss1ss2 13sss21s"},"4":{"6":"1234ss 123ss4 1243ss 124ss3 12s34s 12s43s 12ss34 1324ss 132ss4 1342ss 134ss2 13s24s 13s42s 13ss24 14s23s 14s32s 14ss23 14ss32 1s24s3 1s34s2","8":"121314ss 12131ss4 121342ss 121343ss 12134ss3 1213s24s 1213s34s 1213s41s 1213ss14 1213ss43 121413ss 12141ss3 121432ss 121434ss 12143ss4 1214s23s 1214s31s 1214s43s 1214ss13 1214ss34 121s13s4 121s14s3 121s32s4 121s34s4 121s42s3 121s43s3 121ss234 121ss243 121ss314 121ss343 121ss413 123214ss 12321ss4 123242ss 12324ss2 1232s24s 1232s41s 1232s43s 1232ss14 1232ss34 1232ss42 123414ss 12341ss2 123432ss 12343ss2 12343ss4 1234s21s 1234s41s 1234s43s 1234ss14 1234ss32 123s14s2 123s14s4 123s32s4 123s34s2 123s34s4 123s42s2 123ss214 123ss242 123ss4ss 124213ss 12421ss3 124232ss 12423ss2 1242s23s 1242s31s 1242s34s 1242ss13 1242ss32 1242ss43 12431ss2 1243s21s 1243s31s 1243s34s 1243ss13 1243ss42 124s13s2 124s13s3 124s32s2 124s42s3 124s43s2 124s43s3 124ss213 124ss232 124ss342 124ss3ss 12s2134s 12s2143s 12s21s34 12s2324s 12s2341s 12s2343s 12s23s14 12s23s34 12s23s42 12s2423s 12s24s13 12s24s32 12s3134s 12s3141s 12s31s14 12s31s42 12s3421s 12s3424s 12s34s13 12s34s42 12s34sss 12s3ss4s 12s4131s 12s4143s 12s41s13 12s41s32 12s43sss 12s4ss3s 12ss1314 12ss1342 12ss1413 12ss3214 12ss3234 12ss3242 12ss3ss4 12ss4213 12ss4232 12ss4ss3 12sss34s 13141ss2 131423ss 131424ss 13142ss4 1314s21s 1314s32s 1314s42s 1314ss24 131s14s2 131s23s4 131s24s4 131s42s2 131ss214 131ss242 131ss324 131ss342 132314ss 13231ss4 13234ss3 1323s34s 1323s41s 1323s42s 1323ss14 1323ss24 132414ss 13241ss3 132423ss 13242ss3 13242ss4 1324s31s 1324s41s 1324s42s 1324ss14 1324ss23 132s14s3 132s14s4 132s23s4 132s24s3 132s24s4 132ss314 132ss4ss 13421ss3 1342s21s 1342s24s 1342s31s 134s23s3 134s42s2 134s42s3 134ss2ss 134ss323 13s2141s 13s21s14 13s24sss 13s2ss4s 13s3142s 13s31s24 13s3234s 13s3241s 13s3242s 13s32s14 13s32s24 13s34s23 13s4142s 13s41s23 13s42sss 13s4ss2s 13ss2314 13ss2324 13ss2ss4 13ss4ss2 13sss24s 141s23s3 141s24s3 141s32s2 141s34s2 141ss232 141ss323 14s2321s 14s2341s 14s23s32 14s23sss 14s2ss3s 14s3231s 14s3241s 14s32s23 14s32sss 14s3ss2s 14ss2ss3 14ss3ss2 14sss23s 14sss32s 1s2324s3 1s23s4ss 1s24s3ss 1s24sss3 1s3234s2 1s32s4ss 1s34s2ss 1s34sss2 1s4ss2s3 1s4ss3s2 1ss234ss 1ss324ss"}};
@@ -1490,11 +1532,13 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function setPattern(parsed, n) {
     if (!parsed.ok) return parsed.error;
     if (parsed.self && !state.twoMode) return 'An s is a self zip, which needs two people. Turn on 2 people first.';
+    if (parsed.zip && parsed.pairs && !state.twoMode) return 'A [zz] hands two balls to the other person, which needs two people. Turn on 2 people first.';
     let p = null;
     if (parsed.zip) {
       // not every ball count has a timing that works, so settle on the nearest one that does
-      for (const d of [0, 1, -1, 2, -2, 3, -3]) {
-        const m = n + d;
+      const base = parsed.pairs ? n + n % 2 : n;               // [zz] patterns need an even number of balls
+      for (const d of parsed.pairs ? [0, -2, 2, -4, 4, 6] : [0, 1, -1, 2, -2, 3, -3]) {
+        const m = base + d;
         if (m >= 1 && m <= JLS.MAX_BALLS && (p = JLS.zipPlan(parsed, m))) { n = m; break; }
       }
       if (!p) return 'No timing works for that pattern with ' + n + (n === 1 ? ' ball.' : ' balls.');
@@ -1532,7 +1576,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     let slopeWant = '';
     if (params.get('slope')) { setMode('slope'); const want = params.get('slope'); for (const t in SLOPE) if (SLOPE[t].name.toLowerCase().replace('(ish)', '') === want.toLowerCase().replace('(ish)', '')) slopeWant = t; }
     else if (parsed.ok && parsed.self) setMode('zip2');
-    else if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) setMode(params.get('two') === '1' ? 'zip2' : 'zip');
+    else if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) setMode(params.get('two') === '1' || parsed.pairs ? 'zip2' : 'zip');
     else if (parsed.ok && parsed.rev) setMode(params.get('two') === '1' || parsed.pairs ? 'rev2' : 'rev');
     else if (parsed.ok && parsed.mixed) setMode('mix');
     else if (params.get('two') === '1' || (parsed.ok && parsed.pairs)) setMode('two');
@@ -1554,7 +1598,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (state.zipMode && state.twoMode) {
       // the one-person zip list works as it is, with each z a pass between the two people; one group per lane count
       const out = [], byLanes = {};
-      ZIP_LIST.reduce(function (a, g) { return a.concat(g.items); }, []).concat(ZIP2_LIST).forEach(function (t) {
+      ZIP_LIST.reduce(function (a, g) { return a.concat(g.items); }, []).concat(ZIP2_LIST, PAIR_ZIP_LIST.map(function (x) { return x[1]; })).forEach(function (t) {
         const k = Math.max.apply(null, t.replace(/\D/g, '').split('').map(Number));
         if (!byLanes[k]) byLanes[k] = { group: k + (k === 1 ? ' lane' : ' lanes'), items: [] };
         byLanes[k].items.push([EXTRA_NAMES[t] || '', t]);
@@ -1618,7 +1662,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   const MIX_NAMES = { '11|-[23]': 'Mixed Baby Onion', '12|-[34]': 'Mixed Loop de Loop', '13|-[24]': 'Mixed Scarf', '[14]-|23': 'Mixed Mobius',
                       '[13]-|22': 'Mixed Helter Skelter', '111|-2[34]': 'Mixed Onion', '111[12]|3[23]33': 'No Eyed Deer',
                       '123---|---123': 'Snake Triple', '1234----|----1234': 'Snake Quad', '12345-----|-----12345': 'Snake Quin', '1[12]-|4[34]-': 'Shoe Buckle' };
-  const EXTRA_NAMES = Object.assign({}, ZIP_NAMES, REV_NAMES, MIX_NAMES);
+  const PAIR_ZIP_NAMES = {};   // zip passes two at once: each is a named zip pattern played by both hands, "... Sync"
+  PAIR_ZIP_LIST.forEach(function (x) { if (ZIP_NAMES[x[0]]) PAIR_ZIP_NAMES[x[1]] = ZIP_NAMES[x[0]] + ' Sync'; });
+  const EXTRA_NAMES = Object.assign({}, ZIP_NAMES, REV_NAMES, MIX_NAMES, PAIR_ZIP_NAMES);
   function knownPattern(text) {
     if (EXTRA_NAMES[text]) return [EXTRA_NAMES[text], text];
     for (const g of JLS.CATALOGUE.concat(PAIR_LIST, SLOPE_LIST)) for (const it of g.items) if (it[0] && it[1] === text) return it;
@@ -1700,9 +1746,14 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     }
     pat.seq.forEach(function (lane, i) {
       if (pat.pairs) {                                        // one bracket: the two lanes a person rolls together
-        holder = document.createElement('span'); holder.className = 'pair br'; strip.appendChild(holder);
+        holder = document.createElement('span'); holder.className = 'pair br';
         holder.appendChild(tile(pat.slots[0][i], i));
         holder.appendChild(tile(pat.slots[1][i], i));
+        if (plan) {                                           // [zz] patterns: the beat count under each bracket
+          const cell = document.createElement('span'); cell.className = 'cell';
+          const beats = document.createElement('small'); beats.textContent = plan.vals[i];
+          cell.appendChild(holder); cell.appendChild(beats); strip.appendChild(cell);
+        } else strip.appendChild(holder);
         return;
       }
       if (together && i % 2 === 0) { holder = document.createElement('span'); holder.className = 'pair'; strip.appendChild(holder); }
@@ -1825,7 +1876,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   inCustom.addEventListener('input', function () {
     const parsed = JLS.parse(inCustom.value);
     if (!inCustom.value.trim()) { error = ''; inCustom.classList.remove('bad'); showInfo(); return; }
-    const needs = !parsed.ok ? '' : parsed.self ? 'zip2' : parsed.zip ? (state.twoMode ? 'zip2' : 'zip') : parsed.mixed ? 'mix' : parsed.rev ? (state.twoMode || parsed.pairs ? 'rev2' : 'rev') : parsed.pairs ? 'two' : '';
+    const needs = !parsed.ok ? '' : parsed.self ? 'zip2' : parsed.zip ? (state.twoMode || parsed.pairs ? 'zip2' : 'zip') : parsed.mixed ? 'mix' : parsed.rev ? (state.twoMode || parsed.pairs ? 'rev2' : 'rev') : parsed.pairs ? 'two' : '';
     if (needs && modeName() !== needs && !(needs === 'two' && state.twoMode)) { setMode(needs); fillPatternList(); }
     const changed = !parsed.ok || parsed.text !== state.pat.text;
     error = setPattern(parsed, state.n);
@@ -2065,7 +2116,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     }
     if (state.zipMode && state.twoMode) {
       wallTitle.textContent = 'Two-person zip patterns';
-      wallNote.textContent = 'Every two-person pattern with self zips, of up to 8 rolls, in which no hand move happens twice. A z is a pass zip: handed to the other person in the middle of the board. An s is a self zip: handed to your own other hand. Every one-person zip pattern also works as a pass-zip pattern; those are on the one-person zip page. Tap one to play it.' + same;
+      wallNote.textContent = 'Every two-person pattern with self zips, of up to 8 rolls, in which no hand move happens twice. A z is a pass zip: handed to the other person in the middle of the board. An s is a self zip: handed to your own other hand. In brackets, each person works two balls at once, and [zz] hands both across together. Every one-person zip pattern also works as a pass-zip pattern; those are on the one-person zip page. Tap one to play it.' + same;
+      add(ALL_PAIR_ZIPS, ', zip passes two at once');
       add(ALL_ZIPS2_SELF, ', self zips');
       add(ALL_ZIPS2_BOTH, ', self and pass zips');
     } else if (state.zipMode) {

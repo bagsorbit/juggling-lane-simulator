@@ -119,7 +119,8 @@ def embed(path="index.html"):
     html = open(path, encoding="utf-8").read()
     html, n = re.subn(r'<script id="pair-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     assert n == 1
-    open(path, "w", encoding="utf-8").write(html)
+    from notation import round_brackets   # the page writes moves at the same moment as (12)(34)
+    open(path, "w", encoding="utf-8").write(round_brackets(html))
     print("pairs:", {k: {b: len(v.split()) for b, v in d.items()} for k, d in everything.items()})
 
 if __name__ == "__main__" and "--embed" in sys.argv:

@@ -184,7 +184,8 @@ def embed(path="index.html"):
              ';\nconst ALL_ZIPS = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')
     html, n = re.subn(r'<script id="zip-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     assert n == 1
-    open(path, "w", encoding="utf-8").write(html)
+    from notation import round_brackets   # the page writes moves at the same moment as (12)(34)
+    open(path, "w", encoding="utf-8").write(round_brackets(html))
     json.dump(timings, open("tests/zip-timings.json", "w"), separators=(",", ":"))
     print("short list:", sum(len(g["items"]) for g in short), "picks:", picks)
 

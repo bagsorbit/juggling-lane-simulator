@@ -176,7 +176,8 @@ def embed(path="index.html"):
     html = open(path, encoding="utf-8").read()
     html, n = re.subn(r'<script id="mixed-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     assert n == 1
-    open(path, "w", encoding="utf-8").write(html)
+    from notation import round_brackets   # the page writes moves at the same moment as (12)(34)
+    open(path, "w", encoding="utf-8").write(round_brackets(html))
     json.dump(expected, open("tests/rhythm-counts.json", "w"), separators=(",", ":"))
     print("rhythm:", {k: {b: len(v.split()) for b, v in d.items()} for k, d in everything.items()})
     print("top:", top)

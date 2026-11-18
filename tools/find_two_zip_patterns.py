@@ -134,5 +134,6 @@ if __name__ == "__main__" and "--embed" in sys.argv:
         html = re.sub(r'<script id="zip2-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     else:
         html = html.replace('<script id="zip-patterns">', block + '\n<script id="zip-patterns">', 1)
-    open("index.html", "w", encoding="utf-8").write(html)
+    from notation import round_brackets   # the page writes moves at the same moment as (12)(34)
+    open("index.html", "w", encoding="utf-8").write(round_brackets(html))
     print({kind: sum(len(x.split()) for d in w.values() for x in d.values()) for kind, w in walls.items()})

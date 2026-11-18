@@ -87,5 +87,6 @@ def embed(path="index.html", max_beats=8):
     block = '<script id="all-patterns">\nconst ALL_PATTERNS = ' + json.dumps(data, separators=(",", ":")) + ';\n</script>'
     html, n = re.subn(r'<script id="all-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     assert n == 1
-    open(path, "w", encoding="utf-8").write(html)
+    from notation import round_brackets   # the page writes moves at the same moment as (12)(34)
+    open(path, "w", encoding="utf-8").write(round_brackets(html))
     print({k: {b: len(v.split()) for b, v in d.items()} for k, d in data.items()})

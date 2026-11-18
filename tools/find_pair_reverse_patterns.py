@@ -111,5 +111,6 @@ if __name__ == "__main__" and "--embed" in sys.argv:
         html = re.sub(r'<script id="rev-pair-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     else:
         html = html.replace('<script id="reverse-patterns">', block + '\n<script id="reverse-patterns">', 1)
-    open("index.html", "w", encoding="utf-8").write(html)
+    from notation import round_brackets   # the page writes moves at the same moment as (12)(34)
+    open("index.html", "w", encoding="utf-8").write(round_brackets(html))
     print(sum(len(v.split()) for d in wall.values() for v in d.values()), "on the wall,", sum(len(g["items"]) for g in groups), "in the list")

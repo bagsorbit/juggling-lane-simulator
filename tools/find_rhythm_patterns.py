@@ -143,9 +143,9 @@ def embed(path="index.html"):
     # Lanes that change direction (rolled from both ends), added by hand 2026-11-17 and checked in the app's engine.
     # Waves: one person rolls every lane in turn, the other starts as the first ball arrives and sends them all back.
     # Only these go on the All patterns wall, not every reversing pattern the search could find.
-    waves = {k: "".join(map(str, range(1, k + 1))) + "-" * k + "|" + "-" * k + "".join(map(str, range(1, k + 1))) for k in (3, 4, 5, 6)}
+    waves = {k: "".join(map(str, range(1, k + 1))) + "-" * k + "|" + "-" * k + "".join(map(str, range(1, k + 1))) for k in (3, 4, 5)}   # the 6-lane one was dropped at the user's request
     both_ways = {"3": ["111[12]|3[23]33", "-11[12]|3[23]-3"], "4": ["1234|3412", "1324|2413", "1243|4312", "-124|-431"]}
-    groups.append({"group": "Waves (lanes change direction)", "items": [waves[k] for k in (3, 4, 5, 6)]})
+    groups.append({"group": "Waves (lanes change direction)", "items": [waves[k] for k in (3, 4, 5)]})
     groups.append({"group": "Lanes change direction", "items": both_ways["3"] + both_ways["4"]})
     for k, w in waves.items():
         everything.setdefault(str(k), {})[str(2 * k)] = (everything.get(str(k), {}).get(str(2 * k), "") + " " + w).strip()
@@ -154,6 +154,14 @@ def embed(path="index.html"):
         everything[k]["4"] = everything[k]["4"] + " " + " ".join(ps)
     expected.update({"111[12]|3[23]33": {"3": 1, "5": 2}, "-11[12]|3[23]-3": {"4": 2},
                      "1234|3412": {"2": 1, "4": 2}, "1324|2413": {"2": 1, "4": 2}, "1243|4312": {"2": 1, "4": 2}, "-124|-431": {"2": 1, "4": 2}})
+    # The list drops unnamed patterns where both people rest on the same beat (user, 2026-11-17); they stay on the wall.
+    named = {"[13]-|22", "111|-2[34]", "111[12]|3[23]33", "123---|---123", "1234----|----1234", "12345-----|-----12345", "1[12]-|4[34]-"}
+    def both_rest(t):
+        rows = [re.findall(r"\[\d\d\]|.", half) for half in t.split("|")]
+        return any(a == "-" and b == "-" for a, b in zip(*rows))
+    for g in groups:
+        g["items"] = [p for p in g["items"] if p in named or not both_rest(p)]
+    groups = [g for g in groups if g["items"]]
     top = ["[13]-|22", "111|-2[34]", "111[12]|3[23]33", "12345-----|-----12345", "1[12]-|4[34]-"]   # the user's picks, 2026-11-17
     assert all(any(p in g["items"] for g in groups) for p in top), top
     block = ('<script id="mixed-patterns">\nconst MIX_LIST = ' + json.dumps(groups, separators=(",", ":")) +

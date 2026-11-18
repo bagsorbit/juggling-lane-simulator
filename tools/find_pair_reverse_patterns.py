@@ -89,8 +89,12 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     even = {k: sorted(show(d) for d, c in search(k, (4,)).values() if max(c) >= 4) for k in (4, 5)}
     picks4 = ["[12][34][34][12]", "[13][24][24][13]", "[14][23][23][14]"]
     assert all(p in even[4] for p in picks4), (picks4, even[4])
-    groups = [{"group": "Two at once, 4 lanes", "items": picks4}, {"group": "Two at once, 6 lanes", "items": picks}]
-    wall = {"4": {"4": " ".join(even[4])}, "5": {"4": " ".join(even[5])}, "6": {"3": every}}
+    # Double loops that change direction, asked for by the user: each ball goes out on one lane and back on the other,
+    # then round the other way. They repeat a hand move (each person rolls the same pair twice running), so the search's
+    # no-repeat rule leaves them out; they were checked in the app's engine with 2 and 4 balls.
+    loops = ["[12][34][12][34][34][12][34][12]", "[13][24][13][24][24][13][24][13]", "[14][23][14][23][23][14][23][14]"]
+    groups = [{"group": "Two at once, 4 lanes", "items": picks4 + loops}, {"group": "Two at once, 6 lanes", "items": picks}]
+    wall = {"4": {"4": " ".join(even[4]), "8": " ".join(loops)}, "5": {"4": " ".join(even[5])}, "6": {"3": every}}
     block = ('<script id="rev-pair-patterns">\nconst REV_PAIR_LIST = ' +
              json.dumps(groups, separators=(",", ":")) +
              ';\nconst ALL_REV_PAIRS = ' + json.dumps(wall, separators=(",", ":")) + ';\n</script>')
@@ -100,4 +104,4 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     else:
         html = html.replace('<script id="reverse-patterns">', block + '\n<script id="reverse-patterns">', 1)
     open("index.html", "w", encoding="utf-8").write(html)
-    print(sum(len(v.split()) for d in wall.values() for v in d.values()), "on the wall,", len(picks) + len(picks4), "in the list")
+    print(sum(len(v.split()) for d in wall.values() for v in d.values()), "on the wall,", len(picks) + len(picks4) + len(loops), "in the list")

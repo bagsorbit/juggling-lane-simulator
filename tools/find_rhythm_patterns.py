@@ -163,7 +163,7 @@ def embed(path="index.html"):
     ]
     on_wall = {p for d in everything.values() for v in d.values() for p in v.split()}
     assert all(p in on_wall for g in groups for p in g["items"]), [p for g in groups for p in g["items"] if p not in on_wall]
-    top = ["[13]-|22", "111|-2[34]", "111[12]|3[23]33", "1[12]-|4[34]-"]   # the user's picks, 2026-11-17
+    top = ["[13]-|22", "111|-2[34]", "111[12]|3[23]33", "1[12]-|4[34]-", "12|-[34]"]   # the user's picks, 2026-11-17
     assert all(any(p in g["items"] for g in groups) for p in top), top
     block = ('<script id="mixed-patterns">\nconst MIX_LIST = ' + json.dumps(groups, separators=(",", ":")) +
              ';\nconst MIX_TOP = ' + json.dumps(top) + ';\nconst ALL_MIX = ' + json.dumps(everything, separators=(",", ":")) +

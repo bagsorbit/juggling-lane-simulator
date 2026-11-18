@@ -256,12 +256,11 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     # added by hand: Riffle for two people (4 lanes, 4 beats)
     for kind, k, n, t in (("rows", "4", "8", "1324|4231"),):
         d = wall2[kind].setdefault(k, {}); d[n] = (d.get(n, "") + " " + t).strip()
-    # The list: picked for the user (2026-11-18) by symmetry; grouped by lanes, single placings, then two at once,
+    # The list: picked for the user (2026-11-18) by symmetry, then pruned by them; grouped by lanes, two at once,
     # then both at the same moment (the solo four-ball favourites played by two people).
-    picks2 = {1: ["1"],
-              2: ["1122", "(12)(12)", "12|21", "112|221"],
-              3: ["123", "112332", "1223", "(12)(23)(23)(12)", "1213|2131"],
-              4: ["(13)(24)(24)(13)", "(14)(23)(23)(14)", "(12)(23)(34)(23)", "1324|4231"]}
+    picks2 = {2: ["(12)(12)", "12|21", "112|221"],
+              3: ["(12)(23)(23)(12)", "1213|2131"],
+              4: ["(14)(23)(23)(14)", "(12)(23)(34)(23)", "1324|4231"]}
     every2 = {p for w in wall2.values() for d in w.values() for v in d.values() for p in v.split()}
     assert all(p in every2 for v in picks2.values() for p in v), [p for v in picks2.values() for p in v if p not in every2]
     groups2 = [{"group": str(k) + (" lane" if k == 1 else " lanes"), "items": v} for k, v in picks2.items()]

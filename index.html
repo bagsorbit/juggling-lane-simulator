@@ -2681,7 +2681,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       // to a new lane: wait at the grab, slide along the ends just in time, then go up the lane
       // the two moves overlap a little, so the hand curves round the corner instead of stopping in it
       const m = pingMoves(from, to), a = placePoint(g, side, from), b = placePoint(g, side, to);
-      if (m.go === 0) return { x: lerp(a.x, b.x, smooth(p)), y: lerp(a.y, b.y, smooth(p)) };
+      if (from.pp === to.pp) return { x: lerp(a.x, b.x, smooth(clamp((p - m.go) / (1 - m.go), 0, 1))), y: a.y };
       const round = 0.35 * Math.min(m.go - m.wait, 1 - m.go);
       const across = clamp((p - m.wait) / (m.go + round - m.wait), 0, 1), up = clamp((p - (m.go - round)) / (1 - m.go + round), 0, 1);
       return { x: lerp(a.x, b.x, smooth(up)), y: lerp(a.y, b.y, smooth(across)) };
@@ -2975,14 +2975,17 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
      (sin squared), and the hop is lower so the hand rises and falls at the same even speed throughout. */
   const PING_PASS = 1 - (1 - 2 * JLS.PING_PLACE) / JLS.PING_SPEED;     // beats between the incoming ball going by and the placing
   /* A carry to a new lane: the hand stays where it grabbed the ball, slides along the ends to the new lane only
-     when it needs to, and then goes up the lane in the same arc each time. In the same lane there is nothing to
-     wait for, so the whole carry is one long curve. Returned as shares of the carry: when the slide starts (wait)
-     and when the arc up the lane starts (go). */
+     when it needs to, and then goes up the lane in the same arc each time. In the same lane it pauses after the
+     grab and then makes the same arc forward. Returned as shares of the carry: when the slide starts (wait) and
+     when the arc up the lane starts (go). */
   const PING_SLIDE = 0.45, PING_UP = 0.9;                     // beats: the slide along the ends, the arc up the lane
   function pingCarry() { return (state.pat.sync ? 1 : 2) - JLS.PING_GRAB; }   // beats from the grab to the next placing
   function pingMoves(from, to) {
-    if (from.pp === to.pp) return { wait: 0, go: 0 };
     const carry = pingCarry();
+    if (from.pp === to.pp) {                                  // same lane: a short pause after the grab, then the arc forward
+      const go = state.pat.sync ? 0.25 : (carry - PING_UP) / carry;
+      return { wait: go, go: go };
+    }
     if (state.pat.sync) return { wait: 0, go: 0.35 };         // with both hands together there is no time to wait
     return { wait: (carry - PING_UP - PING_SLIDE) / carry, go: (carry - PING_UP) / carry };
   }

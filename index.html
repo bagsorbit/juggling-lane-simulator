@@ -2722,6 +2722,34 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         for (let i = 0; i < (L % 2 ? 2 * L : L); i++) paths.push({ side: sideOf(1 - i % 2), from: { lane: tr[0][i % L] }, to: { lane: tr[0][JLS.nextRoll(i, tr[1]) % L] } });
       }
     }
+    if (state.pat.ping) {
+      // Ping Pong: one rail per hand along the lane ends, covering every lane it uses, and a short line up each lane
+      // it places in; the outer corners rounded. The hand slides along the rail and goes up those lines.
+      const bySide = {};
+      for (const p of paths) {
+        const s = bySide[p.side] || (bySide[p.side] = { lanes: new Set(), placed: new Set() });
+        s.lanes.add(p.from.pp); s.lanes.add(p.to.pp); s.placed.add(p.to.pp);
+      }
+      for (const k of Object.keys(bySide)) {
+        const side = Number(k), info = bySide[k], ls = Array.from(info.lanes).sort(function (x, y) { return x - y; });
+        const lo = ls[0], hi = ls[ls.length - 1];
+        const rail = function (l) { return placePoint(g, side, { pp: l, d: JLS.PING_CATCH }); };
+        const tip = function (l) { return placePoint(g, side, { pp: l, d: JLS.PING_PLACE }); };
+        ctx.beginPath();
+        if (lo !== hi) {
+          const a = rail(lo), b = rail(hi), r = Math.min(Math.abs(tip(lo).x - a.x), Math.abs(b.y - a.y)) * 0.5;
+          if (info.placed.has(lo)) { const t = tip(lo); ctx.moveTo(t.x, t.y); ctx.arcTo(a.x, a.y, b.x, b.y, r); } else ctx.moveTo(a.x, a.y);
+          if (info.placed.has(hi)) { const t = tip(hi); ctx.arcTo(b.x, b.y, t.x, t.y, r); ctx.lineTo(t.x, t.y); } else ctx.lineTo(b.x, b.y);
+        }
+        for (const l of info.placed) {
+          if (lo !== hi && (l === lo || l === hi)) continue;     // drawn with the rail's rounded corners
+          const a = rail(l), t = tip(l);
+          ctx.moveTo(a.x, a.y); ctx.lineTo(t.x, t.y);
+        }
+        ctx.stroke();
+      }
+      return;
+    }
     for (const p of paths) {
       const key = p.side + ':' + JSON.stringify(p.from) + '>' + JSON.stringify(p.to);
       if (done[key]) continue;

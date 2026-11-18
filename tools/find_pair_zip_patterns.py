@@ -135,8 +135,14 @@ if __name__ == "__main__" and "--embed" in sys.argv:
         have = wall.setdefault(k, {}).get(n, "")
         if p not in have.split():
             wall[k][n] = (have + " " + p).strip()
+    # half-zips (one ball of a pair rolls while the other is handed across), named by the user 2026-11-17.
+    # Only these go on the wall: the full search finds about 1,800, too many to show.
+    half = ["[1z][z2]", "[13][2z][13][z2]", "[1z][2z][z3][z2]", "[1z][z2][4z][z3]"]
+    for p in half:
+        k, n = str(max(int(c) for c in p if c.isdigit())), str(2 * p.count("["))
+        wall.setdefault(k, {})[n] = (wall[k].get(n, "") + " " + p).strip()
     block = ('<script id="pair-zip-patterns">\nconst PAIR_ZIP_LIST = ' + json.dumps(picks, separators=(",", ":")) +
-             ';\nconst ALL_PAIR_ZIPS = ' + json.dumps(wall, separators=(",", ":")) + ';\n</script>')
+             ';\nconst HALF_ZIP_LIST = ' + json.dumps(half) + ';\nconst ALL_PAIR_ZIPS = ' + json.dumps(wall, separators=(",", ":")) + ';\n</script>')
     html = open("index.html", encoding="utf-8").read()
     if '<script id="pair-zip-patterns">' in html:
         html = re.sub(r'<script id="pair-zip-patterns">.*?</script>', lambda m: block, html, flags=re.S)

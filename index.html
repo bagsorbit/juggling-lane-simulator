@@ -2905,12 +2905,17 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     // hands first, so a ball always shows on top of the glove that holds it
     const handOffset = g.rb * 0.5;
     const sc = scene(u), bs = sc.bs, hs = sc.hs;
+    // in Ping Pong a hand reaches into the lane, so the balls rolling past go underneath it
+    const under = state.pat.ping ? function (b) { return b.state === 'roll'; } : function () { return false; };
+    const drawRolling = function (b) { const side = sideOf(b.hand); drawBall(g, lerp(g.endX(side), g.endX(-side), b.p), g.laneY(b.lane), b.id); };
+    for (const b of bs) if (under(b)) drawRolling(b);
     for (const h of hs) {
       const side = sideOf(h.hand);
       const pt = segPoint(g, side, h.from, h.to, h.p, h.holding);
       drawHand(g, pt.x + side * handOffset, pt.y, side, h.letter, h.thumbUp);
     }
     for (const b of bs) {
+      if (under(b)) continue;
       if (b.state === 'roll') {
         const side = sideOf(b.hand);
         drawBall(g, lerp(g.endX(side), g.endX(-side), b.p), g.laneY(b.lane), b.id);

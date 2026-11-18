@@ -1356,13 +1356,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   let u = 0;                 // time, in hand cycles
   let error = '';
   let under = [];            // the numbers hidden under zips that were made by tapping
-  let lastRolls = '1234', lastZips = '121z', lastZips2 = '1zs2zs', lastTwo = '[13][24][31][42]', lastRev = '123', lastMix = MIX_TOP[0];
+  const last = {};   // the pattern last played in each mode; a mode not yet visited starts on its first top-five pattern
   /* Only one special mode can be on at a time, except that zips can be played by two people ('zip2'). */
   function setMode(name) { state.zipMode = name === 'zip' || name === 'zip2'; state.twoMode = name === 'two' || name === 'mix' || name === 'zip2' || name === 'rev2'; state.revMode = name === 'rev' || name === 'rev2'; state.mixMode = name === 'mix'; state.slopeMode = name === 'slope'; }
 
   // Slope patterns can't be typed, so they are looked up by the way they are written in the list.
   const SLOPE = {};
-  const TOP_SLOPE_START = JLS.slopeText(JLS.SLOPE_PATTERNS[0].items[0]);   // the cascade
   const SLOPE_LIST = [];                                     // grouped by number of balls
   JLS.SLOPE_PATTERNS.forEach(function (g) {
     g.items.forEach(function (spec) {
@@ -1374,7 +1373,6 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     });
   });
   SLOPE_LIST.sort(function (x, y) { return x.balls - y.balls; });
-  let lastSlope = TOP_SLOPE_START;
   function parseAny(text) {
     if (SLOPE[text]) { const sp = SLOPE[text]; return { ok: true, text: text, slope: sp, seq: [0], lanes: sp.lanes, hand: [], zip: false }; }
     return JLS.parse(text);
@@ -1398,6 +1396,15 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
                      zip2: { '1zs2zs': 4, '121z': 4, '12s21s': 5, '12s43s': 6, '1s34s2': 6 },
                      rev: { '123': 3, '12345': 5, '121323': 3, '123132': 3, '12342143': 4 } };
   function topBalls(mode, text) { return (TOP_BALLS[mode] || {})[text] || 0; }
+  // what a mode opens on: the pattern last played there, or else its first top-five pattern at that pattern's ball count
+  function startText(mode) { return last[mode] || TOP5[mode][0]; }
+  function startBalls(mode, text) { return last[mode] ? state.n : topBalls(mode, text) || state.n; }
+  function goMode(mode) {
+    setMode(mode === 'one' ? '' : mode);
+    fillPatternList();
+    const m = modeName(), text = startText(m);
+    choose(text, startBalls(m, text));
+  }
   function modeName() { return state.slopeMode ? 'slope' : state.zipMode && state.twoMode ? 'zip2' : state.zipMode ? 'zip' : state.revMode && state.twoMode ? 'rev2' : state.mixMode ? 'mix' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
 
   /* Switch to a pattern and ball count. Returns '' if it worked, or the reason it can't be played. */
@@ -1434,14 +1441,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (parsed.pairs) n = Math.max(2, Math.min(8, n % 2 ? n + 1 : n));   // pairs need an even number of balls
     plan = p; mplan = mp; splan = sp; state.pat = parsed; state.n = n;
     tm = sp ? { cycle: 1.5, hold: 0, roll: 0 } : JLS.timing(mp ? mp.average : parsed.pairs ? n / 2 : n);
-    if (sp) lastSlope = parsed.text;
-    if (parsed.slope) { /* remembered above */ }
-    else if (parsed.zip && state.twoMode) lastZips2 = parsed.text;
-    else if (parsed.zip) lastZips = parsed.text;
-    else if (parsed.rev) lastRev = parsed.text;
-    else if (parsed.pairs) lastTwo = parsed.text;
-    else if (parsed.mixed) lastMix = parsed.text;
-    else if (!state.zipMode) lastRolls = parsed.text;
+    last[modeName()] = parsed.text;
     return '';
   }
 
@@ -1450,13 +1450,15 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const b = parseInt(params.get('b'), 10);
     const n = b >= 1 && b <= JLS.MAX_BALLS ? b : state.n;
     const parsed = JLS.parse(params.get('p') || '');
-    if (params.get('slope')) { setMode('slope'); const want = params.get('slope'); for (const t in SLOPE) if (SLOPE[t].name.toLowerCase().replace('(ish)', '') === want.toLowerCase().replace('(ish)', '')) lastSlope = t; }
+    let slopeWant = '';
+    if (params.get('slope')) { setMode('slope'); const want = params.get('slope'); for (const t in SLOPE) if (SLOPE[t].name.toLowerCase().replace('(ish)', '') === want.toLowerCase().replace('(ish)', '')) slopeWant = t; }
     else if (parsed.ok && parsed.self) setMode('zip2');
     else if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) setMode(params.get('two') === '1' ? 'zip2' : 'zip');
     else if (parsed.ok && parsed.rev) setMode(params.get('two') === '1' || parsed.pairs ? 'rev2' : 'rev');
     else if (parsed.ok && parsed.mixed) setMode('mix');
     else if (params.get('two') === '1' || (parsed.ok && parsed.pairs)) setMode('two');
-    if (setPattern(state.slopeMode ? parseAny(lastSlope) : parsed.ok ? parsed : JLS.parse(state.zipMode ? (state.twoMode ? lastZips2 : lastZips) : state.twoMode ? lastTwo : lastRolls), n)) setPattern(JLS.parse('1234'), 3);
+    const m = modeName(), text = slopeWant || (parsed.ok && !state.slopeMode ? parsed.text : startText(m));
+    if (setPattern(parseAny(text), b >= 1 ? n : startBalls(m, text))) setPattern(JLS.parse(TOP5.one[0]), topBalls('one', TOP5.one[0]));
     if (params.get('start') === 'left') state.startRight = false;
     const sp = parseFloat(params.get('speed'));
     if (sp >= 0.25 && sp <= 2) state.speed = sp;
@@ -1771,10 +1773,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     btnPlay.setAttribute('aria-label', state.playing ? 'Pause' : 'Play');
   }
   zipBtn.addEventListener('click', function () {
-    if (state.twoMode) { setMode(state.zipMode ? 'two' : 'zip2'); fillPatternList(); choose(state.zipMode ? lastZips2 : lastTwo); return; }
-    setMode(state.zipMode ? '' : 'zip');
-    fillPatternList();
-    choose(state.zipMode ? lastZips : lastRolls);
+    if (state.twoMode) goMode(state.zipMode ? 'two' : 'zip2');
+    else goMode(state.zipMode ? 'one' : 'zip');
   });
   /* ---------- the share / favourites button ----------
    * The star opens a small menu: Save to (or Remove from) favourites, Open favourites. The share button shares at once.
@@ -1894,10 +1894,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   }
 
   $('clearMode').addEventListener('click', function () {
-    const two = state.twoMode && !state.slopeMode;
-    setMode(two ? 'two' : '');
-    fillPatternList();
-    choose(two ? lastTwo : lastRolls);
+    goMode(state.twoMode && !state.slopeMode ? 'two' : 'one');
   });
   $('keyBtn').addEventListener('click', function () { const k = $('key'); if (k.showModal) k.showModal(); else k.setAttribute('open', ''); });
   $('keyClose').addEventListener('click', function () { const k = $('key'); if (k.close) k.close(); else k.removeAttribute('open'); });
@@ -1916,37 +1913,19 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     choose(pick[1], topBalls(pick[0], pick[1]));
   });
   twoBtn.addEventListener('click', function () {
-    if (state.zipMode) {                         // zips stay on: a z becomes a pass between the two people
-      setMode(state.twoMode ? 'zip' : 'zip2');
-      fillPatternList();
-      choose(state.twoMode ? state.pat.text : state.pat.self ? lastZips : state.pat.text);
-      return;
-    }
-    if (state.revMode) {                         // the same reversing pattern, played by one person or two
-      setMode(state.twoMode ? 'rev' : 'rev2');
-      fillPatternList();
-      choose(state.pat.pairs ? '123' : state.pat.text);   // pairs need two people
-      return;
-    }
-    setMode(state.twoMode ? '' : 'two');
-    fillPatternList();
-    choose(state.twoMode ? lastTwo : lastRolls);
+    if (state.zipMode) goMode(state.twoMode ? 'zip' : 'zip2');       // zips stay on
+    else if (state.revMode) goMode(state.twoMode ? 'rev' : 'rev2');  // reverses stay on
+    else goMode(state.twoMode ? 'one' : 'two');
   });
   mixBtn.addEventListener('click', function () {
-    setMode(state.mixMode ? 'two' : 'mix');
-    fillPatternList();
-    choose(state.mixMode ? lastMix : lastTwo);
+    goMode(state.mixMode ? 'two' : 'mix');
   });
   slopeBtn.addEventListener('click', function () {
-    setMode(state.slopeMode ? '' : 'slope');
-    fillPatternList();
-    choose(state.slopeMode ? lastSlope : lastRolls);
+    goMode(state.slopeMode ? 'one' : 'slope');
   });
   revBtn.addEventListener('click', function () {
-    if (state.twoMode) { setMode(state.revMode ? 'two' : 'rev2'); fillPatternList(); choose(state.revMode ? lastRev : lastTwo); return; }
-    setMode(state.revMode ? '' : 'rev');         // lanes that change direction, without zips
-    fillPatternList();
-    choose(state.revMode ? lastRev : lastRolls);
+    if (state.twoMode) goMode(state.revMode ? 'two' : 'rev2');
+    else goMode(state.revMode ? 'one' : 'rev');   // lanes that change direction, without zips
   });
 
   /* In zip mode, tapping a number in the strip turns it into a zip, and tapping the zip turns it back. */

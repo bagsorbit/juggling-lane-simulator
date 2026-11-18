@@ -140,6 +140,20 @@ def embed(path="index.html"):
     groups.append({"group": "4 lanes, 2 beats", "items": picked[(4, 2)]})
     groups.append({"group": "4 lanes, 3 beats", "items": picked[(4, 3)][:6]})
     groups.append({"group": "4 lanes, 4 beats", "items": picked[(4, 4)][:6]})
+    # Lanes that change direction (rolled from both ends), added by hand 2026-11-17 and checked in the app's engine.
+    # Waves: one person rolls every lane in turn, the other starts as the first ball arrives and sends them all back.
+    # Only these go on the All patterns wall, not every reversing pattern the search could find.
+    waves = {k: "".join(map(str, range(1, k + 1))) + "-" * k + "|" + "-" * k + "".join(map(str, range(1, k + 1))) for k in (3, 4, 5, 6)}
+    both_ways = {"3": ["111[12]|3[23]33", "-11[12]|3[23]-3"], "4": ["1234|3412", "1324|2413", "1243|4312", "-124|-431"]}
+    groups.append({"group": "Waves (lanes change direction)", "items": [waves[k] for k in (3, 4, 5, 6)]})
+    groups.append({"group": "Lanes change direction", "items": both_ways["3"] + both_ways["4"]})
+    for k, w in waves.items():
+        everything.setdefault(str(k), {})[str(2 * k)] = (everything.get(str(k), {}).get(str(2 * k), "") + " " + w).strip()
+        expected[w] = {str(k): k}
+    for k, ps in both_ways.items():
+        everything[k]["4"] = everything[k]["4"] + " " + " ".join(ps)
+    expected.update({"111[12]|3[23]33": {"3": 1, "5": 2}, "-11[12]|3[23]-3": {"4": 2},
+                     "1234|3412": {"2": 1, "4": 2}, "1324|2413": {"2": 1, "4": 2}, "1243|4312": {"2": 1, "4": 2}, "-124|-431": {"2": 1, "4": 2}})
     top = [picked[(3, 2)][0], picked[(4, 2)][0], picked[(3, 3)][0], picked[(4, 3)][0], picked[(4, 4)][0]]
     block = ('<script id="mixed-patterns">\nconst MIX_LIST = ' + json.dumps(groups, separators=(",", ":")) +
              ';\nconst MIX_TOP = ' + json.dumps(top) + ';\nconst ALL_MIX = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')

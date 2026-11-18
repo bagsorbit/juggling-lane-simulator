@@ -286,6 +286,8 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   .strip.long { gap: 3px; }
   .strip.long .tile { width: 22px; height: 28px; font-size: 15px; }
   .strip.long .pair.br .tile { width: 16px; height: 26px; font-size: 13px; }
+  .strip.xlong .rows { gap: 4px 3px; }
+  .strip.xlong .tile { width: 18px; height: 26px; font-size: 13px; }
   body:not(.info-open) .info:not(.bad) { display: none; }
   .f-pattern > span small { display: none; }
 }
@@ -421,7 +423,7 @@ const JLS = (function () {
   const MAX_BALLS = 9;
   const MAX_ZIP_BEATS = 10;
   const MAX_BRACKETS = 12;
-  const MAX_RHYTHM_BEATS = 8;
+  const MAX_RHYTHM_BEATS = 12;
 
   // [name, pattern]. Versions of one name (Helter Skelter Triple, Quad, Quin, Hex) share one picture.
   const CATALOGUE = [
@@ -472,12 +474,15 @@ const JLS = (function () {
     rows.forEach(function (row, x) { row.forEach(function (act) { rolls[x] += act.length; act.forEach(function (l) { lanes = Math.max(lanes, l); }); }); });
     if (!rolls[0] && !rolls[1]) return { ok: false, error: 'Nobody rolls anything in that pattern.' };
     if (rolls[0] !== rolls[1]) return { ok: false, error: 'Both people must roll the same number of balls each loop. Here one rolls ' + rolls[0] + ' and the other ' + rolls[1] + '.' };
-    const hand = new Array(lanes + 1).fill(-1);
+    // A lane rolled from both ends changes direction (`both`); it has to be empty each time it does, which mixedPlan checks.
+    const hand = new Array(lanes + 1).fill(-1), twoWay = new Array(lanes + 1).fill(false);
     for (let x = 0; x < 2; x++) for (const act of rows[x]) for (const lane of act) {
-      if (hand[lane] === -1) hand[lane] = x;
-      else if (hand[lane] !== x) return { ok: false, error: 'Lane ' + lane + ' is rolled from both ends, so it would have to run both ways.' };
+      if (hand[lane] === -1 && !twoWay[lane]) hand[lane] = x;
+      else if (hand[lane] !== x) { twoWay[lane] = true; hand[lane] = -1; }
     }
-    return { ok: true, text: s, seq: new Array(P).fill(0), rows: rows, lanes: lanes, hand: hand, mixed: true, zip: false };
+    const out = { ok: true, text: s, seq: new Array(P).fill(0), rows: rows, lanes: lanes, hand: hand, mixed: true, zip: false };
+    if (twoWay.indexOf(true) !== -1) out.both = true;
+    return out;
   }
 
   /* Two-person patterns where each person rolls two balls at once, written [14][23].
@@ -722,19 +727,52 @@ const JLS = (function () {
       for (const sl of slots[x]) if (sl.beat <= mod(t, P)) c++;
       return c;
     }
-    for (let D = 1; D <= 9; D++) {
+    // Lanes that change direction: prefer the speed where no ball waits in a hand, so each person starts their
+    // run just as the first ball reaches them. Otherwise the fastest speed that works.
+    let first = null;
+    for (let D = 1; D <= (pat.both ? 12 : 9); D++) {
       const stock = [];
-      let ok = true;
+      let ok = true, waits = false;
       for (let x = 0; x < 2; x++) {
         let c = -Infinity;
         for (let t = 0; t < P; t++) c = Math.max(c, thrown(x, t) - thrown(1 - x, t - D));       // never short of a ball to roll
-        for (let t = 0; t < P; t++) if (c + thrown(1 - x, t - D) - thrown(x, t - 1) > 2) ok = false;   // never more than two in hand
+        for (let t = 0; t < P; t++) {
+          const held = c + thrown(1 - x, t - D) - thrown(x, t - 1);
+          if (held > 2) ok = false;                                                            // never more than two in hand
+          if (held > pat.rows[x][t].length) waits = true;
+        }
         stock.push(c);
       }
       // stock[x] counts every ball person x has been sent and not rolled back, so together they are all the balls
-      if (ok && stock[0] + stock[1] === n) return { P: P, r: r, slots: slots, D: D, stock: stock, n: n, lanes: pat.lanes, average: D, thrown: thrown };
+      if (ok && pat.both && rhClash(pat.rows, D)) ok = false;
+      if (!ok || stock[0] + stock[1] !== n) continue;
+      const plan = { P: P, r: r, slots: slots, D: D, stock: stock, n: n, lanes: pat.lanes, average: D, thrown: thrown };
+      if (!pat.both || !waits) return plan;
+      if (!first) first = plan;
     }
-    return null;
+    return first;
+  }
+  /* Lanes rolled from both ends: true if a ball would meet one coming the other way. A ball rolled on beat t is
+   * still in its lane until just before beat t + D, so rolls from opposite ends into one lane must be D beats apart. */
+  function rhClash(rows, D) {
+    const P = rows[0].length, ev = [];
+    rows.forEach(function (row, x) { row.forEach(function (act, t) { act.forEach(function (lane) { ev.push([t, x, lane]); }); }); });
+    for (const a of ev) for (const b of ev) {
+      if (a[1] === b[1] || a[2] !== b[2]) continue;
+      for (let k = -Math.ceil(D / P) - 1; k <= Math.ceil(D / P) + 1; k++) if (Math.abs(b[0] + k * P - a[0]) < D) return true;
+    }
+    return false;
+  }
+  /* For each lane, which end rolled into it last at time u (so which way it is running), or -1. */
+  function mixedLaneHands(u, plan) {
+    const out = new Array(plan.lanes + 1).fill(-1), last = new Array(plan.lanes + 1).fill(-Infinity), b = Math.floor(2 * u);
+    for (let x = 0; x < 2; x++) {
+      for (let m = plan.thrown(x, b) - 1, k = 0; k < 2 * plan.r + 2; m--, k++) {
+        const t = rhBeat(plan, x, m), lane = rhLane(plan, x, m);
+        if (t > last[lane]) { last[lane] = t; out[lane] = x; }
+      }
+    }
+    return out;
   }
   /* Person x's m-th roll ever (m can be negative): when, and into which lane. Their m-th roll is the ball from
    * the other person's (m - stock[x])-th roll. */
@@ -1087,7 +1125,7 @@ const JLS = (function () {
            parse: parse, timing: timing, nextRoll: nextRoll,
            SLOPE_PATTERNS: SLOPE_PATTERNS, slopeText: slopeText, slopePlan: slopePlan, slopeHands: slopeHands, slopeBalls: slopeBalls,
            revOk: revOk, laneHands: laneHands,
-           mixedPlan: mixedPlan, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths,
+           mixedPlan: mixedPlan, mixedLaneHands: mixedLaneHands, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths,
            hands2: hands2, pairBalls: pairBalls, pairHands: pairHands,
            solveTiming: solveTiming, zipPlan: zipPlan, zipBalls: zipBalls, zipHands: zipHands, zipHands2: zipHands2, zipPaths: zipPaths, balls: balls, hands: hands, active: active };
 })();
@@ -1302,9 +1340,9 @@ function iconSvg(name) {
 </script>
 
 <script id="mixed-patterns">
-const MIX_LIST = [{"group":"3 lanes","items":["[13]-|22","11|-[23]","111|-2[23]","111|-3[23]","1[13]-|222","1111|-22[23]","1111|-23[23]","1111|-32[23]","1111|-33[23]","11[13]-|2222","13[13]-|2222"]},{"group":"4 lanes, 2 beats","items":["12|-[34]","12|[34]-","13|-[24]","13|[24]-","14|-[23]","[14]-|23"]},{"group":"4 lanes, 3 beats","items":["1[12]-|4[34]-","1[13]-|4[24]-","[12]-2|[34]-3","[13]-3|[24]-2","111|-2[34]","111|-3[24]"]},{"group":"4 lanes, 4 beats","items":["1144|-[23]-[23]","1144|[23]-[23]-","[14]-[14]-|2233","[14]-[14]-|2332","11[12]-|44[34]-","11[12]-|[34]-44"]}];
+const MIX_LIST = [{"group":"3 lanes","items":["[13]-|22","11|-[23]","111|-2[23]","111|-3[23]","1[13]-|222","1111|-22[23]","1111|-23[23]","1111|-32[23]","1111|-33[23]","11[13]-|2222","13[13]-|2222"]},{"group":"4 lanes, 2 beats","items":["12|-[34]","12|[34]-","13|-[24]","13|[24]-","14|-[23]","[14]-|23"]},{"group":"4 lanes, 3 beats","items":["1[12]-|4[34]-","1[13]-|4[24]-","[12]-2|[34]-3","[13]-3|[24]-2","111|-2[34]","111|-3[24]"]},{"group":"4 lanes, 4 beats","items":["1144|-[23]-[23]","1144|[23]-[23]-","[14]-[14]-|2233","[14]-[14]-|2332","11[12]-|44[34]-","11[12]-|[34]-44"]},{"group":"Waves (lanes change direction)","items":["123---|---123","1234----|----1234","12345-----|-----12345","123456------|------123456"]},{"group":"Lanes change direction","items":["111[12]|3[23]33","-11[12]|3[23]-3","1234|3412","1324|2413","1243|4312","-124|-431"]}];
 const MIX_TOP = ["[13]-|22", "12|-[34]", "111|-2[23]", "1[12]-|4[34]-", "1144|-[23]-[23]"];
-const ALL_MIX = {"3":{"2":"11|-[23] [13]-|22","3":"111|-2[23] 111|-3[23] 1[13]-|222","4":"1111|-22[23] 1111|-23[23] 1111|-32[23] 1111|-33[23] 11[13]-|2222 13[13]-|2222"},"4":{"2":"12|-[34] 12|[34]- 13|-[24] 13|[24]- 14|-[23] [14]-|23","3":"111|-2[34] 111|-3[24] 111|-4[23] 112|-3[34] 112|-4[34] 112|3[34]- 112|4[34]- 112|[34]-3 112|[34]-4 113|-2[24] 113|-4[24] 113|2[24]- 113|4[24]- 113|[24]-2 113|[24]-4 114|-2[23] 114|-3[23] 114|2[23]- 114|3[23]- 114|[23]-2 114|[23]-3 122|-3[34] 122|-4[34] 122|3[34]- 122|4[34]- 122|[34]-3 122|[34]-4 133|-2[24] 133|-4[24] 133|2[24]- 133|4[24]- 133|[24]-2 133|[24]-4 1[12]-|-3[34] 1[12]-|-4[34] 1[12]-|3[34]- 1[12]-|4[34]- 1[12]-|[34]-3 1[13]-|-2[24] 1[13]-|-4[24] 1[13]-|2[24]- 1[13]-|4[24]- 1[13]-|[24]-2 1[14]-|-2[23] 1[14]-|-3[23] 1[14]-|223 1[14]-|232 1[14]-|233 1[14]-|2[23]- 1[14]-|322 1[14]-|323 1[14]-|332 1[14]-|3[23]- 1[14]-|[23]-2 1[14]-|[23]-3 1[24]-|333 1[34]-|222 [12]-2|-3[34] [12]-2|[34]-3 [13]-3|-2[24] [13]-3|[24]-2 [14]-2|333","4":"1111|-22[34] 1111|-23[24] 1111|-23[34] 1111|-24[23] 1111|-24[34] 1111|-32[24] 1111|-32[34] 1111|-33[24] 1111|-34[23] 1111|-34[24] 1111|-42[23] 1111|-42[34] 1111|-43[23] 1111|-43[24] 1111|-44[23] 1111|-[23]-[24] 1111|-[23]-[34] 1111|-[24]-[34] 1112|-33[34] 1112|-34[34] 1112|-43[34] 1112|-44[34] 1112|-[34]-[34] 1112|33[34]- 1112|34[34]- 1112|3[34]-3 1112|3[34]-4 1112|43[34]- 1112|44[34]- 1112|4[34]-3 1112|4[34]-4 1112|[34]-33 1112|[34]-34 1112|[34]-43 1112|[34]-44 1112|[34]-[34]- 1113|-22[24] 1113|-24[24] 1113|-42[24] 1113|-44[24] 1113|-[24]-[24] 1113|22[24]- 1113|24[24]- 1113|2[24]-2 1113|2[24]-4 1113|42[24]- 1113|44[24]- 1113|4[24]-2 1113|4[24]-4 1113|[24]-22 1113|[24]-24 1113|[24]-42 1113|[24]-44 1113|[24]-[24]- 1114|-22[23] 1114|-23[23] 1114|-32[23] 1114|-33[23] 1114|-[23]-[23] 1114|22[23]- 1114|23[23]- 1114|2[23]-2 1114|2[23]-3 1114|32[23]- 1114|33[23]- 1114|3[23]-2 1114|3[23]-3 1114|[23]-22 1114|[23]-23 1114|[23]-32 1114|[23]-33 1114|[23]-[23]- 1122|-33[34] 1122|-34[34] 1122|-43[34] 1122|-44[34] 1122|-[34]-[34] 1122|33[34]- 1122|34[34]- 1122|3[34]-3 1122|3[34]-4 1122|43[34]- 1122|44[34]- 1122|4[34]-3 1122|4[34]-4 1122|[34]-33 1122|[34]-34 1122|[34]-43 1122|[34]-44 1122|[34]-[34]- 1133|-22[24] 1133|-24[24] 1133|-42[24] 1133|-44[24] 1133|-[24]-[24] 1133|22[24]- 1133|24[24]- 1133|2[24]-2 1133|2[24]-4 1133|42[24]- 1133|44[24]- 1133|4[24]-2 1133|4[24]-4 1133|[24]-22 1133|[24]-24 1133|[24]-42 1133|[24]-44 1133|[24]-[24]- 1144|-22[23] 1144|-23[23] 1144|-32[23] 1144|-33[23] 1144|-[23]-[23] 1144|22[23]- 1144|23[23]- 1144|32[23]- 1144|33[23]- 1144|[23]-[23]- 11[12]-|3334 11[12]-|3343 11[12]-|33[34]- 11[12]-|3433 11[12]-|3434 11[12]-|34[34]- 11[12]-|4333 11[12]-|4343 11[12]-|43[34]- 11[12]-|44[34]- 11[12]-|[34]-33 11[12]-|[34]-34 11[12]-|[34]-43 11[12]-|[34]-44 11[13]-|2224 11[13]-|2242 11[13]-|22[24]- 11[13]-|2422 11[13]-|2424 11[13]-|24[24]- 11[13]-|4222 11[13]-|4242 11[13]-|42[24]- 11[13]-|44[24]- 11[13]-|[24]-22 11[13]-|[24]-24 11[13]-|[24]-42 11[13]-|[24]-44 11[14]-|2223 11[14]-|2232 11[14]-|2233 11[14]-|22[23]- 11[14]-|2322 11[14]-|2323 11[14]-|2332 11[14]-|2333 11[14]-|23[23]- 11[14]-|3222 11[14]-|3223 11[14]-|3232 11[14]-|3233 11[14]-|32[23]- 11[14]-|3322 11[14]-|3323 11[14]-|3332 11[14]-|33[23]- 11[14]-|[23]-22 11[14]-|[23]-23 11[14]-|[23]-32 11[14]-|[23]-33 11[24]-|3333 11[34]-|2222 1212|-33[34] 1212|-34[34] 1212|-43[34] 1212|33[34]- 1212|34[34]- 1212|43[34]- 1222|-33[34] 1222|-34[34] 1222|-43[34] 1222|-[34]-[34] 1222|33[34]- 1222|34[34]- 1222|3[34]-3 1222|3[34]-4 1222|43[34]- 1222|4[34]-3 1222|[34]-33 1222|[34]-34 1222|[34]-43 1222|[34]-[34]- 12[12]-|33[34]- 12[12]-|34[34]- 12[12]-|43[34]- 12[12]-|[34]-33 12[12]-|[34]-34 12[12]-|[34]-43 12[14]-|3333 12[24]-|3333 1313|-22[24] 1313|-24[24] 1313|-42[24] 1313|22[24]- 1313|24[24]- 1313|42[24]- 1333|-22[24] 1333|-24[24] 1333|-42[24] 1333|-[24]-[24] 1333|22[24]- 1333|24[24]- 1333|2[24]-2 1333|2[24]-4 1333|42[24]- 1333|4[24]-2 1333|[24]-22 1333|[24]-24 1333|[24]-42 1333|[24]-[24]- 13[13]-|22[24]- 13[13]-|24[24]- 13[13]-|42[24]- 13[13]-|[24]-22 13[13]-|[24]-24 13[13]-|[24]-42 13[14]-|2222 13[34]-|2222 1414|-22[23] 1414|-23[23] 1414|-32[23] 1414|-33[23] 14[12]-|3333 14[13]-|2222 14[14]-|2223 14[14]-|2232 14[14]-|2233 14[14]-|22[23]- 14[14]-|2322 14[14]-|2323 14[14]-|2332 14[14]-|2333 14[14]-|23[23]- 14[14]-|3222 14[14]-|3223 14[14]-|3232 14[14]-|3233 14[14]-|32[23]- 14[14]-|3322 14[14]-|3323 14[14]-|3332 14[14]-|33[23]- 14[14]-|[23]-22 14[14]-|[23]-23 14[14]-|[23]-32 14[14]-|[23]-33 14[24]-|3333 14[34]-|2222 1[12]-2|-33[34] 1[12]-2|-34[34] 1[12]-2|3[34]-3 1[12]-2|4[34]-3 1[13]-3|-22[24] 1[13]-3|-24[24] 1[13]-3|2[24]-2 1[13]-3|4[24]-2 1[14]-2|3333 1[14]-3|2222 1[24]-2|3333 1[34]-3|2222 [12]-22|33[34]- [12]-22|[34]-33 [12]-[14]-|3333 [12]-[24]-|3333 [13]-33|22[24]- [13]-33|[24]-22 [13]-[14]-|2222 [14]-22|3333 [14]-[14]-|2223 [14]-[14]-|2232 [14]-[14]-|2233 [14]-[14]-|2332"}};
+const ALL_MIX = {"3":{"2":"11|-[23] [13]-|22","3":"111|-2[23] 111|-3[23] 1[13]-|222","4":"1111|-22[23] 1111|-23[23] 1111|-32[23] 1111|-33[23] 11[13]-|2222 13[13]-|2222 111[12]|3[23]33 -11[12]|3[23]-3","6":"123---|---123"},"4":{"2":"12|-[34] 12|[34]- 13|-[24] 13|[24]- 14|-[23] [14]-|23","3":"111|-2[34] 111|-3[24] 111|-4[23] 112|-3[34] 112|-4[34] 112|3[34]- 112|4[34]- 112|[34]-3 112|[34]-4 113|-2[24] 113|-4[24] 113|2[24]- 113|4[24]- 113|[24]-2 113|[24]-4 114|-2[23] 114|-3[23] 114|2[23]- 114|3[23]- 114|[23]-2 114|[23]-3 122|-3[34] 122|-4[34] 122|3[34]- 122|4[34]- 122|[34]-3 122|[34]-4 133|-2[24] 133|-4[24] 133|2[24]- 133|4[24]- 133|[24]-2 133|[24]-4 1[12]-|-3[34] 1[12]-|-4[34] 1[12]-|3[34]- 1[12]-|4[34]- 1[12]-|[34]-3 1[13]-|-2[24] 1[13]-|-4[24] 1[13]-|2[24]- 1[13]-|4[24]- 1[13]-|[24]-2 1[14]-|-2[23] 1[14]-|-3[23] 1[14]-|223 1[14]-|232 1[14]-|233 1[14]-|2[23]- 1[14]-|322 1[14]-|323 1[14]-|332 1[14]-|3[23]- 1[14]-|[23]-2 1[14]-|[23]-3 1[24]-|333 1[34]-|222 [12]-2|-3[34] [12]-2|[34]-3 [13]-3|-2[24] [13]-3|[24]-2 [14]-2|333","4":"1111|-22[34] 1111|-23[24] 1111|-23[34] 1111|-24[23] 1111|-24[34] 1111|-32[24] 1111|-32[34] 1111|-33[24] 1111|-34[23] 1111|-34[24] 1111|-42[23] 1111|-42[34] 1111|-43[23] 1111|-43[24] 1111|-44[23] 1111|-[23]-[24] 1111|-[23]-[34] 1111|-[24]-[34] 1112|-33[34] 1112|-34[34] 1112|-43[34] 1112|-44[34] 1112|-[34]-[34] 1112|33[34]- 1112|34[34]- 1112|3[34]-3 1112|3[34]-4 1112|43[34]- 1112|44[34]- 1112|4[34]-3 1112|4[34]-4 1112|[34]-33 1112|[34]-34 1112|[34]-43 1112|[34]-44 1112|[34]-[34]- 1113|-22[24] 1113|-24[24] 1113|-42[24] 1113|-44[24] 1113|-[24]-[24] 1113|22[24]- 1113|24[24]- 1113|2[24]-2 1113|2[24]-4 1113|42[24]- 1113|44[24]- 1113|4[24]-2 1113|4[24]-4 1113|[24]-22 1113|[24]-24 1113|[24]-42 1113|[24]-44 1113|[24]-[24]- 1114|-22[23] 1114|-23[23] 1114|-32[23] 1114|-33[23] 1114|-[23]-[23] 1114|22[23]- 1114|23[23]- 1114|2[23]-2 1114|2[23]-3 1114|32[23]- 1114|33[23]- 1114|3[23]-2 1114|3[23]-3 1114|[23]-22 1114|[23]-23 1114|[23]-32 1114|[23]-33 1114|[23]-[23]- 1122|-33[34] 1122|-34[34] 1122|-43[34] 1122|-44[34] 1122|-[34]-[34] 1122|33[34]- 1122|34[34]- 1122|3[34]-3 1122|3[34]-4 1122|43[34]- 1122|44[34]- 1122|4[34]-3 1122|4[34]-4 1122|[34]-33 1122|[34]-34 1122|[34]-43 1122|[34]-44 1122|[34]-[34]- 1133|-22[24] 1133|-24[24] 1133|-42[24] 1133|-44[24] 1133|-[24]-[24] 1133|22[24]- 1133|24[24]- 1133|2[24]-2 1133|2[24]-4 1133|42[24]- 1133|44[24]- 1133|4[24]-2 1133|4[24]-4 1133|[24]-22 1133|[24]-24 1133|[24]-42 1133|[24]-44 1133|[24]-[24]- 1144|-22[23] 1144|-23[23] 1144|-32[23] 1144|-33[23] 1144|-[23]-[23] 1144|22[23]- 1144|23[23]- 1144|32[23]- 1144|33[23]- 1144|[23]-[23]- 11[12]-|3334 11[12]-|3343 11[12]-|33[34]- 11[12]-|3433 11[12]-|3434 11[12]-|34[34]- 11[12]-|4333 11[12]-|4343 11[12]-|43[34]- 11[12]-|44[34]- 11[12]-|[34]-33 11[12]-|[34]-34 11[12]-|[34]-43 11[12]-|[34]-44 11[13]-|2224 11[13]-|2242 11[13]-|22[24]- 11[13]-|2422 11[13]-|2424 11[13]-|24[24]- 11[13]-|4222 11[13]-|4242 11[13]-|42[24]- 11[13]-|44[24]- 11[13]-|[24]-22 11[13]-|[24]-24 11[13]-|[24]-42 11[13]-|[24]-44 11[14]-|2223 11[14]-|2232 11[14]-|2233 11[14]-|22[23]- 11[14]-|2322 11[14]-|2323 11[14]-|2332 11[14]-|2333 11[14]-|23[23]- 11[14]-|3222 11[14]-|3223 11[14]-|3232 11[14]-|3233 11[14]-|32[23]- 11[14]-|3322 11[14]-|3323 11[14]-|3332 11[14]-|33[23]- 11[14]-|[23]-22 11[14]-|[23]-23 11[14]-|[23]-32 11[14]-|[23]-33 11[24]-|3333 11[34]-|2222 1212|-33[34] 1212|-34[34] 1212|-43[34] 1212|33[34]- 1212|34[34]- 1212|43[34]- 1222|-33[34] 1222|-34[34] 1222|-43[34] 1222|-[34]-[34] 1222|33[34]- 1222|34[34]- 1222|3[34]-3 1222|3[34]-4 1222|43[34]- 1222|4[34]-3 1222|[34]-33 1222|[34]-34 1222|[34]-43 1222|[34]-[34]- 12[12]-|33[34]- 12[12]-|34[34]- 12[12]-|43[34]- 12[12]-|[34]-33 12[12]-|[34]-34 12[12]-|[34]-43 12[14]-|3333 12[24]-|3333 1313|-22[24] 1313|-24[24] 1313|-42[24] 1313|22[24]- 1313|24[24]- 1313|42[24]- 1333|-22[24] 1333|-24[24] 1333|-42[24] 1333|-[24]-[24] 1333|22[24]- 1333|24[24]- 1333|2[24]-2 1333|2[24]-4 1333|42[24]- 1333|4[24]-2 1333|[24]-22 1333|[24]-24 1333|[24]-42 1333|[24]-[24]- 13[13]-|22[24]- 13[13]-|24[24]- 13[13]-|42[24]- 13[13]-|[24]-22 13[13]-|[24]-24 13[13]-|[24]-42 13[14]-|2222 13[34]-|2222 1414|-22[23] 1414|-23[23] 1414|-32[23] 1414|-33[23] 14[12]-|3333 14[13]-|2222 14[14]-|2223 14[14]-|2232 14[14]-|2233 14[14]-|22[23]- 14[14]-|2322 14[14]-|2323 14[14]-|2332 14[14]-|2333 14[14]-|23[23]- 14[14]-|3222 14[14]-|3223 14[14]-|3232 14[14]-|3233 14[14]-|32[23]- 14[14]-|3322 14[14]-|3323 14[14]-|3332 14[14]-|33[23]- 14[14]-|[23]-22 14[14]-|[23]-23 14[14]-|[23]-32 14[14]-|[23]-33 14[24]-|3333 14[34]-|2222 1[12]-2|-33[34] 1[12]-2|-34[34] 1[12]-2|3[34]-3 1[12]-2|4[34]-3 1[13]-3|-22[24] 1[13]-3|-24[24] 1[13]-3|2[24]-2 1[13]-3|4[24]-2 1[14]-2|3333 1[14]-3|2222 1[24]-2|3333 1[34]-3|2222 [12]-22|33[34]- [12]-22|[34]-33 [12]-[14]-|3333 [12]-[24]-|3333 [13]-33|22[24]- [13]-33|[24]-22 [13]-[14]-|2222 [14]-22|3333 [14]-[14]-|2223 [14]-[14]-|2232 [14]-[14]-|2233 [14]-[14]-|2332 1234|3412 1324|2413 1243|4312 -124|-431","8":"1234----|----1234"},"5":{"10":"12345-----|-----12345"},"6":{"12":"123456------|------123456"}};
 </script>
 
 <script id="rev-pair-patterns">
@@ -1579,6 +1617,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function buildStrip() {
     buildStripTiles();
     strip.classList.toggle('long', strip.querySelectorAll('.tile').length > 8);   // phones shrink long patterns to fit one line
+    strip.classList.toggle('xlong', strip.querySelectorAll('.tile').length > 16);  // and the longest (the 6-lane wave) a bit more
     strip.appendChild(infoBtn);
   }
   function buildStripTiles() {
@@ -2011,7 +2050,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       add(ALL_ZIPS, '');
     } else if (state.mixMode) {
       wallTitle.textContent = 'All mixed patterns';
-      wallNote.textContent = 'Two-person patterns where each person keeps their own rhythm. Each one is two rows with a | between them, the first person then the second. On each beat a person rolls one lane, rolls two lanes together (in brackets), or rests (-) on the beat after a pair. Every ball rolls at the same speed, and a ball that arrives early waits in a hand. Most work with 3, 5, 7 or 9 balls. Tap one to play it.' + same;
+      wallNote.textContent = 'Two-person patterns where each person keeps their own rhythm. Each one is two rows with a | between them, the first person then the second. On each beat a person rolls one lane, rolls two lanes together (in brackets), or rests (-). Every ball rolls at the same speed, and a ball that arrives early waits in a hand. Most work with 3, 5, 7 or 9 balls. A few at the end of each section have lanes rolled from both ends, so those lanes change direction, like the waves. Tap one to play it.' + same;
       add(ALL_MIX, '');
     } else if (state.revMode) {
       wallTitle.textContent = 'All reversing patterns';
@@ -2127,7 +2166,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   function drawBoard(g) {
     const pat = state.pat;
-    const running = pat.rev ? JLS.laneHands(u, pat, state.n) : pat.hand;   // which hand each lane is running away from
+    const running = pat.rev ? JLS.laneHands(u, pat, state.n) : pat.both && mplan ? JLS.mixedLaneHands(u, mplan) : pat.hand;   // which hand each lane is running away from
     const bw = g.bx1 - g.bx0;
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
 

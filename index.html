@@ -2893,6 +2893,15 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     return html;
   }
 
+  /* Ping Pong: the hand arcs up and over the ball rolling past it, twice each turn: on the way in to place its
+     ball (the last bit of the carry, as the incoming ball goes by underneath), and on the way back to grab it. */
+  const PING_ARC = 0.35 / (2 - 0.3);                          // the last 0.35 beats of the 1.7-beat carry
+  function pingLift(g, holding, p) {
+    if (!state.pat.ping) return 0;
+    const q = holding ? (p - (1 - PING_ARC)) / PING_ARC : p;
+    return q > 0 && q < 1 ? Math.sin(Math.PI * q) * g.pitch * 0.45 : 0;
+  }
+
   function draw() {
     if (!W || !H) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -2912,8 +2921,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     for (const h of hs) {
       const side = sideOf(h.hand);
       const pt = segPoint(g, side, h.from, h.to, h.p, h.holding);
-      // in Ping Pong, coming back from a placing the hand hops up in a little arc and down onto the ball that rolled past
-      if (state.pat.ping && !h.holding) pt.y -= Math.sin(Math.PI * clamp(h.p, 0, 1)) * g.pitch * 0.45;
+      pt.y -= pingLift(g, h.holding, h.p);
       drawHand(g, pt.x + side * handOffset, pt.y, side, h.letter, h.thumbUp);
     }
     for (const b of bs) {
@@ -2923,7 +2931,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         drawBall(g, lerp(g.endX(side), g.endX(-side), b.p), g.laneY(b.lane), b.id);
       } else {
         const pt = segPoint(g, sideOf(b.hand), b.from, b.to, b.p, true);
-        drawBall(g, pt.x, pt.y, b.id);
+        drawBall(g, pt.x, pt.y - pingLift(g, true, b.p), b.id);
       }
     }
   }

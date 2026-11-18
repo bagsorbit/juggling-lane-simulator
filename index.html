@@ -2679,10 +2679,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function segPoint(g, side, from, to, p, holding) {
     if (holding && from.pp && to.pp) {                        // Ping Pong carry: along the ends to the new lane, then up it
       // to a new lane: wait at the grab, slide along the ends just in time, then go up the lane
+      // the two moves overlap a little, so the hand curves round the corner instead of stopping in it
       const m = pingMoves(from, to), a = placePoint(g, side, from), b = placePoint(g, side, to);
-      if (p < m.wait) return a;
-      if (p < m.go) return { x: a.x, y: lerp(a.y, b.y, smooth((p - m.wait) / (m.go - m.wait))) };
-      return { x: lerp(a.x, b.x, smooth((p - m.go) / (1 - m.go))), y: b.y };
+      if (m.go === 0) return { x: lerp(a.x, b.x, smooth(p)), y: lerp(a.y, b.y, smooth(p)) };
+      const round = 0.35 * Math.min(m.go - m.wait, 1 - m.go);
+      const across = clamp((p - m.wait) / (m.go + round - m.wait), 0, 1), up = clamp((p - (m.go - round)) / (1 - m.go + round), 0, 1);
+      return { x: lerp(a.x, b.x, smooth(up)), y: lerp(a.y, b.y, smooth(across)) };
     }
     if (from.lane && to.lane) return holding ? carryPoint(g, side, from.lane, to.lane, p) : reachPoint(g, side, from.lane, to.lane, p);
     const a = placePoint(g, side, from), b = placePoint(g, side, to);
@@ -2736,7 +2738,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         ctx.lineTo((a.x + b.x) / 2 + p.side * apart(g), (a.y + b.y) / 2);
         ctx.lineTo(b.x, b.y);
       } else {
-        if (p.from.pp && p.to.pp && p.from.pp !== p.to.pp) ctx.lineTo(a.x, b.y);   // Ping Pong: along the ends first
+        if (p.from.pp && p.to.pp && p.from.pp !== p.to.pp) {    // Ping Pong: along the ends first, round the corner
+          ctx.arcTo(a.x, b.y, b.x, b.y, Math.min(Math.abs(b.y - a.y), Math.abs(b.x - a.x)) * 0.5);
+        }
         ctx.lineTo(b.x, b.y);
       }
       ctx.stroke();

@@ -450,7 +450,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 8h15l-3.500-3.500M20 16H5l3.500 3.500"/></svg><span><b>Reverses</b>: patterns in which lanes change direction. Works with 1 or 2 people.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M5 5H2.500v9H5M12 5h2.500v9H12"/><circle cx="6" cy="9.500" r="1.300"/><circle cx="11" cy="9.500" r="1.300"/><circle cx="20" cy="9.500" r="1.300"/><path d="M3 20h18"/></svg><span><b>Mixed</b>: two people, each keeping their own rhythm of single rolls and pairs.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M3 20h18V8z"/><circle cx="8" cy="11.500" r="2.300"/></svg><span><b>Slope</b>: toss-juggling patterns. You sit at the bottom, place balls up the sloping lanes, and they roll back to you.</span></li>
-    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M14.200 14.700l5 5" stroke-width="5.200"/><path d="M14.200 14.700l5 5" stroke="#e8a85c" stroke-width="2.200"/><circle cx="9.500" cy="10" r="6.800" fill="#ff8787"/><circle cx="20" cy="4.500" r="2.300" fill="#ffd43b" stroke-width="1.800"/></svg><span><b>Ping Pong</b>: three balls. Just after a ball rolls past, the hand places its own ball a little way up the lane, then jumps back to grab the one that went past, so a lane can be used both ways, even one lane on its own. The grab is in the same lane or the next one. Press + for four balls with both hands at once, written (12): right hand lane 1, left hand lane 2.</span></li>
+    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M14.200 14.700l5 5" stroke-width="5.200"/><path d="M14.200 14.700l5 5" stroke="#e8a85c" stroke-width="2.200"/><circle cx="9.500" cy="10" r="6.800" fill="#ff8787"/><circle cx="20" cy="4.500" r="2.300" fill="#ffd43b" stroke-width="1.800"/></svg><span><b>Ping Pong</b>: three balls. Just after a ball rolls past, the hand places its own ball a little way up the lane, then jumps back to grab the one that went past, so a lane can be used both ways, even one lane on its own. The grab is in the same lane or the next one. Patterns in brackets use four balls with both hands at once: (12) is the right hand in lane 1 and the left in lane 2.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#fff" stroke="#2d2a4a" stroke-width="2.4"/><g fill="#2d2a4a"><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="8" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="8" cy="16" r="1.9"/><circle cx="16" cy="16" r="1.9"/></g></svg><span><b>Random top 5</b>: plays one of the five starred patterns.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="2" width="13.5" height="13.5" rx="3.5" fill="#fff" stroke="#2d2a4a" stroke-width="2.2"/><g fill="#2d2a4a"><circle cx="13" cy="6.500" r="1.400"/><circle cx="17.500" cy="11" r="1.400"/></g><rect x="2" y="8.5" width="13.5" height="13.5" rx="3.5" fill="#fff" stroke="#2d2a4a" stroke-width="2.2"/><g fill="#2d2a4a"><circle cx="6" cy="12.500" r="1.400"/><circle cx="8.750" cy="15.250" r="1.400"/><circle cx="11.500" cy="18" r="1.400"/></g></svg><span><b>Random all modes</b>: plays a starred pattern from any mode, and switches to that mode.</span></li>
   <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#ff7b6e" stroke-width="3.4" stroke-linecap="round" fill="none"><path d="M6 6l12 12M18 6L6 18"/></svg><span><b>Red X</b>: shows while a mode is on. Tap it to go back to plain 1 person or 2 people.</span></li>
@@ -1787,7 +1787,6 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function modeName() { return state.pingMode ? 'ping' : state.slopeMode ? 'slope' : state.zipMode && state.twoMode ? 'zip2' : state.zipMode ? 'zip' : state.revMode && state.twoMode ? 'rev2' : state.mixMode ? 'mix' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
 
   /* Switch to a pattern and ball count. Returns '' if it worked, or the reason it can't be played. */
-  const pingLast = {};          // the last Ping Pong pattern of each kind (3 or 4 balls), for the ball buttons
   function setPattern(parsed, n) {
     if (!parsed.ok) return parsed.error;
     if (parsed.two && !state.twoMode) return 'A p is a pass to the other person, which needs two people. Turn on 2 people first.';
@@ -1814,7 +1813,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (parsed.ping && !JLS.pingOk(parsed)) return parsed.sync
       ? 'With both hands at once, the two lanes in each bracket must differ (or the balls would meet), and each lane has to be the same as, or next to, the lane the other hand used just before, so the hand can grab the ball that just rolled past.'
       : 'In Ping Pong each roll has to be in the same lane as the roll before it, or the lane next to it, so the hand can grab the ball that just rolled past.';
-    if (parsed.ping) { n = parsed.sync ? 4 : 3; pingLast[n] = parsed.text; }   // 3 balls one hand at a time, 4 with both together                                  // one ball rolling and one waiting in each hand
+    if (parsed.ping) n = parsed.sync ? 4 : 3;                // 3 balls one hand at a time, 4 with both together                                  // one ball rolling and one waiting in each hand
     if (parsed.rev) {
       // lanes that change direction must be empty when they do, which limits the ball count
       let m = 0;
@@ -2145,8 +2144,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function ballStep() { return state.pat.pairs ? 2 : 1; }
   /* The next ball count up or down that this pattern can be played with, or 0 if there is none. */
   function nextBalls(by) {
-    if (state.pat.ping) return (by > 0) === !state.pat.sync ? (state.pat.sync ? 3 : 4) : 0;   // Ping Pong: 3 balls, or 4 together
-    if (state.pat.slope) return 0;                           // a slope pattern has one ball count
+    if (state.pat.slope || state.pat.ping) return 0;         // slope and Ping Pong patterns have one ball count
     for (let n = state.n + by * ballStep(); n >= ballLimits()[0] && n <= ballLimits()[1]; n += by * ballStep()) {
       if (state.pat.zip ? JLS.zipPlan(state.pat, n) : state.pat.mixed ? JLS.mixedPlan(state.pat, n) : !state.pat.rev || JLS.revOk(state.pat, n)) return n;
     }
@@ -2230,7 +2228,6 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function changeBalls(by) {
     const n = nextBalls(by);
     if (!n) return;
-    if (state.pat.ping) { choose(pingLast[n] || (n === 4 ? '(12)(21)' : TOP5.ping[0])); return; }   // switch to the other kind
     const problem = setPattern(state.pat, n);
     if (problem) { error = problem; showInfo(); return; }
     error = '';

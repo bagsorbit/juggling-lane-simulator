@@ -406,7 +406,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
   <p class="info" id="info" role="status"></p>
 
   <section class="controls" aria-label="Controls">
-    <label class="field f-pattern"><span>Pattern <small>*name comes from 1 ball hand paths</small></span>
+    <label class="field f-pattern"><span>Pattern <small>name (usually) comes from 1 ball paths</small></span>
       <select id="pattern"></select>
     </label>
     <div class="field f-wall"><span>&nbsp;</span>
@@ -1997,7 +1997,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (setPattern(parseAny(text), b >= 1 ? n : startBalls(m, text))) setPattern(JLS.parse(TOP5.one[0]), topBalls('one', TOP5.one[0]));
     if (params.get('start') === 'left') state.startRight = false;
     const sp = parseFloat(params.get('speed'));
-    if (sp >= 0.25 && sp <= 2) state.speed = sp;
+    if (sp >= 0.25 && sp <= 3.5) state.speed = sp;   // up to 3.5 for Ping Pong; other modes stop at 2
     if (params.get('paused') === '1') state.playing = false;
     const t = parseFloat(params.get('t'));
     if (isFinite(t)) u = t;
@@ -2046,6 +2046,10 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     out.splice(out.indexOf(byLanes['4 lanes']) + 1, 0, sync);
     return out;
   }
+  /* On a phone, "siteswap" in the slope patterns is written SS to save room. */
+  const phoneQuery = window.matchMedia ? window.matchMedia('(max-width: 640px), (orientation: landscape) and (max-height: 500px)') : null;
+  function shortText(t) { return phoneQuery && phoneQuery.matches ? t.replace(/siteswap /g, 'SS ') : t; }
+  if (phoneQuery && phoneQuery.addEventListener) phoneQuery.addEventListener('change', function () { const v = selPattern.value; fillPatternList(); selPattern.value = v; });
   function fillPatternList() {
     selPattern.textContent = '';
     const own = document.createElement('option');
@@ -2060,7 +2064,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         const o = document.createElement('option');
         o.value = it[1];
         if (g.top && topBalls(modeName(), it[1])) o.dataset.b = topBalls(modeName(), it[1]);
-        o.textContent = (top.indexOf(it[1]) !== -1 ? '\u2605 ' : '') + (it[0] ? it[0] + '  ·  ' + it[1] : it[1]);
+        o.textContent = (top.indexOf(it[1]) !== -1 ? '\u2605 ' : '') + (it[0] ? it[0] + '  ·  ' + shortText(it[1]) : shortText(it[1]));
         og.appendChild(o);
       });
       selPattern.appendChild(og);
@@ -2350,6 +2354,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     pingBtn.disabled = state.mixMode || state.zipMode || state.revMode || state.slopeMode;   // 1 or 2 people, nothing else
     inCustom.disabled = state.slopeMode;         // slope patterns come from the list only
     btnR.disabled = btnL.disabled = state.slopeMode;   // and always start the same way round
+    // Ping Pong patterns are quick to begin with and can be run faster than the others
+    inSpeed.max = state.pingMode ? '3.5' : '2';
+    if (state.speed > Number(inSpeed.max)) state.speed = Number(inSpeed.max);
     inSpeed.value = state.speed;
     inCustom.setAttribute('inputmode', state.zipMode ? 'text' : 'numeric');
     selPattern.value = state.pat.text;
@@ -2651,7 +2658,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       for (const g of SLOPE_LIST) {
         const h3 = document.createElement('h3'); h3.textContent = g.group; wallBody.appendChild(h3);
         const box = document.createElement('div'); box.className = 'wall-list';
-        for (const it of g.items) { const b = document.createElement('button'); b.type = 'button'; b.textContent = it[1]; b.title = it[0]; b.className = 'named'; box.appendChild(b); }
+        for (const it of g.items) { const b = document.createElement('button'); b.type = 'button'; b.textContent = shortText(it[1]); b.dataset.p = it[1]; b.title = it[0]; b.className = 'named'; box.appendChild(b); }
         wallBody.appendChild(box);
       }
       return;
@@ -2723,7 +2730,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (e.target === wall) { closeWall(); return; }            // a tap on the dimmed area outside
     if (!e.target.closest || !e.target.closest('.wall-list button')) return;
     closeWall();
-    choose(e.target.textContent);
+    const b = e.target.closest('.wall-list button');
+    choose(b.dataset.p || b.textContent);                    // the full pattern (the button may show a shorter form)
   });
 
   /* ---------- drawing ---------- */

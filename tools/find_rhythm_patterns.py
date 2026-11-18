@@ -154,14 +154,14 @@ def embed(path="index.html"):
         everything[k]["4"] = everything[k]["4"] + " " + " ".join(ps)
     expected.update({"111[12]|3[23]33": {"3": 1, "5": 2}, "-11[12]|3[23]-3": {"4": 2},
                      "1234|3412": {"2": 1, "4": 2}, "1324|2413": {"2": 1, "4": 2}, "1243|4312": {"2": 1, "4": 2}, "-124|-431": {"2": 1, "4": 2}})
-    # The list drops unnamed patterns where both people rest on the same beat (user, 2026-11-17); they stay on the wall.
-    named = {"[13]-|22", "111|-2[34]", "111[12]|3[23]33", "123---|---123", "1234----|----1234", "12345-----|-----12345", "1[12]-|4[34]-"}
-    def both_rest(t):
-        rows = [re.findall(r"\[\d\d\]|.", half) for half in t.split("|")]
-        return any(a == "-" and b == "-" for a, b in zip(*rows))
-    for g in groups:
-        g["items"] = [p for p in g["items"] if p in named or not both_rest(p)]
-    groups = [g for g in groups if g["items"]]
+    # The list only shows the named patterns (user, 2026-11-17), one group per number of lanes; the rest stay on the wall.
+    groups = [
+        {"group": "3 lanes", "items": ["[13]-|22", "11|-[23]", "123---|---123", "111[12]|3[23]33"]},
+        {"group": "4 lanes", "items": ["12|-[34]", "13|-[24]", "[14]-|23", "1[12]-|4[34]-", "111|-2[34]", "1234----|----1234"]},
+        {"group": "5 lanes", "items": ["12345-----|-----12345"]},
+    ]
+    on_wall = {p for d in everything.values() for v in d.values() for p in v.split()}
+    assert all(p in on_wall for g in groups for p in g["items"]), [p for g in groups for p in g["items"] if p not in on_wall]
     top = ["[13]-|22", "111|-2[34]", "111[12]|3[23]33", "12345-----|-----12345", "1[12]-|4[34]-"]   # the user's picks, 2026-11-17
     assert all(any(p in g["items"] for g in groups) for p in top), top
     block = ('<script id="mixed-patterns">\nconst MIX_LIST = ' + json.dumps(groups, separators=(",", ":")) +

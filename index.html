@@ -2618,9 +2618,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* A hand (or the ball in it) part-way between two places. */
   function segPoint(g, side, from, to, p, holding) {
     if (holding && from.pp && to.pp) {                        // Ping Pong carry: along the ends to the new lane, then up it
-      const s = pingSlide(from, to), a = placePoint(g, side, from), b = placePoint(g, side, to);
-      if (p < s) return { x: a.x, y: lerp(a.y, b.y, smooth(p / s)) };
-      return { x: lerp(a.x, b.x, smooth((p - s) / (1 - s))), y: b.y };
+      // to a new lane: wait at the grab, slide along the ends just in time, then go up the lane
+      const m = pingMoves(from, to), a = placePoint(g, side, from), b = placePoint(g, side, to);
+      if (p < m.wait) return a;
+      if (p < m.go) return { x: a.x, y: lerp(a.y, b.y, smooth((p - m.wait) / (m.go - m.wait))) };
+      return { x: lerp(a.x, b.x, smooth((p - m.go) / (1 - m.go))), y: b.y };
     }
     if (from.lane && to.lane) return holding ? carryPoint(g, side, from.lane, to.lane, p) : reachPoint(g, side, from.lane, to.lane, p);
     const a = placePoint(g, side, from), b = placePoint(g, side, to);
@@ -2905,15 +2907,23 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
      down onto the spot once that ball is past; then it eases up again and hops back over to grab it. Each arc starts and ends level
      (sin squared), and the hop is lower so the hand rises and falls at the same even speed throughout. */
   const PING_PASS = 1 - (1 - 2 * JLS.PING_PLACE) / JLS.PING_SPEED;     // beats between the incoming ball going by and the placing
-  const PING_SIDE = 0.55;                                     // beats spent sliding along the ends to a new lane
-  function pingSlide(from, to) { return from.pp === to.pp ? 0 : PING_SIDE / (2 - JLS.PING_GRAB); }   // share of the carry
+  /* A carry to a new lane: the hand stays where it grabbed the ball, slides along the ends to the new lane only
+     when it needs to, and then goes up the lane in the same arc each time. In the same lane there is nothing to
+     wait for, so the whole carry is one long curve. Returned as shares of the carry: when the slide starts (wait)
+     and when the arc up the lane starts (go). */
+  const PING_SLIDE = 0.45, PING_UP = 0.9;                     // beats: the slide along the ends, the arc up the lane
+  function pingMoves(from, to) {
+    if (from.pp === to.pp) return { wait: 0, go: 0 };
+    const carry = 2 - JLS.PING_GRAB;
+    return { wait: (carry - PING_UP - PING_SLIDE) / carry, go: (carry - PING_UP) / carry };
+  }
   function pingLift(g, holding, p, from, to) {
     if (!state.pat.ping) return 0;
     const up = g.pitch * 0.4;                                            // height of the arc in
     if (holding) {
       // the whole carry is one curve: a long gentle rise from the grab, highest as the incoming ball goes by,
       // then down onto the placing spot; level at both ends and at the top
-      const carry = 2 - JLS.PING_GRAB, start = pingSlide(from, to) * carry, t = clamp(p, 0, 1) * carry, peak = carry - PING_PASS;
+      const carry = 2 - JLS.PING_GRAB, start = pingMoves(from, to).go * carry, t = clamp(p, 0, 1) * carry, peak = carry - PING_PASS;
       if (t <= start) return 0;                               // still sliding along the ends
       return t < peak ? up * Math.pow(Math.sin(Math.PI / 2 * (t - start) / (peak - start)), 2)
                       : up * Math.pow(Math.cos(Math.PI / 2 * (t - peak) / PING_PASS), 2);

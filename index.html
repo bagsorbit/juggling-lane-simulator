@@ -2190,7 +2190,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     stage.classList.toggle('slope', state.slopeMode);
     if (!state.slopeMode) { stage.classList.remove('tight'); tightKey = ''; }
     pingBtn.setAttribute('aria-pressed', String(state.pingMode));
-    $('clearMode').hidden = !(state.zipMode || state.revMode || state.mixMode || state.slopeMode || state.pingMode);   // the red X: back to plain 1 person or 2 people   // small dice buttons, so they stay clear of the lanes
+    $('clearMode').hidden = !(state.zipMode || state.revMode || state.mixMode || state.slopeMode || state.pingMode);
+    fitModes();   // the red X: back to plain 1 person or 2 people   // small dice buttons, so they stay clear of the lanes
     mixBtn.disabled = !state.twoMode || state.zipMode || state.revMode;   // mixed patterns are only for two people, on their own
     twoBtn.disabled = state.mixMode || state.slopeMode || state.pingMode;
     zipBtn.disabled = state.mixMode || state.revMode || state.slopeMode || state.pingMode;
@@ -3246,7 +3247,15 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   canvas.addEventListener('pointerup', function (e) { endDrag(e, true); });
   canvas.addEventListener('pointercancel', function (e) { endDrag(e, false); });
 
+  /* When the mode buttons don't fit on one line, the ? goes last, so it is the one that drops to the second line
+     and the red X stays at the end of the first, next to the modes it switches off. */
+  function fitModes() {
+    const key = $('keyBtn'), x = $('clearMode');
+    key.style.order = '';
+    if (!x.hidden && x.offsetTop > twoBtn.offsetTop) key.style.order = '1';
+  }
   function resize() {
+    fitModes();
     const box = stage.getBoundingClientRect();
     W = Math.max(1, Math.round(box.width)); H = Math.max(1, Math.round(box.height));
     dpr = Math.min(window.devicePixelRatio || 1, 2.5);

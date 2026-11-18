@@ -450,7 +450,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 8h15l-3.500-3.500M20 16H5l3.500 3.500"/></svg><span><b>Reverses</b>: patterns in which lanes change direction. Works with 1 or 2 people.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M5 5H2.500v9H5M12 5h2.500v9H12"/><circle cx="6" cy="9.500" r="1.300"/><circle cx="11" cy="9.500" r="1.300"/><circle cx="20" cy="9.500" r="1.300"/><path d="M3 20h18"/></svg><span><b>Mixed</b>: two people, each keeping their own rhythm of single rolls and pairs.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M3 20h18V8z"/><circle cx="8" cy="11.500" r="2.300"/></svg><span><b>Slope</b>: toss-juggling patterns. You sit at the bottom, place balls up the sloping lanes, and they roll back to you.</span></li>
-    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M14.200 14.700l5 5" stroke-width="5.200"/><path d="M14.200 14.700l5 5" stroke="#e8a85c" stroke-width="2.200"/><circle cx="9.500" cy="10" r="6.800" fill="#ff8787"/><circle cx="20" cy="4.500" r="2.300" fill="#ffd43b" stroke-width="1.800"/></svg><span><b>Ping Pong</b>: three balls with quick rolls. As a ball arrives, that hand rolls the one it is holding, so only one ball rolls at a time and a lane can be used both ways, even one lane on its own.</span></li>
+    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M14.200 14.700l5 5" stroke-width="5.200"/><path d="M14.200 14.700l5 5" stroke="#e8a85c" stroke-width="2.200"/><circle cx="9.500" cy="10" r="6.800" fill="#ff8787"/><circle cx="20" cy="4.500" r="2.300" fill="#ffd43b" stroke-width="1.800"/></svg><span><b>Ping Pong</b>: three balls. Just after a ball rolls past, the hand places its own ball a little way up the lane, then jumps back to grab the one that went past, so a lane can be used both ways, even one lane on its own. The grab is in the same lane or the next one.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#fff" stroke="#2d2a4a" stroke-width="2.4"/><g fill="#2d2a4a"><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="8" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="8" cy="16" r="1.9"/><circle cx="16" cy="16" r="1.9"/></g></svg><span><b>Random top 5</b>: plays one of the five starred patterns.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="2" width="13.5" height="13.5" rx="3.5" fill="#fff" stroke="#2d2a4a" stroke-width="2.2"/><g fill="#2d2a4a"><circle cx="13" cy="6.500" r="1.400"/><circle cx="17.500" cy="11" r="1.400"/></g><rect x="2" y="8.5" width="13.5" height="13.5" rx="3.5" fill="#fff" stroke="#2d2a4a" stroke-width="2.2"/><g fill="#2d2a4a"><circle cx="6" cy="12.500" r="1.400"/><circle cx="8.750" cy="15.250" r="1.400"/><circle cx="11.500" cy="18" r="1.400"/></g></svg><span><b>Random all modes</b>: plays a starred pattern from any mode, and switches to that mode.</span></li>
   <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#ff7b6e" stroke-width="3.4" stroke-linecap="round" fill="none"><path d="M6 6l12 12M18 6L6 18"/></svg><span><b>Red X</b>: shows while a mode is on. Tap it to go back to plain 1 person or 2 people.</span></li>
@@ -1070,21 +1070,21 @@ const JLS = (function () {
   }
 
   /* ================= ping pong =================
-   * One person, a hand at each end, three balls. Every roll takes exactly one beat, so only one ball is ever
-   * rolling and a lane can be rolled both ways, even a single lane. The hands take turns. On its beat a hand
-   * rolls the ball it is holding, and the ball coming towards it arrives at the same moment; that ball waits at
-   * the end of its lane while the hand comes over (straight away if it is the same lane), and the hand carries it
-   * to the lane of its next roll. A ball rolled on beat t is rolled again on beat t + 3.
+   * One person, a hand at each end, three balls, the hands taking turns. On its beat a hand places the ball it
+   * is holding a little way up a lane (about the second chevron), just after the ball coming towards it has
+   * rolled past; then it jumps back and grabs that ball before it reaches the end of its lane, which is the same
+   * lane or the one next to it, and carries it to the lane of its next roll. A ball rolled on beat t is rolled
+   * again on beat t + 3. Places on a lane are { pp: lane, d: depth }, depth measured from that hand's end.
    * Time u is in hand cycles, as everywhere: a beat is half a cycle. */
-  const PING_FETCH = 0.5;                                     // beats the hand takes to reach a ball in another lane
+  const PING_PLACE = 0.22, PING_CATCH = 0.08, PING_GRAB = 0.15;   // where balls are placed and grabbed; how long the grab takes (beats)
+  const PING_SPEED = (1 - PING_PLACE - PING_CATCH) / (1 + PING_GRAB);   // lane lengths per beat
   function pingBalls(u, pat) {
     const seq = pat.seq, L = seq.length, b = 2 * u, t = Math.floor(b), out = [];
-    out.push({ id: mod(t, 3), state: 'roll', hand: mod(t, 2), lane: seq[mod(t, L)], p: b - t });
-    for (let s = t - 2; s < t; s++) {                         // rolled on beats t-2 and t-1: now with the other hand
-      const from = seq[mod(s, L)], to = seq[mod(s + 3, L)], held = seq[mod(s + 1, L)];
-      const wait = from === held ? 0 : PING_FETCH;            // the hand was letting go in lane `held` when it arrived
-      const p = clamp01((b - (s + 1) - wait) / (2 - wait));
-      out.push({ id: mod(s, 3), state: 'carry', hand: mod(s + 1, 2), from: from, to: to, p: p });
+    for (let s = t - 2; s <= t; s++) {
+      const lane = seq[mod(s, L)], age = b - s;
+      if (age < 1 + PING_GRAB) out.push({ id: mod(s, 3), state: 'roll', hand: mod(s, 2), lane: lane, p: PING_PLACE + PING_SPEED * age });
+      else out.push({ id: mod(s, 3), state: 'carry', hand: mod(s + 1, 2), from: { pp: lane, d: PING_CATCH }, to: { pp: seq[mod(s + 3, L)], d: PING_PLACE },
+                      p: (age - 1 - PING_GRAB) / (2 - PING_GRAB) });
     }
     return out;
   }
@@ -1092,17 +1092,24 @@ const JLS = (function () {
     const seq = pat.seq, L = seq.length, b = 2 * u, out = [];
     for (let h = 0; h < 2; h++) {
       let r = Math.floor(b); if (mod(r, 2) !== h) r--;         // this hand's latest roll
-      const rolled = seq[mod(r, L)], caught = seq[mod(r - 1, L)], next = seq[mod(r + 2, L)];
-      const wait = rolled === caught ? 0 : PING_FETCH, age = b - r;
-      if (age < wait) out.push({ hand: h, state: 'empty', from: rolled, to: caught, p: age / wait });
-      else out.push({ hand: h, state: 'carry', from: caught, to: next, p: (age - wait) / (2 - wait) });
+      const placed = { pp: seq[mod(r, L)], d: PING_PLACE }, grab = { pp: seq[mod(r - 1, L)], d: PING_CATCH };
+      const age = b - r;
+      if (age < PING_GRAB) out.push({ hand: h, state: 'empty', from: placed, to: grab, p: age / PING_GRAB });
+      else out.push({ hand: h, state: 'carry', from: grab, to: { pp: seq[mod(r + 2, L)], d: PING_PLACE }, p: (age - PING_GRAB) / (2 - PING_GRAB) });
     }
     return out;
   }
-  function pingLaneHands(u, pat) {                            // the one lane with a ball in it, and which hand rolled it
-    const t = Math.floor(2 * u), out = new Array(pat.lanes + 1).fill(-1);
-    out[pat.seq[mod(t, pat.seq.length)]] = mod(t, 2);
+  function pingLaneHands(u, pat) {                            // the lanes with a ball rolling in them, and which hand rolled it
+    const out = new Array(pat.lanes + 1).fill(-1);
+    for (const b of pingBalls(u, pat)) if (b.state === 'roll') out[b.lane] = b.hand;
     return out;
+  }
+  /* A pattern works if each hand can reach the ball it grabs: the lane it places in and the lane of the ball
+   * that just rolled past are the same or next to each other. */
+  function pingOk(pat) {
+    const seq = pat.seq, L = seq.length;
+    for (let i = 0; i < L; i++) if (Math.abs(seq[i] - seq[(i + 1) % L]) > 1) return false;
+    return true;
   }
 
   /* ================= zips =================
@@ -1315,7 +1322,7 @@ const JLS = (function () {
            mixedPlan: mixedPlan, mixedLaneHands: mixedLaneHands, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths,
            hands2: hands2, pairBalls: pairBalls, pairHands: pairHands,
            solveTiming: solveTiming, zipPlan: zipPlan, zipBalls: zipBalls, zipHands: zipHands, zipHands2: zipHands2, zipPaths: zipPaths, balls: balls, hands: hands, active: active,
-           pingBalls: pingBalls, pingHands: pingHands, pingLaneHands: pingLaneHands };
+           pingBalls: pingBalls, pingHands: pingHands, pingLaneHands: pingLaneHands, pingOk: pingOk, PING_PLACE: PING_PLACE, PING_CATCH: PING_CATCH };
 })();
 </script>
 
@@ -1574,8 +1581,8 @@ function iconSvg(name) {
 </script>
 
 <script id="ping-patterns">
-const PING_LIST = [{"group":"1 lane","items":["1"]},{"group":"2 lanes","items":["1112","1122","111122","112122"]},{"group":"3 lanes","items":["123","1123","1223","11123","11232","11323","12123","12213","12223","12313"]},{"group":"4 lanes","items":["11234","11243","11324","12134","12234","12243","12314","12324","12342","12413","12423","13224"]}];
-const ALL_PING = {"1":{"1":"1"},"2":{"4":"1112 1122","6":"111122 112122"},"3":{"3":"123","4":"1123 1223","5":"11123 11232 11323 12123 12213 12223 12313","6":"111123 111213 111223 111233 112123 112132 112133 112213 112223 112232 112233 112313 112323 112332 113123 113223 121223 122123 122223 122232 122313"},"4":{"5":"11234 11243 11324 12134 12234 12243 12314 12324 12342 12413 12423 13224","6":"111234 111243 111324 112134 112143 112234 112243 112314 112324 112334 112342 112343 112344 112413 112423 112433 112434 112443 113124 113214 113224 113234 113243 113244 113324 113424 114234 121324 121334 122134 122234 122243 122314 122324 122334 122342 122343 122413 122423 122432 122433 123124 123134 123142 123143 123224 123243 123314 123324 123413 123423 124133 124134 124143 124223 124233 132224 133224"}};
+const PING_LIST = [{"group":"1 lane","items":["1"]},{"group":"2 lanes","items":["1112","1122","111122","112122","11122122"]},{"group":"3 lanes","items":["11232","112232","112332","122232","1123232","11112332","11122322","11122332","11123332","11211232","11212332","11222332","11223232"]},{"group":"4 lanes","items":["1123432","11123432","11223432","11233432","11234432","12234322","12234332"]}];
+const ALL_PING = {"1":{"1":"1"},"2":{"4":"1112 1122","6":"111122 112122","8":"11122122"},"3":{"5":"11232","6":"112232 112332 122232","7":"1123232","8":"11112332 11122322 11122332 11123332 11211232 11212332 11222332 11223232"},"4":{"7":"1123432","8":"11123432 11223432 11233432 11234432 12234322 12234332"}};
 </script>
 <script id="mixed-patterns">
 const MIX_LIST = [{"group":"3 lanes","items":["(13)-|22","11|-(23)","111(12)|3(23)33"]},{"group":"4 lanes","items":["12|-(34)","13|-(24)","(14)-|23","1(12)-|4(34)-","111|-2(34)"]}];
@@ -1715,7 +1722,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     rev: ['123', '12345', '121323', '123132', '12342143'],
     rev2: ['(13)(24)(24)(13)', '(12)(34)(56)', '(13)(25)(46)', '(16)(25)(43)', '(14)(23)(14)(23)(23)(14)(23)(14)'],
     mix: MIX_TOP,
-    ping: ['1', '123', '1122', '11232', '12342'],
+    ping: ['1', '1122', '11232', '1123432', '112122'],
     slope: ['Cascade', 'Async Fountain', '441', 'Boston Mess', 'Splits'].map(function (name) { for (const t in SLOPE) if (SLOPE[t].name === name) return t; })
   };
   // the ball count each top-five pattern starts with, where it has one
@@ -1762,6 +1769,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       }
       if (!mp) return 'No timing works for that pattern, whatever the number of balls.';
     }
+    if (parsed.ping && !JLS.pingOk(parsed)) return 'In Ping Pong each roll has to be in the same lane as the roll before it, or the lane next to it, so the hand can grab the ball that just rolled past.';
     if (parsed.ping) n = 3;                                  // one ball rolling and one waiting in each hand
     if (parsed.rev) {
       // lanes that change direction must be empty when they do, which limits the ball count
@@ -2417,7 +2425,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     }
     if (state.pingMode) {
       wallTitle.textContent = 'All Ping Pong patterns';
-      wallNote.textContent = 'Three balls with quick rolls: as a ball arrives, that hand rolls the one it is holding, so only one ball rolls at a time and a lane can be used both ways. These are the ones of up to 6 rolls that use some lane both ways and in which no hand move happens twice. Tap one to play it.' + same + ' Running backwards also counts as the same.';
+      wallNote.textContent = 'Three balls. Just after a ball rolls past, the hand places its own ball a little way up the lane, then jumps back to grab the one that went past before it reaches the end, so a lane can be used both ways. Each roll is in the same lane as the one before or the lane next to it, so the hand can reach the grab. These are all the ones of up to 8 rolls that use some lane both ways and in which no hand move happens twice. Tap one to play it.' + same + ' Running backwards also counts as the same.';
       add(ALL_PING, '');
     } else if (state.zipMode && state.twoMode) {
       wallTitle.textContent = 'Two-person zip patterns';
@@ -2600,6 +2608,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   /* A place a hand can be: the end of a lane on its own side, or the meeting point for a zip. */
   function placePoint(g, side, place) {
+    if (place.pp) return { x: lerp(g.endX(side), g.endX(-side), place.d), y: g.laneY(place.pp) };   // part-way up a lane (Ping Pong)
     if (place.lane) return { x: g.endX(side), y: g.laneY(place.lane) };
     if (place.own) return { x: g.endX(side) + side * g.minReach, y: g.laneY(place.own) };   // a self zip, just off the end
     return { x: (g.bx0 + g.bx1) / 2, y: g.laneY(place.mid) };
@@ -2629,8 +2638,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (plan) {
       for (const p of JLS.zipPaths(plan)) paths.push({ side: sideOf(p.hand), from: p.from, to: p.to });
     } else if (state.pat.ping) {
-      // the hand that catches the ball rolled on beat i carries it to the lane rolled three beats later
-      for (let i = 0; i < (L % 2 ? 2 * L : L); i++) paths.push({ side: sideOf((i + 1) % 2), from: { lane: seq[i % L] }, to: { lane: seq[(i + 3) % L] } });
+      // the hand that grabs the ball rolled on beat i carries it from near the end of that lane to where it places it next
+      for (let i = 0; i < (L % 2 ? 2 * L : L); i++) paths.push({ side: sideOf((i + 1) % 2), from: { pp: seq[i % L], d: JLS.PING_CATCH }, to: { pp: seq[(i + 3) % L], d: JLS.PING_PLACE } });
     } else if (mplan) {
       for (const p of JLS.mixedPaths(mplan)) paths.push({ side: sideOf(p.hand), from: { lane: p.from }, to: { lane: p.to } });
     } else {
@@ -2797,6 +2806,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       hs = JLS.zipHands(u, plan, tm);
     } else {
       bs = (mplan ? JLS.mixedBalls(u, mplan, tm) : pat.ping ? JLS.pingBalls(u, pat) : pairs ? JLS.pairBalls(u, pat, n, tm) : JLS.balls(u, pat, n, tm)).map(function (b) {
+        if (pat.ping && b.state !== 'roll') return { id: b.id, state: 'held', hand: b.hand, from: b.from, to: b.to, p: b.p };
         return b.state === 'roll' ? b : { id: b.id, state: 'held', hand: b.hand, from: { lane: b.from }, to: { lane: b.to }, p: b.p };
       });
       if (state.twoMode) {
@@ -2812,6 +2822,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         });
       } else {
         hs = (pat.ping ? JLS.pingHands(u, pat) : JLS.hands(u, pat, n, tm)).map(function (h) {
+          if (pat.ping) return { hand: h.hand, holding: h.state === 'carry', from: h.from, to: h.to, p: h.p };
           return { hand: h.hand, holding: h.state === 'carry', from: { lane: h.from }, to: { lane: h.to }, p: h.p };
         });
       }

@@ -1,10 +1,12 @@
 """Ping Pong patterns: one person, a hand at each end, three balls.
 
-Every roll takes one beat, so only one ball is ever rolling and a lane can be rolled both ways, even one lane on
-its own. The hands take turns; a ball rolled on beat i is caught by the other hand and rolled again on beat i + 3,
-so that hand carries it from lane seq[i] to lane seq[i + 3].
+A hand places its ball a little way up a lane just after the ball coming towards it has rolled past, then jumps
+back and grabs that ball before it reaches the end, so a lane can be rolled both ways, even one lane on its own.
+The hands take turns; a ball rolled on beat i is grabbed by the other hand and rolled again on beat i + 3, so that
+hand carries it from lane seq[i] to lane seq[i + 3]. The grab has to be quick, so each roll is in the same lane as
+the roll before it or the lane next to it (user, 2026-11-18).
 
-Rules for the list: every lane 1..K is used; some lane is rolled by both hands (otherwise it is an ordinary
+Rules for the list: each roll is in the same lane as the one before or next to it; every lane 1..K is used; some lane is rolled by both hands (otherwise it is an ordinary
 pattern); no hand move (hand, from lane, to lane) happens twice; not a shorter pattern repeated. Patterns that
 only differ by starting roll, by being upside down, by being a mirror image or by running backwards count once.
 """
@@ -15,6 +17,8 @@ def period(seq):
 
 def valid(seq, k):
     L = len(seq)
+    if any(abs(seq[i] - seq[(i + 1) % L]) > 1 for i in range(L)):
+        return False
     if set(seq) != set(range(1, k + 1)):
         return False
     if any(L % d == 0 and seq == seq[d:] + seq[:d] for d in range(1, L)):
@@ -47,23 +51,22 @@ def search(k, L):
 
 if __name__ == "__main__" and "--embed" not in sys.argv:
     for k in range(1, 5):
-        for L in range(1, 7):
+        for L in range(1, 9):
             r = search(k, L)
             if r:
                 print(k, "lanes", L, "rolls:", len(r), " ".join(r[:30]))
 
 if __name__ == "__main__" and "--embed" in sys.argv:
     import json, re
-    # the list: everything of up to 5 rolls, plus the two 2-lane ones of 6; the wall has everything of up to 6
+    # the list and the wall both have everything of up to 8 rolls (there are only a few)
     groups, wall = [], {}
     for k in range(1, 5):
         items = []
-        for L in range(1, 7):
+        for L in range(1, 9):
             r = search(k, L)
             if r:
                 wall.setdefault(str(k), {})[str(L)] = " ".join(r)
-                if L <= 5 or k == 2:
-                    items += r
+                items += r
         if items:
             groups.append({"group": str(k) + (" lane" if k == 1 else " lanes"), "items": items})
     block = ('<script id="ping-patterns">\nconst PING_LIST = ' + json.dumps(groups, separators=(",", ":")) +

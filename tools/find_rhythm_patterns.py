@@ -154,7 +154,8 @@ def embed(path="index.html"):
         everything[k]["4"] = everything[k]["4"] + " " + " ".join(ps)
     expected.update({"111[12]|3[23]33": {"3": 1, "5": 2}, "-11[12]|3[23]-3": {"4": 2},
                      "1234|3412": {"2": 1, "4": 2}, "1324|2413": {"2": 1, "4": 2}, "1243|4312": {"2": 1, "4": 2}, "-124|-431": {"2": 1, "4": 2}})
-    top = [picked[(3, 2)][0], picked[(4, 2)][0], picked[(3, 3)][0], picked[(4, 3)][0], picked[(4, 4)][0]]
+    top = ["[13]-|22", "111|-2[34]", "111[12]|3[23]33", "12345-----|-----12345", "1[12]-|4[34]-"]   # the user's picks, 2026-11-17
+    assert all(any(p in g["items"] for g in groups) for p in top), top
     block = ('<script id="mixed-patterns">\nconst MIX_LIST = ' + json.dumps(groups, separators=(",", ":")) +
              ';\nconst MIX_TOP = ' + json.dumps(top) + ';\nconst ALL_MIX = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')
     html = open(path, encoding="utf-8").read()

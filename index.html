@@ -457,7 +457,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M3 5.5h10.5V2.5l7.5 5-7.5 5v-3H3z" fill="#ffd9a8" stroke-width="2"/><path d="M21 14.5H10.5v-3L3 16.5l7.5 5v-3H21z" fill="#d9ccff" stroke-width="2"/></svg><span><b>Reverses</b>: patterns in which lanes change direction. Works with 1 or 2 people.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M5 5H2.500v9H5M12 5h2.500v9H12"/><circle cx="6" cy="9.500" r="1.800" fill="#ff922b" stroke-width="1.5"/><circle cx="11" cy="9.500" r="1.800" fill="#22b8cf" stroke-width="1.5"/><circle cx="20" cy="9.500" r="1.800" fill="#f06595" stroke-width="1.5"/><path d="M3 20h18"/></svg><span><b>Mixed</b>: two people, each keeping their own rhythm of single rolls and pairs.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M3 20h18V8z" fill="#74c0fc"/><circle cx="8" cy="11.500" r="2.500" fill="#ffd43b" stroke-width="2"/></svg><span><b>Slope</b>: toss-juggling patterns. You sit at the bottom, place balls up the sloping lanes, and they roll back to you.</span></li>
-    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M14.200 14.700l5 5" stroke-width="5.200"/><path d="M14.200 14.700l5 5" stroke="#e8a85c" stroke-width="2.200"/><circle cx="9.500" cy="10" r="6.800" fill="#ff8787"/><circle cx="20" cy="4.500" r="2.300" fill="#ffd43b" stroke-width="1.800"/></svg><span><b>Ping Pong</b>: three balls. Just after a ball rolls past, the hand places its own ball a little way up the lane, then jumps back to grab the one that went past, so a lane can be used both ways, even one lane on its own. The grab is in the same lane or the next one. Patterns in brackets use four balls with both hands at once: (12) is the right hand in lane 1 and the left in lane 2. With 2 people on, there is a person at each end, switching hands each turn.</span></li>
+    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M14.200 14.700l5 5" stroke-width="5.200"/><path d="M14.200 14.700l5 5" stroke="#e8a85c" stroke-width="2.200"/><circle cx="9.500" cy="10" r="6.800" fill="#ff8787"/><circle cx="20" cy="4.500" r="2.300" fill="#ffd43b" stroke-width="1.800"/></svg><span><b>Ping Pong</b>: three balls. Just after a ball rolls past, the hand places its own ball a little way up the lane, then jumps back to grab the one that went past, so a lane can be used both ways, even one lane on its own. The grab is in the same lane or the next one. Patterns in brackets use four balls with both hands at once: (12) is the right hand in lane 1 and the left in lane 2. With 2 people on, there is a person at each end with two hands: while one hand places, the other waits for the incoming ball, so any lane order works; brackets are one person placing two at once (6 balls), and a row each, like 12|21, is both people placing at the same moment.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#fff" stroke="#2d2a4a" stroke-width="2.4"/><g fill="#2d2a4a"><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="8" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="8" cy="16" r="1.9"/><circle cx="16" cy="16" r="1.9"/></g></svg><span><b>Random top 5</b>: plays one of the five starred patterns.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="2" width="13.5" height="13.5" rx="3.5" fill="#fff" stroke="#2d2a4a" stroke-width="2.2"/><g fill="#2d2a4a"><circle cx="13" cy="6.500" r="1.400"/><circle cx="17.500" cy="11" r="1.400"/></g><rect x="2" y="8.5" width="13.5" height="13.5" rx="3.5" fill="#fff" stroke="#2d2a4a" stroke-width="2.2"/><g fill="#2d2a4a"><circle cx="6" cy="12.500" r="1.400"/><circle cx="8.750" cy="15.250" r="1.400"/><circle cx="11.500" cy="18" r="1.400"/></g></svg><span><b>Random all modes</b>: plays a starred pattern from any mode, and switches to that mode.</span></li>
   <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#ff7b6e" stroke-width="3.4" stroke-linecap="round" fill="none"><path d="M6 6l12 12M18 6L6 18"/></svg><span><b>Red X</b>: shows while a mode is on. Tap it to go back to plain 1 person or 2 people.</span></li>
@@ -1086,6 +1086,7 @@ const JLS = (function () {
   const PING_PLACE = 0.3, PING_CATCH = 0.02, PING_GRAB = 0.275;   // where balls are placed and grabbed; how long the grab takes (beats)
   const PING_SPEED = (1 - PING_PLACE - PING_CATCH) / (1 + PING_GRAB);   // lane lengths per beat
   function pingBalls(u, pat) {
+    if (pat.duo) return pingDuoBalls(u, pat);
     if (pat.sync) return pingSyncBalls(u, pat);
     const seq = pat.seq, L = seq.length, b = 2 * u, t = Math.floor(b), out = [];
     for (let s = t - 2; s <= t; s++) {
@@ -1113,7 +1114,8 @@ const JLS = (function () {
   function pingLaneHands(u, pat) {
     const out = new Array(pat.lanes + 1).fill(-1), t = Math.floor(2 * u), L = pat.seq.length;
     for (let s = t; s > t - 4 * L - 4; s--) {                  // back through two whole rounds: every lane is used in one
-      if (pat.sync) { for (let h = 0; h < 2; h++) { const lane = pat.ps[h][mod(s, L)]; if (out[lane] === -1) out[lane] = h; } }
+      if (pat.duo) { for (let q = 0; q < 2; q++) { const lane = pat.slots[q][mod(s, L)]; if (out[lane] === -1) out[lane] = mod(s, 2); } }
+      else if (pat.sync) { for (let h = 0; h < 2; h++) { const lane = pat.ps[h][mod(s, L)]; if (out[lane] === -1) out[lane] = h; } }
       else { const lane = pat.seq[mod(s, L)]; if (out[lane] === -1) out[lane] = mod(s, 2); }
     }
     return out;
@@ -1163,9 +1165,76 @@ const JLS = (function () {
     }
     return out;
   }
+  /* Partner Ping Pong, two at once (`duo`): the people take turns, and on each turn a person places two balls at the
+   * same moment, one with each hand: (13) is lanes 1 and 3, and `slots` holds the two lanes of each bracket. Both
+   * hands are then empty, so they hop back and grab the two balls the other person placed a beat before; each hand
+   * grabs the one in the same lane as its own placing or the next lane, and places it on that person's next turn.
+   * Six balls: each placed ball is placed again three beats later. */
+  function duoGrab(pat, s) {
+    // which hand of the next person grabs each ball placed on beat s: [hand for slot 0, hand for slot 1], or null
+    const L = pat.seq.length, a = pat.slots[0][mod(s + 1, L)], b = pat.slots[1][mod(s + 1, L)];
+    const c = pat.slots[0][mod(s, L)], d = pat.slots[1][mod(s, L)];
+    const straight = Math.abs(a - c) <= 1 && Math.abs(b - d) <= 1, crossed = Math.abs(a - d) <= 1 && Math.abs(b - c) <= 1;
+    if (straight && (!crossed || Math.abs(a - c) + Math.abs(b - d) <= Math.abs(a - d) + Math.abs(b - c))) return [0, 1];
+    return crossed ? [1, 0] : null;
+  }
+  function duoIds(pat, s) {
+    // ball ids for the two balls placed on beat s, following each ball forward from beats -3 to -1
+    const c = pat.duoIds || (pat.duoIds = { from: -3, ids: [[0, 1], [2, 3], [4, 5]] });
+    while (c.from + c.ids.length <= s) {
+      const k = c.from + c.ids.length - 3, g = duoGrab(pat, k), prev = c.ids[c.ids.length - 3], next = [0, 0];
+      next[g[0]] = prev[0]; next[g[1]] = prev[1];
+      c.ids.push(next);
+    }
+    return s < c.from ? [mod(2 * s, 6), mod(2 * s + 1, 6)] : c.ids[s - c.from];
+  }
+  function pingDuoBalls(u, pat) {
+    const L = pat.seq.length, b = 2 * u, t = Math.floor(b), out = [];
+    for (let s = t - 2; s <= t; s++) {
+      const ids = duoIds(pat, s), age = b - s, g = duoGrab(pat, s);
+      for (let q = 0; q < 2; q++) {
+        const lane = pat.slots[q][mod(s, L)];
+        if (age < 1 + PING_GRAB) out.push({ id: ids[q], state: 'roll', hand: mod(s, 2), lane: lane, p: PING_PLACE + PING_SPEED * age });
+        else out.push({ id: ids[q], state: 'carry', hand: mod(s + 1, 2), which: g[q], from: { pp: lane, d: PING_CATCH },
+                        to: { pp: pat.slots[g[q]][mod(s + 3, L)], d: PING_PLACE }, p: (age - 1 - PING_GRAB) / (2 - PING_GRAB) });
+      }
+    }
+    return out;
+  }
+  function pingDuoHands(u, pat) {
+    const L = pat.seq.length, b = 2 * u, out = [];
+    for (let e = 0; e < 2; e++) {
+      let r = Math.floor(b); if (mod(r, 2) !== e) r--;         // this person's latest turn
+      const g = duoGrab(pat, r - 1), age = b - r;
+      for (let q = 0; q < 2; q++) {
+        const slot = g[0] === q ? 0 : 1;                       // the ball (from beat r - 1) this hand grabs
+        const placed = { pp: pat.slots[q][mod(r, L)], d: PING_PLACE }, grab = { pp: pat.slots[slot][mod(r - 1, L)], d: PING_CATCH };
+        if (age < PING_GRAB) out.push({ end: e, which: q, holding: false, from: placed, to: grab, p: age / PING_GRAB });
+        else out.push({ end: e, which: q, holding: true, from: grab, to: { pp: pat.slots[q][mod(r + 2, L)], d: PING_PLACE }, p: (age - PING_GRAB) / (2 - PING_GRAB) });
+      }
+    }
+    return out;
+  }
+  function pingDuoPaths(pat) {                                 // each carry: grabbed in one lane, placed in another
+    const L = pat.seq.length, out = [];
+    for (let s = 0; s < L; s++) { const g = duoGrab(pat, s); for (let q = 0; q < 2; q++)
+      out.push({ end: mod(s + 1, 2), from: { pp: pat.slots[q][s], d: PING_CATCH }, to: { pp: pat.slots[g[q]][mod(s + 3, L)], d: PING_PLACE } }); }
+    return out;
+  }
   /* A pattern works if each hand can reach the ball it grabs: the lane it places in and the lane of the ball
    * that just rolled past are the same or next to each other. */
   function pingOk(pat) {
+    if (pat.duo) {
+      const L = pat.seq.length;
+      if (L % 2) return false;                                // the people take turns, so an even number of brackets
+      for (let s = 0; s < L; s++) if (pat.slots[0][s] === pat.slots[1][s] || !duoGrab(pat, s)) return false;
+      return true;
+    }
+    if (pat.partner) {                                        // two people: the free hand waits at the incoming lane, any order works
+      if (!pat.sync) return true;
+      for (let t = 0; t < pat.ps[0].length; t++) if (pat.ps[0][t] === pat.ps[1][t]) return false;
+      return true;
+    }
     if (pat.sync) {
       const R = pat.ps[0], Lf = pat.ps[1], n = R.length;
       for (let t = 0; t < n; t++) {
@@ -1389,7 +1458,7 @@ const JLS = (function () {
            mixedPlan: mixedPlan, mixedLaneHands: mixedLaneHands, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths,
            hands2: hands2, pairBalls: pairBalls, pairHands: pairHands,
            solveTiming: solveTiming, zipPlan: zipPlan, zipBalls: zipBalls, zipHands: zipHands, zipHands2: zipHands2, zipPaths: zipPaths, balls: balls, hands: hands, active: active,
-           pingBalls: pingBalls, pingHands: pingHands, pingLaneHands: pingLaneHands, pingOk: pingOk, pingHands2: pingHands2, PING_PLACE: PING_PLACE, PING_CATCH: PING_CATCH, PING_GRAB: PING_GRAB, PING_SPEED: PING_SPEED };
+           pingBalls: pingBalls, pingHands: pingHands, pingLaneHands: pingLaneHands, pingOk: pingOk, pingHands2: pingHands2, pingDuoHands: pingDuoHands, pingDuoPaths: pingDuoPaths, duoGrab: duoGrab, PING_PLACE: PING_PLACE, PING_CATCH: PING_CATCH, PING_GRAB: PING_GRAB, PING_SPEED: PING_SPEED };
 })();
 </script>
 
@@ -1660,6 +1729,8 @@ function iconSvg(name) {
 const PING_LIST = [{"group":"1 lane","items":["1"]},{"group":"2 lanes","items":["1122","111222","(12)(21)","(12)(12)(21)"]},{"group":"3 lanes","items":["(12)(31)","(12)(21)(13)(31)"]},{"group":"4 lanes","items":["(14)(32)(23)(41)"]}];
 const ALL_PING = {"1":{"1":"1"},"2":{"4":"1112 1122","6":"111122 112122 111222","8":"11122122"},"3":{"5":"11232","6":"112232 112332 122232","7":"1123232","8":"11112332 11122322 11122332 11123332 11211232 11212332 11222332 11223232"},"4":{"7":"1123432","8":"11123432 11223432 11233432 11234432 12234322 12234332"}};
 const ALL_PING_SYNC = {"2":{"4":"(12)(21)","6":"(12)(12)(21)"},"3":{"4":"(12)(31)","6":"(12)(12)(31)","8":"(12)(21)(13)(31) (12)(21)(13)(32) (12)(21)(23)(31) (12)(31)(13)(32)","10":"(12)(12)(21)(13)(21) (12)(12)(21)(13)(31) (12)(12)(31)(13)(21) (12)(12)(31)(13)(31) (12)(12)(31)(23)(31)"},"4":{"8":"(12)(31)(14)(32) (12)(31)(24)(32) (12)(32)(14)(31) (12)(32)(24)(31) (13)(31)(14)(32) (13)(31)(14)(42) (13)(31)(23)(41) (13)(31)(23)(42) (13)(31)(24)(32) (13)(31)(24)(41) (13)(31)(24)(42) (13)(32)(14)(41) (13)(32)(14)(42) (13)(32)(23)(41) (13)(32)(23)(42) (13)(32)(24)(41) (13)(41)(14)(32) (13)(41)(14)(42) (13)(41)(23)(32) (13)(41)(23)(42) (14)(32)(23)(41)","10":"(12)(12)(31)(14)(31) (12)(12)(31)(24)(31) (13)(31)(14)(32)(32) (13)(31)(23)(23)(41) (13)(31)(23)(23)(42) (13)(31)(24)(32)(32) (13)(32)(23)(23)(41) (13)(32)(23)(23)(42) (13)(32)(32)(13)(41) (13)(32)(32)(13)(42) (13)(32)(32)(14)(41) (13)(32)(32)(14)(42) (13)(32)(32)(23)(41) (13)(32)(32)(23)(42) (13)(32)(32)(24)(41) (13)(41)(14)(32)(32) (13)(41)(23)(23)(32) (13)(41)(23)(23)(41) (13)(41)(23)(23)(42) (13)(41)(23)(32)(32) (14)(32)(23)(23)(32) (14)(32)(23)(23)(41) (14)(32)(32)(14)(41) (14)(32)(32)(23)(41)"},"5":{"8":"(13)(41)(15)(42) (13)(41)(25)(42) (13)(42)(15)(41) (13)(42)(25)(41) (14)(32)(24)(51) (14)(32)(24)(52) (14)(42)(34)(52) (14)(51)(24)(32)","10":"(14)(32)(32)(14)(51) (14)(32)(32)(24)(51) (14)(32)(32)(24)(52) (14)(42)(34)(34)(52) (14)(51)(24)(32)(32) (15)(42)(23)(23)(42)"}};
+const PING2_LIST = [{"group":"1 lane","items":["1"]},{"group":"2 lanes","items":["1122","111222","(12)(12)","12|21","112|221"]},{"group":"3 lanes","items":["123","112332","1223","(12)(23)(23)(12)","13|21","1213|2131"]},{"group":"4 lanes","items":["(13)(24)(24)(13)","(14)(23)(23)(14)","(12)(23)(34)(23)","1324|4231"]}];
+const ALL_PING2 = {"single":{"1":{"1":"1"},"2":{"4":"1112 1122","6":"111122 112122 111222"},"3":{"3":"123","4":"1123 1223","5":"11123 11232 11323 12123 12213 12223 12313","6":"111123 111213 111223 111233 112123 112132 112133 112213 112223 112232 112233 112313 112323 112332 113123 113223 121223 122123 122223 122232 122313"},"4":{"5":"11234 11243 11324 12134 12234 12243 12314 12324 12342 12413 12423 13224","6":"111234 111243 111324 112134 112143 112234 112243 112314 112324 112334 112342 112343 112344 112413 112423 112433 112434 112443 113124 113214 113224 113234 113243 113244 113324 113424 114234 121324 121334 122134 122234 122243 122314 122324 122334 122342 122343 122413 122423 122432 122433 123124 123134 123142 123143 123224 123243 123314 123324 123413 123423 124133 124134 124143 124223 124233 132224 133224"}},"duo":{"2":{"4":"(12)(12)"},"3":{"4":"(12)(13) (12)(23) (13)(12)","8":"(12)(12)(12)(13) (12)(12)(12)(23) (12)(12)(13)(12) (12)(12)(13)(13) (12)(12)(13)(23) (12)(12)(23)(12) (12)(12)(23)(13) (12)(12)(23)(23) (12)(13)(12)(23) (12)(13)(13)(12) (12)(13)(13)(13) (12)(13)(13)(23) (12)(13)(23)(12) (12)(13)(23)(13) (12)(23)(13)(12) (12)(23)(13)(13) (12)(23)(13)(23) (12)(23)(23)(12) (13)(12)(13)(13) (13)(12)(13)(23)"},"4":{"8":"(12)(13)(14)(13) (12)(13)(14)(23) (12)(13)(24)(13) (12)(13)(24)(23) (12)(23)(14)(13) (12)(23)(14)(23) (12)(23)(24)(13) (12)(23)(24)(23) (12)(23)(34)(23) (13)(12)(13)(14) (13)(12)(13)(24) (13)(12)(23)(14) (13)(12)(23)(24) (13)(13)(13)(24) (13)(13)(14)(23) (13)(13)(14)(24) (13)(13)(23)(14) (13)(13)(23)(24) (13)(13)(24)(13) (13)(13)(24)(14) (13)(13)(24)(23) (13)(13)(24)(24) (13)(14)(13)(23) (13)(14)(13)(24) (13)(14)(14)(23) (13)(14)(14)(24) (13)(14)(23)(12) (13)(14)(23)(13) (13)(14)(23)(14) (13)(14)(23)(23) (13)(14)(23)(24) (13)(14)(24)(13) (13)(14)(24)(14) (13)(14)(24)(23) (13)(23)(13)(24) (13)(23)(14)(13) (13)(23)(14)(14) (13)(23)(14)(23) (13)(23)(14)(24) (13)(23)(23)(14) (13)(23)(23)(24) (13)(23)(24)(13) (13)(23)(24)(23) (13)(24)(14)(13) (13)(24)(14)(14) (13)(24)(14)(23) (13)(24)(14)(24) (13)(24)(23)(12) (13)(24)(23)(13) (13)(24)(23)(14) (13)(24)(23)(23) (13)(24)(23)(24) (13)(24)(24)(13) (14)(13)(14)(23) (14)(13)(14)(24) (14)(13)(23)(13) (14)(13)(23)(14) (14)(13)(23)(23) (14)(13)(23)(24) (14)(14)(14)(23) (14)(14)(23)(13) (14)(14)(23)(14) (14)(14)(23)(23) (14)(23)(23)(13) (14)(23)(23)(14) (14)(23)(23)(23) (23)(12)(23)(14) (23)(12)(23)(24) (23)(12)(23)(34) (23)(13)(23)(14) (23)(13)(23)(24) (23)(14)(23)(23)"},"5":{"8":"(13)(14)(15)(24) (13)(14)(25)(14) (13)(14)(25)(24) (13)(24)(15)(14) (13)(24)(25)(14) (13)(24)(25)(24) (14)(13)(14)(25) (14)(13)(24)(15) (14)(13)(24)(25) (14)(15)(14)(23) (14)(15)(24)(13) (14)(15)(24)(23) (14)(23)(24)(15) (14)(23)(24)(25) (14)(23)(34)(25) (14)(24)(34)(25) (14)(25)(24)(13) (14)(25)(24)(23) (14)(25)(34)(23) (14)(25)(34)(24) (15)(14)(23)(14) (15)(14)(23)(24) (15)(24)(23)(14) (15)(24)(23)(24) (24)(13)(24)(25) (24)(15)(24)(23)"}},"rows":{"2":{"4":"12|21","6":"112|221"},"3":{"4":"12|23 13|21","6":"112|223 112|231 113|221 113|231 121|213 122|213 123|212 123|231 131|213 133|211","8":"1112|2231 1112|2331 1113|2231 1113|2331 1121|2213 1122|2313 1122|2331 1123|2212 1123|2231 1123|2232 1123|2312 1123|2331 1123|2332 1131|2213 1132|2213 1132|2221 1132|2223 1132|2313 1132|2321 1132|2323 1133|2312 1133|2321 1211|2133 1212|2133 1213|2131 1213|2132 1221|2313 1223|2131 1231|2123 1231|2313 1232|2123 1233|2311 1233|2312 1311|2133 1313|2132 1331|2123"},"4":{"6":"112|234 112|243 113|234 113|241 113|342 114|231 114|243 114|342 121|234 121|243 122|234 122|243 123|214 123|234 123|241 123|242 123|244 123|341 123|342 123|432 124|213 124|231 124|232 124|233 124|243 124|331 124|332 124|341 124|342 124|431 131|214 131|324 132|214 132|224 132|423 133|214 133|241 134|211 134|212 134|213 134|221 134|223 134|241 134|321 134|322 134|421 141|213 142|213 142|223 142|313 143|211 143|212 143|221 143|312 144|213 144|312","8":"1324|4231"}}};
 </script>
 <script id="mixed-patterns">
 const MIX_LIST = [{"group":"3 lanes","items":["(13)-|22","11|-(23)","111(12)|3(23)33"]},{"group":"4 lanes","items":["12|-(34)","13|-(24)","(14)-|23","1(12)-|4(34)-","111|-2(34)"]}];
@@ -1778,13 +1849,28 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (SLOPE[text]) { const sp = SLOPE[text]; return { ok: true, text: text, slope: sp, seq: [0], lanes: sp.lanes, hand: [], zip: false }; }
     if (state.pingMode) {                                     // lane numbers; in brackets, both hands at once with four balls
       if (/[^0-9\s()\[\]]/.test(text)) return { ok: false, error: 'Ping Pong patterns are lane numbers, like 1122, or both hands at once in brackets, like (12)(21).' };
+      if (/\|/.test(text) && !state.twoMode) return { ok: false, error: 'A | gives each of two people their own row. Turn on 2 people first.' };
+      if (/[^0-9\s()\[\]|]/.test(text)) return { ok: false, error: 'Ping Pong patterns are lane numbers, like 1122, brackets for two at once, like (12)(21), or with 2 people a row each, like 12|21.' };
       const r = JLS.parse(text);
       if (!r.ok) return r;
-      if (r.pairs) return { ok: true, text: r.text, ping: true, sync: true, ps: r.slots, seq: r.slots[0], lanes: r.lanes, hand: [], zip: false };
-      r.ping = true; r.rev = false;
+      const base = { ok: true, text: r.text, ping: true, partner: state.twoMode, lanes: r.lanes, hand: [], zip: false };
+      if (r.mixed) {                                          // two people at the same moment, one ball each: a row each
+        if (r.rows.some(function (row) { return row.some(function (a) { return a.length !== 1; }); })) return { ok: false, error: 'In Ping Pong each beat of a row is one lane number.' };
+        const ps = r.rows.map(function (row) { return row.map(function (a) { return a[0]; }); });
+        return Object.assign(base, { sync: true, ps: ps, rows: r.rows, seq: ps[0] });
+      }
+      if (r.pairs && state.twoMode) return Object.assign(base, { duo: true, slots: r.slots, seq: r.slots[0] });   // one person, two at once
+      if (r.pairs) return Object.assign(base, { sync: true, ps: r.slots, seq: r.slots[0] });                     // one person, both hands
+      r.ping = true; r.rev = false; r.partner = state.twoMode;
       return r;
     }
     if (zip2Context() || /p/i.test(text)) return parseZip2(text);
+    if (!state.twoMode && !state.slopeMode && /^\s*([(\[]\s*[1-6]\s*[1-6]\s*[)\]]\s*)+$/.test(text)) {
+      // one person with brackets: both hands at once, so the pattern of those numbers with an even number of balls
+      const r = JLS.parse(text.replace(/[^1-6]/g, ''));
+      if (r.ok) r.together = true;
+      return r;
+    }
     if (/s/i.test(text)) return { ok: false, error: 'Write z for a zip. With two people, z is a zip to your own other hand and p a pass to the other person.' };
     const r = JLS.parse(text);
     if (r.ok && r.zip && r.pairs) return { ok: false, error: 'Zips in brackets need two people: write p to pass a ball across, as in (pp).' };
@@ -1801,7 +1887,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     rev2: ['(13)(24)(24)(13)', '(12)(34)(56)', '(13)(25)(46)', '(16)(25)(43)', '(14)(23)(14)(23)(23)(14)(23)(14)'],
     mix: MIX_TOP,
     ping: ['1', '1122', '111222', '(12)(21)', '(14)(32)(23)(41)'],
-    ping2: ['1', '1122', '111222', '(12)(21)', '(14)(32)(23)(41)'],
+    ping2: ['123', '(12)(12)', '12|21', '1122', '(13)(24)(24)(13)'],
     slope: ['Cascade', 'Async Fountain', '441', 'Boston Mess', 'Splits'].map(function (name) { for (const t in SLOPE) if (SLOPE[t].name === name) return t; })
   };
   // the ball count each top-five pattern starts with, where it has one
@@ -1848,10 +1934,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       }
       if (!mp) return 'No timing works for that pattern, whatever the number of balls.';
     }
+    if (parsed.ping && parsed.duo && !JLS.pingOk(parsed)) return 'Two at once: the people take turns, so an even number of brackets; the two lanes in a bracket must differ, and after placing, each hand has to reach one of the two balls coming in (in the same lane as its own placing or the next one).';
+    if (parsed.ping && parsed.partner && parsed.sync && !JLS.pingOk(parsed)) return 'Both people place at the same moment, so on each beat their two lanes must differ, or the balls would meet.';
     if (parsed.ping && !JLS.pingOk(parsed)) return parsed.sync
       ? 'With both hands at once, the two lanes in each bracket must differ (or the balls would meet), and each lane has to be the same as, or next to, the lane the other hand used just before, so the hand can grab the ball that just rolled past.'
       : 'In Ping Pong each roll has to be in the same lane as the roll before it, or the lane next to it, so the hand can grab the ball that just rolled past.';
-    if (parsed.ping) n = parsed.sync ? 4 : 3;                // 3 balls one hand at a time, 4 with both together                                  // one ball rolling and one waiting in each hand
+    if (parsed.ping) n = parsed.duo ? 6 : parsed.sync ? 4 : 3;   // 3 one at a time, 4 both at once, 6 two at once by turns                                  // one ball rolling and one waiting in each hand
     if (parsed.rev) {
       // lanes that change direction must be empty when they do, which limits the ball count
       let m = 0;
@@ -1904,7 +1992,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* The groups shown in the pattern list for the current mode, each item as [name, pattern]. */
   function listGroups() {
     if (state.slopeMode) return SLOPE_LIST;
-    if (state.pingMode) return PING_LIST.map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [PING_NAMES[t] || '', t]; }) }; });
+    if (state.pingMode) return (state.twoMode ? PING2_LIST : PING_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [(state.twoMode ? PING2_NAMES : PING_NAMES)[t] || '', t]; }) }; });
     if (state.zipMode && state.twoMode) {
       // the one-person zip list works as it is, with each z a pass between the two people; one group per lane count
       const out = [], byLanes = {};
@@ -1993,10 +2081,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   // passes two at once: each is a named zip pattern played by both hands, "... Sync"
   PAIR_ZIP_LIST.forEach(function (x) { if (ZIP_NAMES[x[0]]) ZIP2_NAMES[x[1]] = ZIP_NAMES[x[0]] + ' Sync'; });
   const EXTRA_NAMES = Object.assign({}, ZIP_NAMES, REV_NAMES, MIX_NAMES);
+  const PING2_NAMES = { '1': 'Shuffle', '1122': 'Two Step', '111222': "Back 'N' Forth", '12|21': 'Origami', '1324|4231': 'Riffle',
+                        '112|221': 'Hustle', '13|21': 'Swap Shop', '1213|2131': 'Shell Game' };   // the same moves played by two people
   const PING_NAMES = { '1': 'Shuffle', '1122': 'Two Step', '111222': "Back 'N' Forth", '(12)(21)': 'Origami', '(14)(32)(23)(41)': 'Riffle',
                        '(12)(12)(21)': 'Hustle', '(12)(31)': 'Swap Shop', '(12)(21)(13)(31)': 'Shell Game' };   // Ping Pong (kept apart: 1 means something else in other modes)
   function knownPattern(text) {
-    if (state.pingMode) { if (PING_NAMES[text]) return [PING_NAMES[text], text]; }
+    if (state.pingMode) { const N = state.twoMode ? PING2_NAMES : PING_NAMES; if (N[text]) return [N[text], text]; }
     else if (zip2Context()) { if (ZIP2_NAMES[text]) return [ZIP2_NAMES[text], text]; }
     else if (EXTRA_NAMES[text]) return [EXTRA_NAMES[text], text];
     for (const g of JLS.CATALOGUE.concat(PAIR_LIST, SLOPE_LIST)) for (const it of g.items) if (it[0] && it[1] === text) return it;
@@ -2039,7 +2129,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     let holder = strip;
     function tile(lane, i) {
       const t = document.createElement('span');
-      const bothHands = pat.rev || (pat.ping && pat.seq.length % 2);   // the hands swap numbers each time round
+      const bothHands = pat.rev || (pat.ping && !pat.rows && pat.seq.length % 2);   // the hands swap numbers each time round
       t.className = 'tile ' + (!lane ? 'z' : bothHands ? 'n' : sideOf(i % 2) === RIGHT ? 'r' : 'b');
       t.textContent = lane || (!state.twoMode || (pat.self && pat.self[i]) ? 'z' : 'p');   // with two people, p is a pass
       t.dataset.b = i;
@@ -2069,7 +2159,21 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       lastActive = '';
       return;
     }
-    if (pat.sync) {                                           // Ping Pong with both hands at once: right hand's lane, then the left's
+    if (pat.duo) {                                            // partner Ping Pong, two at once: a bracket per turn, coloured by person
+      for (let i = 0; i < pat.seq.length; i++) {
+        holder = document.createElement('span'); holder.className = 'pair br';
+        const who = sideOf(i % 2) === RIGHT ? 'r' : 'b';
+        for (let x = 0; x < 2; x++) {
+          const t = document.createElement('span');
+          t.className = 'tile ' + who; t.textContent = pat.slots[x][i]; t.dataset.b = i; t.dataset.who = who;
+          holder.appendChild(t);
+        }
+        strip.appendChild(holder);
+      }
+      lastActive = '';
+      return;
+    }
+    if (pat.sync && !pat.rows) {                              // Ping Pong with both hands at once: right hand's lane, then the left's
       for (let i = 0; i < pat.seq.length; i++) {
         holder = document.createElement('span'); holder.className = 'pair br';
         for (let x = 0; x < 2; x++) {
@@ -2082,7 +2186,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       lastActive = '';
       return;
     }
-    if (pat.mixed) {                                          // a row for each person, beat by beat
+    if (pat.mixed || pat.rows) {                              // a row for each person, beat by beat
       const rows = document.createElement('span'); rows.className = 'rows';
       rows.style.gridTemplateColumns = 'auto repeat(' + pat.rows[0].length + ', auto)';     // one column per beat, so the rows line up
       pat.rows.forEach(function (row, x) {
@@ -2117,7 +2221,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         } else strip.appendChild(holder);
         return;
       }
-      if (together && i % 2 === 0) { holder = document.createElement('span'); holder.className = 'pair'; strip.appendChild(holder); }
+      // hands rolling together: one person written in brackets, (12)(32), as brackets always mean one person's two hands at once
+      if (together && i % 2 === 0) { holder = document.createElement('span'); holder.className = state.twoMode ? 'pair' : 'pair br'; strip.appendChild(holder); }
       const t = tile(lane, i);
       if (state.zipMode) {
         t.className += ' tap'; t.tabIndex = 0; t.setAttribute('role', 'button');
@@ -2140,7 +2245,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   let lastActive = '';
   function markStrip() {
-    const act = splan ? [Math.floor(((2 * u) % splan.period + splan.period) % splan.period / (splan.sync ? 2 : 1))] : state.pat.sync ? [((Math.floor(2 * u) % state.pat.seq.length) + state.pat.seq.length) % state.pat.seq.length] : JLS.active(u, state.pat, plan || mplan ? 1 : state.pat.pairs ? state.n / 2 : state.n);
+    const act = splan ? [Math.floor(((2 * u) % splan.period + splan.period) % splan.period / (splan.sync ? 2 : 1))] : state.pat.sync || state.pat.duo ? [((Math.floor(2 * u) % state.pat.seq.length) + state.pat.seq.length) % state.pat.seq.length] : JLS.active(u, state.pat, plan || mplan ? 1 : state.pat.pairs ? state.n / 2 : state.n);
     const key = act.join(',');
     if (key === lastActive) return;
     lastActive = key;
@@ -2148,7 +2253,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     for (let i = 0; i < tiles.length; i++) tiles[i].classList.toggle('on', act.indexOf(Number(tiles[i].dataset.b)) !== -1);
     // In Reverses a number can be rolled by one hand (or person) this time round and the other next time, because the
     // rolls simply alternate. So whose roll it is comes from the count of rolls so far, for the voices.
-    if ((state.pat.rev || state.pat.ping) && !state.pat.sync && !plan && !mplan && !splan) {
+    if ((state.pat.rev || state.pat.ping) && !state.pat.sync && !state.pat.duo && !plan && !mplan && !splan) {
       const n = state.pat.pairs ? state.n / 2 : state.n, L = state.pat.seq.length;
       const ks = n % 2 ? [Math.floor(2 * u)] : [2 * Math.floor(u), 2 * Math.floor(u) + 1];
       for (const k of ks) {
@@ -2161,7 +2266,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function showInfo() {
     if (error) { info.className = 'info bad'; info.textContent = error; return; }
     const n = state.n, who = state.twoMode ? 'people' : 'hands';
-    const turns = splan ? !splan.sync : plan || mplan ? true : state.pat.pairs ? (n / 2) % 2 === 1 : n % 2 === 1;
+    const turns = splan ? !splan.sync : state.pat.ping ? !state.pat.sync : plan || mplan ? true : state.pat.pairs ? (n / 2) % 2 === 1 : n % 2 === 1;
     info.className = 'info';
     let html = '<span class="nw"><b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + (mplan ? 'each person keeps their own rhythm' : who + (turns ? ' take turns' : ' roll together')) + '</span>';
     if (splan) {
@@ -2257,7 +2362,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const needs = !parsed.ok ? '' : asZip2 && parsed.zip ? 'zip2' : parsed.zip ? (state.twoMode || parsed.pairs ? 'zip2' : 'zip') : parsed.mixed ? (rowRev(parsed.text) ? 'rev2' : 'mix') : parsed.rev ? (state.twoMode || parsed.pairs ? 'rev2' : 'rev') : parsed.pairs ? 'two' : '';
     if (needs && modeName() !== needs && !(needs === 'two' && state.twoMode)) { setMode(needs); fillPatternList(); }
     const changed = !parsed.ok || parsed.text !== state.pat.text;
-    error = setPattern(parsed, state.n);
+    error = setPattern(parsed, parsed.together && state.n % 2 ? (state.n < JLS.MAX_BALLS ? state.n + 1 : state.n - 1) : state.n);
     if (error) { inCustom.classList.add('bad'); showInfo(); return; }
     under = [];
     refresh(changed);
@@ -2532,8 +2637,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (state.pingMode) {
       wallTitle.textContent = 'All Ping Pong patterns';
       wallNote.textContent = 'Three balls. Just after a ball rolls past, the hand places its own ball a little way up the lane, then jumps back to grab the one that went past before it reaches the end, so a lane can be used both ways. Each roll is in the same lane as the one before or the lane next to it, so the hand can reach the grab. These are all the ones of up to 8 rolls that use some lane both ways and in which no hand move happens twice. With 4 balls both hands place at once, written in brackets with the right hand first: (12) is the right hand in lane 1 and the left in lane 2, so the two lanes in a bracket always differ. Tap one to play it.' + same + ' Running backwards also counts as the same.';
-      add(ALL_PING, ', 3 balls');
-      add(ALL_PING_SYNC, ', 4 balls together');
+      if (state.twoMode) { add(ALL_PING2.single, ', 3 balls, one at a time'); add(ALL_PING2.duo, ', 6 balls, two at once'); add(ALL_PING2.rows, ', 4 balls, both people at once'); }
+      else { add(ALL_PING, ', 3 balls'); add(ALL_PING_SYNC, ', 4 balls together'); }
     } else if (state.zipMode && state.twoMode) {
       wallTitle.textContent = 'Two-person zip patterns';
       wallNote.textContent = 'Every two-person pattern with zips to your own other hand, of up to 8 rolls, in which no hand move happens twice. A z is a zip: handed to your own other hand, just as for one person. A p is a pass: handed to the other person in the middle of the board. In brackets, each person works two balls at once, and (pp) passes both across together. Every one-person zip pattern also works with its zips as passes; those are on the one-person zip page, written with z. Tap one to play it.' + same;
@@ -2757,7 +2862,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     } else if (state.pat.ping) {
       // the hand that grabs the ball rolled on beat i carries it from near the end of that lane to where it places it next
       const ps = state.pat.ps;
-      if (state.pat.sync) for (let i = 0; i < L; i++) for (let x = 0; x < 2; x++)   // grabbed from the other hand's lane, placed on the next beat
+      if (state.pat.duo) for (const q of JLS.pingDuoPaths(state.pat)) paths.push({ side: sideOf(q.end), from: q.from, to: q.to });
+      else if (state.pat.sync) for (let i = 0; i < L; i++) for (let x = 0; x < 2; x++)   // grabbed from the other hand's lane, placed on the next beat
         paths.push({ side: sideOf(x), from: { pp: ps[1 - x][i], d: JLS.PING_CATCH }, to: { pp: ps[x][(i + 2) % L], d: JLS.PING_PLACE } });
       else for (let i = 0; i < (L % 2 ? 2 * L : L); i++) paths.push({ side: sideOf((i + 1) % 2), from: { pp: seq[i % L], d: JLS.PING_CATCH }, to: { pp: seq[(i + 3) % L], d: JLS.PING_PLACE } });
     } else if (mplan) {
@@ -2961,7 +3067,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         return b.state === 'roll' ? b : { id: b.id, state: 'held', hand: b.hand, from: { lane: b.from }, to: { lane: b.to }, p: b.p };
       });
       if (state.twoMode && pat.ping) {
-        hs = JLS.pingHands2(u, pat).map(function (h) {
+        hs = (pat.duo ? JLS.pingDuoHands(u, pat) : JLS.pingHands2(u, pat)).map(function (h) {
           const right = h.which === 0, thumbUp = (sideOf(h.end) === RIGHT) !== right;   // each person leads with their right hand
           return { hand: h.end, holding: h.holding, from: h.from, to: h.to, p: h.p, letter: right ? 'R' : 'L', thumbUp: thumbUp };
         });

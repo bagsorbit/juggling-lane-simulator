@@ -93,6 +93,105 @@ def sync_search(k, n):
             found[canon] = min(t for t in sync_images(seq, k) if t[0][0] == 1)
     return sorted(sync_show(s) for s in found.values())
 
+
+# ---- two people (partner Ping Pong) ----
+# A person at each end with two hands; while one hand places, the other waits at the incoming lane, so any lane
+# order works. Three kinds:
+#   single placings, people taking turns (3 balls), written like solo: 123
+#   two at once, people taking turns (6 balls): a person places two balls with both hands, (13); both hands then hop
+#     back and each grabs a ball in the same or next lane as its own placing
+#   both people at the same moment, one ball each (4 balls), written a row per person: 12|21
+def partner_valid(seq, k):
+    L = len(seq)
+    if set(seq) != set(range(1, k + 1)):
+        return False
+    if any(L % d == 0 and seq == seq[d:] + seq[:d] for d in range(1, L)):
+        return False
+    P = period(seq)
+    hands = {}
+    for i in range(P):
+        hands.setdefault(seq[i % L], set()).add(i % 2)
+    if not any(len(h) == 2 for h in hands.values()):
+        return False
+    moves = [((i + 1) % 2, seq[i % L], seq[(i + 3) % L]) for i in range(P)]
+    return len(set(moves)) == len(moves)
+
+def partner_search(k, L):
+    found = {}
+    for seq in itertools.product(range(1, k + 1), repeat=L):
+        if seq[0] != 1 or not partner_valid(seq, k):
+            continue
+        canon = min(images(seq, k))
+        if canon not in found:
+            found[canon] = min(t for t in images(seq, k) if t[0] == 1)
+    return sorted("".join(map(str, s)) for s in found.values())
+
+def duo_grab(seq, s):
+    n = len(seq)
+    (a, b), (c, d) = seq[(s + 1) % n], seq[s]
+    straight = abs(a - c) <= 1 and abs(b - d) <= 1
+    crossed = abs(a - d) <= 1 and abs(b - c) <= 1
+    return straight or crossed
+
+def duo_valid(seq, k):
+    n = len(seq)
+    if n % 2 or any(a == b for a, b in seq):
+        return False
+    if {x for p in seq for x in p} != set(range(1, k + 1)):
+        return False
+    if not all(duo_grab(seq, s) for s in range(n)):
+        return False
+    if any(n % r == 0 and seq == seq[r:] + seq[:r] for r in range(2, n, 2)):
+        return False
+    ends = {}
+    for t in range(n):
+        for x in seq[t]:
+            ends.setdefault(x, set()).add(t % 2)
+    return any(len(v) == 2 for v in ends.values())
+
+def duo_images(seq, k):
+    out = []
+    for s in (seq, tuple((b, a) for a, b in seq)):
+        for g in (s, tuple((k + 1 - a, k + 1 - b) for a, b in s)):
+            h = tuple(tuple(sorted(p)) for p in g)
+            out += [h[r:] + h[:r] for r in range(0, len(h), 2)]
+    return out
+
+def duo_search(k, n):
+    pairs = [(a, b) for a in range(1, k + 1) for b in range(a + 1, k + 1)]
+    found = {}
+    for seq in itertools.product(pairs, repeat=n):
+        if duo_valid(seq, k):
+            canon = min(duo_images(seq, k))
+            if canon not in found:
+                found[canon] = min(duo_images(seq, k))
+    return sorted("".join(f"({a}{b})" for a, b in s) for s in found.values())
+
+def rows_valid(seq, k):
+    # like the four-ball solo patterns, but no same-or-next-lane limit: the person's free hand waits for the ball
+    n = len(seq)
+    if any(a == b for a, b in seq):
+        return False
+    if {x for p in seq for x in p} != set(range(1, k + 1)):
+        return False
+    if any(n % d == 0 and seq == seq[d:] + seq[:d] for d in range(1, n)):
+        return False
+    moves = [(0, seq[t][1], seq[(t + 2) % n][0]) for t in range(n)] + [(1, seq[t][0], seq[(t + 2) % n][1]) for t in range(n)]
+    if len(set(moves)) != len(moves):
+        return False
+    return bool({p[0] for p in seq} & {p[1] for p in seq})
+
+def rows_search(k, n):
+    pairs = [(a, b) for a in range(1, k + 1) for b in range(1, k + 1) if a != b]
+    found = {}
+    for seq in itertools.product(pairs, repeat=n):
+        if seq[0][0] != 1 or not rows_valid(seq, k):
+            continue
+        canon = min(sync_images(seq, k))
+        if canon not in found:
+            found[canon] = min(t for t in sync_images(seq, k) if t[0][0] == 1)
+    return sorted("".join(str(a) for a, b in s) + "|" + "".join(str(b) for a, b in s) for s in found.values())
+
 if __name__ == "__main__" and "--embed" not in sys.argv:
     for k in range(1, 5):
         for L in range(1, 9):
@@ -104,6 +203,18 @@ if __name__ == "__main__" and "--embed" not in sys.argv:
             r = sync_search(k, n)
             if r:
                 print("4 balls together,", k, "lanes", n, "beats:", len(r), " ".join(r[:20]))
+    for k in range(1, 5):
+        for L in range(1, 7):
+            r = partner_search(k, L)
+            if r: print("2 people, singles,", k, "lanes", L, "rolls:", len(r))
+    for k in range(2, 6):
+        for n in (2, 4):
+            r = duo_search(k, n)
+            if r: print("2 people, two at once,", k, "lanes", n, "brackets:", len(r))
+    for k in range(2, 5):
+        for n in range(1, 5):
+            r = rows_search(k, n)
+            if r: print("2 people, together,", k, "lanes", n, "beats:", len(r), " ".join(r[:10]))
 
 if __name__ == "__main__" and "--embed" in sys.argv:
     import json, re
@@ -133,9 +244,38 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     everything = {p for w in (wall, wall4) for d in w.values() for v in d.values() for p in v.split()}
     assert all(p in everything for v in picks.values() for p in v), [p for v in picks.values() for p in v if p not in everything]
     groups = [{"group": str(k) + (" lane" if k == 1 else " lanes"), "items": v} for k, v in picks.items()]
+    # Two people. The wall: single placings up to 6 rolls, two at once up to 4 brackets, both at the same moment up to
+    # 4 beats on 2 and 3 lanes and 3 beats on 4 (there are 700 on 4 lanes with 4 beats).
+    wall2 = {"single": {}, "duo": {}, "rows": {}}
+    for k in range(1, 5):
+        for L in range(1, 7):
+            r = partner_search(k, L)
+            if r: wall2["single"].setdefault(str(k), {})[str(L)] = " ".join(r)
+    for k in range(2, 6):
+        for n in (2, 4):
+            r = duo_search(k, n)
+            if r: wall2["duo"].setdefault(str(k), {})[str(2 * n)] = " ".join(r)
+    for k in range(2, 5):
+        for n in range(1, 5 if k < 4 else 4):
+            r = rows_search(k, n)
+            if r: wall2["rows"].setdefault(str(k), {})[str(2 * n)] = " ".join(r)
+    # added by hand: 111222 (asked for in solo, repeats a hand move) and Riffle for two people (4 lanes, 4 beats)
+    for kind, k, n, t in (("single", "2", "6", "111222"), ("rows", "4", "8", "1324|4231")):
+        d = wall2[kind].setdefault(k, {}); d[n] = (d.get(n, "") + " " + t).strip()
+    # The list: picked for the user (2026-11-18) by symmetry; grouped by lanes, single placings, then two at once,
+    # then both at the same moment (the solo four-ball favourites played by two people).
+    picks2 = {1: ["1"],
+              2: ["1122", "111222", "(12)(12)", "12|21", "112|221"],
+              3: ["123", "112332", "1223", "(12)(23)(23)(12)", "13|21", "1213|2131"],
+              4: ["(13)(24)(24)(13)", "(14)(23)(23)(14)", "(12)(23)(34)(23)", "1324|4231"]}
+    every2 = {p for w in wall2.values() for d in w.values() for v in d.values() for p in v.split()}
+    assert all(p in every2 for v in picks2.values() for p in v), [p for v in picks2.values() for p in v if p not in every2]
+    groups2 = [{"group": str(k) + (" lane" if k == 1 else " lanes"), "items": v} for k, v in picks2.items()]
     block = ('<script id="ping-patterns">\nconst PING_LIST = ' + json.dumps(groups, separators=(",", ":")) +
              ';\nconst ALL_PING = ' + json.dumps(wall, separators=(",", ":")) +
-             ';\nconst ALL_PING_SYNC = ' + json.dumps(wall4, separators=(",", ":")) + ';\n</script>')
+             ';\nconst ALL_PING_SYNC = ' + json.dumps(wall4, separators=(",", ":")) +
+             ';\nconst PING2_LIST = ' + json.dumps(groups2, separators=(",", ":")) +
+             ';\nconst ALL_PING2 = ' + json.dumps(wall2, separators=(",", ":")) + ';\n</script>')
     html = open("index.html", encoding="utf-8").read()
     if '<script id="ping-patterns">' in html:
         html = re.sub(r'<script id="ping-patterns">.*?</script>', lambda m: block, html, flags=re.S)

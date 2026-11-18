@@ -1848,7 +1848,6 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function parseAny(text) {
     if (SLOPE[text]) { const sp = SLOPE[text]; return { ok: true, text: text, slope: sp, seq: [0], lanes: sp.lanes, hand: [], zip: false }; }
     if (state.pingMode) {                                     // lane numbers; in brackets, both hands at once with four balls
-      if (/[^0-9\s()\[\]]/.test(text)) return { ok: false, error: 'Ping Pong patterns are lane numbers, like 1122, or both hands at once in brackets, like (12)(21).' };
       if (/\|/.test(text) && !state.twoMode) return { ok: false, error: 'A | gives each of two people their own row. Turn on 2 people first.' };
       if (/[^0-9\s()\[\]|]/.test(text)) return { ok: false, error: 'Ping Pong patterns are lane numbers, like 1122, brackets for two at once, like (12)(21), or with 2 people a row each, like 12|21.' };
       const r = JLS.parse(text);

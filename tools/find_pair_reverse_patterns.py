@@ -101,7 +101,7 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     assert all(max(counts(tuple((int(p[i]), int(p[i + 1])) for i in range(1, len(p), 4)))) == 6 for p in syncs)
     groups[1]["items"] += syncs
     # Twin Dogs: the two paths share lanes (allowed since 2026-11-17, kept by the user)
-    even[4] = sorted(set(even[4]) | {"[14][23][23][41]"})
+    even[4] = sorted(set(even[4]) | {"[14][23][23][41]", "[14][23][32][14]"})   # Twin Dogs, Quarter Pounder
     wall = {"4": {"4": " ".join(even[4]), "8": " ".join(loops)}, "5": {"4": " ".join(even[5])}, "6": {"3": every, "6": " ".join(syncs)}}
     block = ('<script id="rev-pair-patterns">\nconst REV_PAIR_LIST = ' +
              json.dumps(groups, separators=(",", ":")) +

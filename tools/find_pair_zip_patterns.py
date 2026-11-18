@@ -137,7 +137,7 @@ if __name__ == "__main__" and "--embed" in sys.argv:
             wall[k][n] = (have + " " + p).strip()
     # half-zips (one ball of a pair rolls while the other is handed across), named by the user 2026-11-17.
     # Only these go on the wall: the full search finds about 1,800, too many to show.
-    half = ["[1z][z2]", "[13][2z][13][z2]", "[1z][2z][z3][z2]", "[1z][z2][4z][z3]"]
+    half = ["[1z][z2]", "[13][2z][13][z2]", "[1z][2z][z3][z2]"]
     for p in half:
         k, n = str(max(int(c) for c in p if c.isdigit())), str(2 * p.count("["))
         wall.setdefault(k, {})[n] = (wall[k].get(n, "") + " " + p).strip()

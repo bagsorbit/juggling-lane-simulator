@@ -24,6 +24,8 @@ Moves made at the same moment are written in round brackets, like `(14)(23)`, as
 
 ### Slope
 
+The "Ping Pong" button is a one-person mode with three balls and quick rolls: every roll takes one beat, and as a ball arrives that hand rolls the one it is holding, so only one ball rolls at a time and a lane can be used both ways, even one lane on its own (`1` is a three-ball cascade on a single lane). The ball order is the same as an ordinary pattern with three balls; what changes is that balls wait in the hands. The list has the patterns of up to 5 rolls (and two of 6) that use some lane both ways and in which no hand move happens twice; the All patterns wall has those of up to 6 rolls. Search: `tools/find_ping_patterns.py` (`--embed` writes them into `index.html`).
+
 The "Slope" button turns the lanes to run up the screen, sloping down towards one person at the bottom. A hand carries a ball up a lane and lets go, and the ball rolls back. These are toss-juggling patterns: each is written as the lanes in the order the hands use them, then the siteswap in brackets, such as `12 (siteswap 3)` for the cascade. Every ball rolls at the same speed, so a bigger siteswap number starts higher up the lane. A `z` is a zip (a siteswap 1). The patterns come from a fixed list.
 
 ### Lanes that change direction

@@ -568,14 +568,14 @@ const JLS = (function () {
     if (!/^(\[[^\[\]]*\])+$/.test(s)) return { ok: false, error: 'To mix single rolls and pairs, write a row for each person with a | between them, like [13]-|22.' };
     const parts = s.slice(1, -1).split('][');
     for (const part of parts) {
-      if (part === 'zz') continue;                        // both balls handed across the middle together
+      if (/^(zz|z[1-6]|[1-6]z)$/.test(part)) continue;      // zz: both balls handed across the middle; 1z, z2: one rolls, one is handed across
       if (!/^[1-6]{2}$/.test(part)) return { ok: false, error: 'Each pair of brackets needs two lane numbers from 1 to ' + MAX_LANES + ', like [14], or [zz] to hand both balls across.' };
       if (part[0] === part[1]) return { ok: false, error: 'One person cannot roll two balls into lane ' + part[0] + ' at the same moment.' };
     }
     if (parts.length > MAX_BRACKETS) return { ok: false, error: 'That is too long. Keep it to ' + MAX_BRACKETS + ' brackets or fewer.' };
-    const slots = [parts.map(function (x) { return x === 'zz' ? 0 : Number(x[0]); }), parts.map(function (x) { return x === 'zz' ? 0 : Number(x[1]); })];
+    const slots = [parts.map(function (x) { return x[0] === 'z' ? 0 : Number(x[0]); }), parts.map(function (x) { return x[1] === 'z' ? 0 : Number(x[1]); })];
     const lanes = Math.max.apply(null, slots[0].concat(slots[1]));
-    if (parts.indexOf('zz') !== -1) {
+    if (/z/.test(s)) {
       // Zip passes two at once: each position in the brackets is an ordinary zip pattern, and the two run in step.
       if (!lanes) return { ok: false, error: 'A pattern needs at least one pair of rolls as well as its [zz].' };
       if (parts.length % 2) return { ok: false, error: 'A pattern with [zz] needs an even number of brackets, because the two people take turns.' };
@@ -598,8 +598,7 @@ const JLS = (function () {
       }
     }
     if (rev) {
-      // the two paths must keep to their own lanes, so balls on one never meet balls on the other
-      for (const lane of slots[0]) if (slots[1].indexOf(lane) !== -1) return { ok: false, error: 'When lanes change direction, lane ' + lane + ' cannot be in both the first and the second place of the brackets.' };
+      // the two paths may share lanes; revOk checks that balls on one never meet balls on the other
       return { ok: true, text: s, seq: slots[0], slots: slots, lanes: lanes, hand: new Array(lanes + 1).fill(-1), pairs: true, rev: true, zip: false };
     }
     return { ok: true, text: s, seq: slots[0], slots: slots, lanes: lanes, hand: hand, pairs: true, zip: false };
@@ -709,7 +708,18 @@ const JLS = (function () {
 
   /* Lanes that change direction: true if, with n balls, a lane is always empty when it is rolled the other way. */
   function revOk(pat, n) {
-    if (pat.pairs) return n % 2 === 0 && pat.slots.every(function (q) { return revOk({ seq: q }, n / 2); });
+    if (pat.pairs) {
+      if (n % 2 || !pat.slots.every(function (q) { return revOk({ seq: q }, n / 2); })) return false;
+      // where the two paths share a lane: rolls from opposite ends need the same gap as on one path
+      const m = n / 2, a = pat.slots[0], b = pat.slots[1], L = a.length;
+      for (let i = 0; i < 2 * L; i++) for (let j = i - 2 * m - 3; j < i + 2 * m + 3; j++) {
+        if (a[mod(i, L)] !== b[mod(j, L)] || mod(j - i, 2) === 0) continue;
+        const lo = Math.min(i, j), hi = Math.max(i, j);
+        const gap = m % 2 ? hi - lo : 2 * (Math.floor(hi / 2) - Math.floor(lo / 2));
+        if (gap < m) return false;
+      }
+      return true;
+    }
     const L = pat.seq.length;
     for (let i = 0; i < 2 * L; i++) {
       for (let j = i + 1; j < i + 2 * n + 3; j++) {
@@ -723,8 +733,14 @@ const JLS = (function () {
   /* For each lane, which hand rolled into it last (so which way it is running right now), or -1. */
   function laneHands(u, pat, n) {
     if (pat.pairs) {                                    // the two paths keep to their own lanes
-      const a = laneHands(u, { seq: pat.slots[0], lanes: pat.lanes }, n / 2), b = laneHands(u, { seq: pat.slots[1], lanes: pat.lanes }, n / 2);
-      return a.map(function (h, lane) { return h === -1 ? b[lane] : h; });
+      // both paths roll on the same beats, so the lanes of the two together are one sequence of brackets
+      const L = pat.slots[0].length, out = new Array(pat.lanes + 1).fill(-1), m = n / 2;
+      const latest = m % 2 ? Math.floor(2 * u) : 2 * Math.floor(u) + 1;
+      for (let i = latest; i > latest - 2 * L - 2; i--) for (const q of pat.slots) {
+        const lane = q[mod(i, L)];
+        if (out[lane] === -1) out[lane] = mod(i, 2);
+      }
+      return out;
     }
     const L = pat.seq.length, out = new Array(pat.lanes + 1).fill(-1);
     const latest = n % 2 ? Math.floor(2 * u) : 2 * Math.floor(u) + 1;
@@ -1118,19 +1134,27 @@ const JLS = (function () {
     landings.sort(function (x, y) { return x - y; });
     return { seq: pat.seq, self: pat.self || null, L: L, n: n, lanes: pat.lanes, vals: vals, srcVal: srcVal, maxV: maxV, landings: landings, ids: new Map() };
   }
-  /* [zz] patterns: n balls, n/2 on each path. Both paths need the same timing, so each pair moves together,
-   * and where they share a lane a ball on one path must never catch up with a ball on the other. */
+  /* Bracket patterns with zips: n balls, n/2 on each path, each path timed as an ordinary zip pattern.
+   * With [zz] the two balls of a pair keep in step; with a half-zip like [1z] one rolls while the other is
+   * handed across, so the paths have their own timing. Where they share a lane, a ball on one path must never
+   * catch up with (or arrive together with) a ball on the other. */
   function pairZipPlan(pat, n) {
     if (n % 2) return null;
     const plans = pat.slots.map(function (q) { return zipPlan({ seq: q, lanes: pat.lanes }, n / 2); });
-    if (!plans[0] || !plans[1] || plans[0].vals.join() !== plans[1].vals.join()) return null;
-    const v = plans[0].vals, L = v.length, a = pat.slots[0], b = pat.slots[1];
+    if (!plans[0] || !plans[1]) return null;
+    const v0 = plans[0].vals, v1 = plans[1].vals, L = v0.length, a = pat.slots[0], b = pat.slots[1];
     for (let i = 0; i < L; i++) for (let j = 0; j < L; j++) {
-      if (i === j || !a[i] || a[i] !== b[j]) continue;
-      const lo = Math.min(i, j), hi = Math.max(i, j), gap = hi - lo;
-      if (!(v[lo] - v[hi] < gap && v[hi] - v[lo] < L - gap)) return null;
+      if (!a[i] || a[i] !== b[j]) continue;
+      for (let k = -3; k <= 3; k++) {
+        const tj = j + k * L;
+        if (tj === i) continue;
+        const ai = i + v0[i], aj = tj + v1[j];
+        if ((i < tj && ai >= aj) || (i > tj && ai <= aj)) return null;
+      }
     }
-    return { pairs: true, plans: plans, seq: pat.seq, L: L, n: n, lanes: pat.lanes, vals: v };
+    // the beats under the brackets: the same for both paths, or both written as 3/1 when they differ
+    const vals = v0.map(function (x, i) { return x === v1[i] ? x : x + '/' + v1[i]; });
+    return { pairs: true, plans: plans, seq: pat.seq, L: L, n: n, lanes: pat.lanes, vals: vals };
   }
   function zSelf(plan, t) { return !!plan.self && plan.self[mod(t, plan.L)]; }
   function zSym(plan, t) { return plan.seq[mod(t, plan.L)]; }

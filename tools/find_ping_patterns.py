@@ -231,14 +231,8 @@ if __name__ == "__main__" and "--embed" in sys.argv:
             if r:
                 wall4.setdefault(str(k), {})[str(2 * n)] = " ".join(r)
     # The list: picked for the user (2026-11-18) and then pruned by them; grouped by lanes, three balls before four.
-    # 111222 was asked for by the user: it repeats a hand move, so the search leaves it out; it is added by hand
-    # (to the wall too) and was checked in the app's engine.
-    extra = {"2": {"6": "111222"}}
-    for k, d in extra.items():
-        for L, t in d.items():
-            wall.setdefault(k, {})[L] = (wall[k].get(L, "") + " " + t).strip()
     picks = {1: ["1"],
-             2: ["1122", "111222", "(12)(21)", "(12)(12)(21)"],
+             2: ["1122", "(12)(21)", "(12)(12)(21)"],
              3: ["(12)(21)(13)(31)"],
              4: ["(14)(32)(23)(41)"]}
     everything = {p for w in (wall, wall4) for d in w.values() for v in d.values() for p in v.split()}
@@ -259,13 +253,13 @@ if __name__ == "__main__" and "--embed" in sys.argv:
         for n in range(1, 5 if k < 4 else 4):
             r = rows_search(k, n)
             if r: wall2["rows"].setdefault(str(k), {})[str(2 * n)] = " ".join(r)
-    # added by hand: 111222 (asked for in solo, repeats a hand move) and Riffle for two people (4 lanes, 4 beats)
-    for kind, k, n, t in (("single", "2", "6", "111222"), ("rows", "4", "8", "1324|4231")):
+    # added by hand: Riffle for two people (4 lanes, 4 beats)
+    for kind, k, n, t in (("rows", "4", "8", "1324|4231"),):
         d = wall2[kind].setdefault(k, {}); d[n] = (d.get(n, "") + " " + t).strip()
     # The list: picked for the user (2026-11-18) by symmetry; grouped by lanes, single placings, then two at once,
     # then both at the same moment (the solo four-ball favourites played by two people).
     picks2 = {1: ["1"],
-              2: ["1122", "111222", "(12)(12)", "12|21", "112|221"],
+              2: ["1122", "(12)(12)", "12|21", "112|221"],
               3: ["123", "112332", "1223", "(12)(23)(23)(12)", "1213|2131"],
               4: ["(13)(24)(24)(13)", "(14)(23)(23)(14)", "(12)(23)(34)(23)", "1324|4231"]}
     every2 = {p for w in wall2.values() for d in w.values() for v in d.values() for p in v.split()}

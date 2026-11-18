@@ -1191,6 +1191,18 @@ const ICONS = (function () {
       '<rect x="22" y="38" width="5" height="7" rx="1.5" fill="#c0c4cc" stroke-width="1.8"/>'
   });
   Object.assign(zipIcons, {
+    // zipper: two rows of teeth closing up behind a pull tab
+    'Zippity Doodah': '<rect x="8" y="5" width="32" height="39" rx="5" fill="#4ea8ff"/><path d="M15 5l9 12 9-12z" fill="#fff"/>' +
+      '<g fill="#ffd43b" stroke-width="1.5"><rect x="18" y="22" width="6" height="3.2" rx="1"/><rect x="24" y="25.4" width="6" height="3.2" rx="1"/><rect x="18" y="28.8" width="6" height="3.2" rx="1"/><rect x="24" y="32.2" width="6" height="3.2" rx="1"/><rect x="18" y="35.6" width="6" height="3.2" rx="1"/><rect x="24" y="39" width="6" height="3.2" rx="1"/></g>' +
+      '<rect x="17" y="12" width="14" height="10" rx="3" fill="#c0c6d0"/><circle cx="24" cy="17" r="1.8" fill="#fff" stroke-width="1.4"/>',
+    'Loop de Zip': rope('M24 9c10 0 17 6 17 15s-7 15-17 15S7 33 7 24 14 9 24 9z', '#ffd43b') +
+      '<path d="M27 13l-8 12h7l-5 11 11-14h-7l5-9z" fill="#ff7b6e" stroke-width="2"/>',
+    'Zing Donut': '<circle cx="24" cy="25" r="18" fill="#e0a060"/><path d="M8 23c1-9 8-15 16-15s15 6 16 15c-2 4-4 1-6 4s-4-1-7 2-5-1-8 1-4-3-6-1-4-2-5-6z" fill="#ff8fc8"/>' +
+      '<circle cx="24" cy="25" r="5.5" fill="#fff"/><g stroke-width="2.2"><path d="M14 16l2 2M30 13l2-1M34 20l1 2M19 12l2 0M13 23l1 2M24 15h2" stroke="#fff"/><path d="M20 14l1 2M33 16l2 0M16 20l0 2" stroke="#4ea8ff"/></g>',
+    'Zip Dog': '<path d="M6 25c0 9 8 13 18 13s18-4 18-13z" fill="#f4b860"/><rect x="4" y="18" width="40" height="10" rx="5" fill="#e8590c"/>' +
+      '<path d="M8 23h32" stroke="#ffd43b" stroke-width="1.6"/><path d="M10 21v4M14 21v4M18 21v4M22 21v4M26 21v4M30 21v4M34 21v4" stroke="#ffd43b" stroke-width="1.6"/>' +
+      '<rect x="36" y="18.5" width="5" height="9" rx="1.5" fill="#c0c6d0" stroke-width="1.8"/>' +
+      '<path d="M6 25c0-3 1-4 3-4M42 25c0-3-1-4-3-4" fill="none" stroke-width="2"/>',
     'Paired Loops': rope('M17 12c7 0 11 5 11 12s-4 12-11 12S6 31 6 24s4-12 11-12z', '#4ea8ff') + rope('M31 12c7 0 11 5 11 12s-4 12-11 12-11-5-11-12 4-12 11-12z', '#ff7b6e'),
     'In & Out': '<path d="M9 17h19" fill="none" stroke-width="10.5"/><path d="M9 17h19" fill="none" stroke="#4ea8ff" stroke-width="6"/><path d="M26 8l13 9-13 9z" fill="#4ea8ff"/>' +
       '<path d="M39 33H20" fill="none" stroke-width="10.5"/><path d="M39 33H20" fill="none" stroke="#ff7b6e" stroke-width="6"/><path d="M22 24L9 33l13 9z" fill="#ff7b6e"/>',
@@ -1365,7 +1377,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   const TOP5 = {
     one: ['1232', '12', '1213', '123432', '141323'],
     zip: ['1z2z', '1z2z3z', '1z', '121z', '121z13'],
-    zip2: ['1zs2zs', '12s43s', '1s24s3', '1z2zs3zs', '121z'],
+    zip2: ['1zs2zs', '121z', '12s21s', '12s43s', '1s34s2'],
     two: ['1232', '[12][34]', '[14][32]', '12345432', '131424'],
     rev: ['123', '12345', '121323', '123132', '12342143'],
     rev2: ['[12][34][56]', '[16][25][34]', '[14][25][36]', '123', '12345'],
@@ -1376,6 +1388,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   const TOP_BALLS = { one: { '1232': 5, '12': 4, '1213': 3, '123432': 5, '141323': 5 },
                      zip: { '1z2z': 3, '1z2z3z': 3, '1z': 3, '121z': 4, '121z13': 5 },
                      two: { '1232': 5, '[12][34]': 6, '[14][32]': 6, '12345432': 7, '131424': 5 },
+                     zip2: { '1zs2zs': 4, '121z': 4, '12s21s': 5, '12s43s': 6, '1s34s2': 6 },
                      rev: { '123': 3, '12345': 5, '121323': 3, '123132': 3, '12342143': 4 } };
   function topBalls(mode, text) { return (TOP_BALLS[mode] || {})[text] || 0; }
   function modeName() { return state.slopeMode ? 'slope' : state.zipMode && state.twoMode ? 'zip2' : state.zipMode ? 'zip' : state.revMode && state.twoMode ? 'rev2' : state.mixMode ? 'mix' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
@@ -1501,7 +1514,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   const ZIP_NAMES = { '1z': 'Parade', '121z': 'Cheeky', '1z2z': 'X Factor', '1z2z3z': 'Shuffle', '1z2z3z4z': 'Stairs',
                       '12zz': 'Hand Off', '12z21z': 'Heart', '123z': 'Face', '12z3': 'Bird', '13z2': 'Bill', '121z13': 'Double Hearts',
                       '12z213': 'Big M', '12321z': '4-Eyed Bird', '1232z2': 'Bird Burger', '13z21z': 'Double Beak',
-                      '12134z': 'Quad Cheeks', '12143z': 'Bug Eyed', '1213z4': 'Wings', '13234z': 'Helter Zip' };
+                      '12134z': 'Quad Cheeks', '12143z': 'Bug Eyed', '1213z4': 'Wings', '13234z': 'Helter Zip',
+                      '1zs2zs': 'Zippity Doodah', '12s21s': 'Loop de Zip', '12s43s': 'Zing Donut', '1s34s2': 'Zip Dog' };
   // names for reversing patterns
   const REV_NAMES = { '123': 'Triple Wave', '12345': 'Quin Wave', '12342143': 'Quad Wave', '121323': 'Hot Dog', '123132': 'Space Invader', '123145': 'Loop de Loop Reverse', '123543': 'Double Hot Dog' };
   const EXTRA_NAMES = Object.assign({}, ZIP_NAMES, REV_NAMES);

@@ -96,7 +96,11 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     # the list keeps only the user's named ones (2026-11-17); everything above stays on the wall
     groups = [{"group": "Two at once, 4 lanes", "items": ["[12][34][34][12]", "[13][24][24][13]", "[14][23][14][23][23][14][23][14]"]},
               {"group": "Two at once, 6 lanes", "items": ["[12][34][56]", "[13][25][46]", "[16][25][43]"]}]
-    wall = {"4": {"4": " ".join(even[4]), "8": " ".join(loops)}, "5": {"4": " ".join(even[5])}, "6": {"3": every}}
+    # Hot Dog Sync and Space Invader Sync: the one-person pattern on lanes 1-3, mirrored on 4-6 (kept by the user, 2026-11-17)
+    syncs = ["[16][25][16][34][25][34]", "[16][25][34][16][34][25]"]
+    assert all(max(counts(tuple((int(p[i]), int(p[i + 1])) for i in range(1, len(p), 4)))) == 6 for p in syncs)
+    groups[1]["items"] += syncs
+    wall = {"4": {"4": " ".join(even[4]), "8": " ".join(loops)}, "5": {"4": " ".join(even[5])}, "6": {"3": every, "6": " ".join(syncs)}}
     block = ('<script id="rev-pair-patterns">\nconst REV_PAIR_LIST = ' +
              json.dumps(groups, separators=(",", ":")) +
              ';\nconst ALL_REV_PAIRS = ' + json.dumps(wall, separators=(",", ":")) + ';\n</script>')

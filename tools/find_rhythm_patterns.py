@@ -151,7 +151,12 @@ def embed(path="index.html"):
     for k, w in waves.items():
         expected[w] = {str(k): k}
     expected[fold] = {"5": 3}
-    row_rev_wall = {"3": {"6": waves[3]}, "4": {"8": waves[4]}, "5": {"10": waves[5] + " " + fold}}
+    # the Funnel on other lane counts, kept by the user from the 2026-11-17 shortlist (one ball per lane)
+    funnels = {3: "[13]2--|--[13]2", 4: "[14][23]--|--[14][23]", 5: fold, 6: "[16][25][34]---|---[16][25][34]"}
+    for k, f in funnels.items():
+        expected[f] = {str(k): 3 if k > 4 else 2}
+    row_rev_wall = {"3": {"6": waves[3] + " " + funnels[3]}, "4": {"8": waves[4] + " " + funnels[4]},
+                    "5": {"10": waves[5] + " " + fold}, "6": {"12": funnels[6]}}
     for k, ps in both_ways.items():
         everything[k]["4"] = everything[k]["4"] + " " + " ".join(ps)
     expected.update({"111[12]|3[23]33": {"3": 1, "5": 2}, "-11[12]|3[23]-3": {"4": 2},

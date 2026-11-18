@@ -3,10 +3,12 @@
 Written with brackets, like the pair patterns: [12][34][56] means the right
 person rolls lanes 1 and 2 together, then the left person rolls 3 and 4, then the
 right person 5 and 6. With an odd number of brackets the second time round each
-bracket is rolled by the other person, so every lane changes direction.
+bracket is rolled by the other person, so every lane changes direction. With an
+even number, lanes change direction where the same lane turns up at both ends, as
+in [12][34][34][12]: two pairs going back and forth, each on its own two lanes.
 
 Each position in the brackets traces its own path (a "track"), which is an
-ordinary reversing pattern with half the balls. Rules: an odd number of brackets;
+ordinary reversing pattern with half the balls. Rules: some lane is rolled from both ends;
 every lane 1..K is used; the two tracks use different lanes (so balls on one
 track never meet balls on the other); each track follows the one-person reversing
 rules (no hand move twice, not a shorter pattern repeated, balls never meet
@@ -41,7 +43,9 @@ def images(seq, k):
     for base in (seq, tuple(reversed(seq))):
         for s in (base, tuple((k + 1 - a, k + 1 - b) for a, b in base)):
             for sw in (s, tuple((b, a) for a, b in s)):
-                for r in range(len(sw)):
+                # with an even number of brackets, shifting by one changes who rolls what (and, when both
+                # people roll at once, which brackets go together), so only shift by whole rounds of two
+                for r in range(0, len(sw), 1 if len(sw) % 2 else 2):
                     out.append(sw[r:] + sw[:r])
     return out
 
@@ -79,13 +83,21 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     picks = ["[12][34][56]", "[12][34][65]", "[14][25][36]", "[13][25][46]",
              "[16][25][34]", "[16][25][43]", "[16][34][52]", "[16][43][52]"]
     assert all(p in every.split() for p in picks), picks
+    # even numbers of brackets: lanes reverse where a lane turns up at both ends. On 4 and 5 lanes only the 4-bracket
+    # ones that take 4 balls are kept (the rest only work with 2). Each 4-lane one is two pairs going back and forth on
+    # their own lanes; the ball order inside the brackets makes no difference there, so one of each is listed.
+    even = {k: sorted(show(d) for d, c in search(k, (4,)).values() if max(c) >= 4) for k in (4, 5)}
+    picks4 = ["[12][34][34][12]", "[13][24][24][13]", "[14][23][23][14]"]
+    assert all(p in even[4] for p in picks4), (picks4, even[4])
+    groups = [{"group": "Two at once, 4 lanes", "items": picks4}, {"group": "Two at once, 6 lanes", "items": picks}]
+    wall = {"4": {"4": " ".join(even[4])}, "5": {"4": " ".join(even[5])}, "6": {"3": every}}
     block = ('<script id="rev-pair-patterns">\nconst REV_PAIR_LIST = ' +
-             json.dumps([{"group": "Two at once, 6 lanes", "items": picks}], separators=(",", ":")) +
-             ';\nconst ALL_REV_PAIRS = ' + json.dumps({"6": {"3": every}}, separators=(",", ":")) + ';\n</script>')
+             json.dumps(groups, separators=(",", ":")) +
+             ';\nconst ALL_REV_PAIRS = ' + json.dumps(wall, separators=(",", ":")) + ';\n</script>')
     html = open("index.html", encoding="utf-8").read()
     if '<script id="rev-pair-patterns">' in html:
         html = re.sub(r'<script id="rev-pair-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     else:
         html = html.replace('<script id="reverse-patterns">', block + '\n<script id="reverse-patterns">', 1)
     open("index.html", "w", encoding="utf-8").write(html)
-    print(len(every.split()), "on the wall,", len(picks), "in the list")
+    print(sum(len(v.split()) for d in wall.values() for v in d.values()), "on the wall,", len(picks) + len(picks4), "in the list")

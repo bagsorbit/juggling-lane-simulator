@@ -142,8 +142,9 @@ def embed(path="index.html"):
     groups.append({"group": "4 lanes, 4 beats", "items": picked[(4, 4)][:6]})
     # Lanes that change direction (rolled from both ends), added by hand 2026-11-17 and checked in the app's engine.
     # Waves: one person rolls every lane in turn, the other starts as the first ball arrives and sends them all back.
+    # One rest fewer than lanes on each side (user, 2026-11-18): 123--|--123.
     # Only these go on the All patterns wall, not every reversing pattern the search could find.
-    waves = {k: "".join(map(str, range(1, k + 1))) + "-" * k + "|" + "-" * k + "".join(map(str, range(1, k + 1))) for k in (3, 4, 5)}   # the 6-lane one was dropped at the user's request
+    waves = {k: "".join(map(str, range(1, k + 1))) + "-" * (k - 1) + "|" + "-" * (k - 1) + "".join(map(str, range(1, k + 1))) for k in (3, 4, 5)}   # the 6-lane one was dropped at the user's request
     both_ways = {"3": ["111[12]|3[23]33", "-11[12]|3[23]-3"], "4": ["1234|3412", "1324|2413", "1243|4312", "-124|-431"]}
     # The waves (Snakes) and the user's Funnel are written this way but live in 2 people + Reverses, not Mixed
     # (user, 2026-11-17): they go in ROW_REV_WALL for that mode's wall, and stay in the expected counts for the tests.

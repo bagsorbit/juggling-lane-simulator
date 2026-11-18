@@ -2978,7 +2978,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
      when it needs to, and then goes up the lane in the same arc each time. In the same lane it pauses after the
      grab and then makes the same arc forward. Returned as shares of the carry: when the slide starts (wait) and
      when the arc up the lane starts (go). */
-  const PING_SLIDE = 0.45, PING_UP = 0.9;                     // beats: the slide along the ends, the arc up the lane
+  // beats: the slide along the ends, the arc up the lane; about the same as with four balls (where the hands are
+  // always busy), so the hand moves at one even pace and any spare time is a pause after the grab
+  const PING_SLIDE = 0.3, PING_UP = 0.5;
   function pingCarry() { return (state.pat.sync ? 1 : 2) - JLS.PING_GRAB; }   // beats from the grab to the next placing
   function pingMoves(from, to) {
     const carry = pingCarry();

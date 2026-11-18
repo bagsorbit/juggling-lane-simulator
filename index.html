@@ -2912,7 +2912,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     for (const h of hs) {
       const side = sideOf(h.hand);
       const pt = segPoint(g, side, h.from, h.to, h.p, h.holding);
+      if (state.pat.ping) ctx.globalAlpha = 0.6;              // see-through, so the ball rolling underneath shows
       drawHand(g, pt.x + side * handOffset, pt.y, side, h.letter, h.thumbUp);
+      ctx.globalAlpha = 1;
     }
     for (const b of bs) {
       if (under(b)) continue;

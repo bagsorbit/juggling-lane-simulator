@@ -1,4 +1,4 @@
-"""Ping Pong patterns: one person, a hand at each end, three balls.
+"""Ping Pong patterns: one person, a hand at each end, three balls (and four with the hands together, below).
 
 A hand places its ball a little way up a lane just after the ball coming towards it has rolled past, then jumps
 back and grabs that ball before it reaches the end, so a lane can be rolled both ways, even one lane on its own.
@@ -49,17 +49,67 @@ def search(k, L):
             found[canon] = min((t for t in images(seq, k) if t[0] == 1))
     return sorted("".join(map(str, s)) for s in found.values())
 
+
+# ---- four balls, the hands together ----
+# On every beat both hands place a ball: (12) is the right hand in lane 1 and the left in lane 2. Two balls roll at
+# once, one each way, so the two lanes of a beat must differ. Each hand grabs the ball the other placed a beat
+# before, which must be in the same lane as its own next placing or the next lane, and places it again on the next
+# beat after that, so a hand move is (hand, lane grabbed, lane placed two beats later).
+def sync_valid(seq, k):
+    n = len(seq)
+    if any(a == b for a, b in seq):
+        return False
+    if {x for p in seq for x in p} != set(range(1, k + 1)):
+        return False
+    for t in range(n):
+        (r0, l0), (r1, l1) = seq[t], seq[(t + 1) % n]
+        if abs(r1 - l0) > 1 or abs(l1 - r0) > 1:
+            return False
+    if any(n % d == 0 and seq == seq[d:] + seq[:d] for d in range(1, n)):
+        return False
+    moves = [(0, seq[t][1], seq[(t + 2) % n][0]) for t in range(n)] + [(1, seq[t][0], seq[(t + 2) % n][1]) for t in range(n)]
+    if len(set(moves)) != len(moves):
+        return False
+    return bool({p[0] for p in seq} & {p[1] for p in seq})          # some lane used both ways
+
+def sync_images(seq, k):
+    out = []
+    for s in (seq, tuple((b, a) for a, b in seq)):                    # which hand is which (the mirror image)
+        for f in (s, tuple((k + 1 - a, k + 1 - b) for a, b in s)):    # upside down
+            out += [f[r:] + f[:r] for r in range(len(f))]
+    return out
+
+def sync_show(seq):
+    return "".join(f"({a}{b})" for a, b in seq)
+
+def sync_search(k, n):
+    pairs = [(a, b) for a in range(1, k + 1) for b in range(1, k + 1) if a != b]
+    found = {}
+    for seq in itertools.product(pairs, repeat=n):
+        if seq[0][0] != 1 or not sync_valid(seq, k):
+            continue
+        canon = min(sync_images(seq, k))
+        if canon not in found:
+            found[canon] = min(t for t in sync_images(seq, k) if t[0][0] == 1)
+    return sorted(sync_show(s) for s in found.values())
+
 if __name__ == "__main__" and "--embed" not in sys.argv:
     for k in range(1, 5):
         for L in range(1, 9):
             r = search(k, L)
             if r:
                 print(k, "lanes", L, "rolls:", len(r), " ".join(r[:30]))
+    for k in range(2, 6):
+        for n in range(1, 6):
+            r = sync_search(k, n)
+            if r:
+                print("4 balls together,", k, "lanes", n, "beats:", len(r), " ".join(r[:20]))
 
 if __name__ == "__main__" and "--embed" in sys.argv:
     import json, re
-    # the list and the wall both have everything of up to 8 rolls (there are only a few)
-    groups, wall = [], {}
+    # the list and the wall both have everything of up to 8 rolls with 3 balls (there are only a few), and with
+    # 4 balls and the hands together, everything of up to 5 beats
+    groups, wall, wall4 = [], {}, {}
     for k in range(1, 5):
         items = []
         for L in range(1, 9):
@@ -68,13 +118,23 @@ if __name__ == "__main__" and "--embed" in sys.argv:
                 wall.setdefault(str(k), {})[str(L)] = " ".join(r)
                 items += r
         if items:
-            groups.append({"group": str(k) + (" lane" if k == 1 else " lanes"), "items": items})
+            groups.append({"group": "3 balls, " + str(k) + (" lane" if k == 1 else " lanes"), "items": items})
+    for k in range(2, 6):
+        items = []
+        for n in range(1, 6):
+            r = sync_search(k, n)
+            if r:
+                wall4.setdefault(str(k), {})[str(2 * n)] = " ".join(r)
+                items += r
+        if items:
+            groups.append({"group": "4 balls together, " + str(k) + " lanes", "items": items})
     block = ('<script id="ping-patterns">\nconst PING_LIST = ' + json.dumps(groups, separators=(",", ":")) +
-             ';\nconst ALL_PING = ' + json.dumps(wall, separators=(",", ":")) + ';\n</script>')
+             ';\nconst ALL_PING = ' + json.dumps(wall, separators=(",", ":")) +
+             ';\nconst ALL_PING_SYNC = ' + json.dumps(wall4, separators=(",", ":")) + ';\n</script>')
     html = open("index.html", encoding="utf-8").read()
     if '<script id="ping-patterns">' in html:
         html = re.sub(r'<script id="ping-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     else:
         html = html.replace('<script id="mixed-patterns">', block + '\n<script id="mixed-patterns">', 1)
     open("index.html", "w", encoding="utf-8").write(html)
-    print(sum(len(g["items"]) for g in groups), "in the list,", sum(len(v.split()) for d in wall.values() for v in d.values()), "on the wall")
+    print(sum(len(g["items"]) for g in groups), "in the list,", sum(len(v.split()) for w in (wall, wall4) for d in w.values() for v in d.values()), "on the wall")

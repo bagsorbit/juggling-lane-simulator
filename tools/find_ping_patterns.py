@@ -107,27 +107,29 @@ if __name__ == "__main__" and "--embed" not in sys.argv:
 
 if __name__ == "__main__" and "--embed" in sys.argv:
     import json, re
-    # the list and the wall both have everything of up to 8 rolls with 3 balls (there are only a few), and with
-    # 4 balls and the hands together, everything of up to 5 beats
-    groups, wall, wall4 = [], {}, {}
+    # the wall has everything of up to 8 rolls with 3 balls, and of up to 5 beats with 4 balls and the hands together
+    wall, wall4 = {}, {}
     for k in range(1, 5):
-        items = []
         for L in range(1, 9):
             r = search(k, L)
             if r:
                 wall.setdefault(str(k), {})[str(L)] = " ".join(r)
-                items += r
-        if items:
-            groups.append({"group": "3 balls, " + str(k) + (" lane" if k == 1 else " lanes"), "items": items})
     for k in range(2, 6):
-        items = []
         for n in range(1, 6):
             r = sync_search(k, n)
             if r:
                 wall4.setdefault(str(k), {})[str(2 * n)] = " ".join(r)
-                items += r
-        if items:
-            groups.append({"group": "4 balls together, " + str(k) + " lanes", "items": items})
+    # The list: 24 picked for the user (2026-11-18), most symmetric first, every lane used both ways where possible,
+    # not too long; grouped by lanes, three balls before four. Everything stays on the All patterns wall.
+    picks = {1: ["1"],
+             2: ["1122", "111122", "112122", "(12)(21)", "(12)(12)(21)"],
+             3: ["11232", "112332", "1123232", "11123332", "(12)(31)", "(12)(21)(13)(31)", "(12)(31)(13)(32)", "(12)(12)(31)(23)(31)"],
+             4: ["1123432", "11234432", "(13)(31)(24)(42)", "(14)(32)(23)(41)", "(13)(32)(24)(41)", "(14)(32)(23)(23)(32)",
+                 "(14)(32)(32)(14)(41)", "(14)(32)(23)(23)(41)", "(13)(32)(32)(24)(41)"],
+             5: ["(14)(32)(32)(14)(51)"]}
+    everything = {p for w in (wall, wall4) for d in w.values() for v in d.values() for p in v.split()}
+    assert all(p in everything for v in picks.values() for p in v), [p for v in picks.values() for p in v if p not in everything]
+    groups = [{"group": str(k) + (" lane" if k == 1 else " lanes"), "items": v} for k, v in picks.items()]
     block = ('<script id="ping-patterns">\nconst PING_LIST = ' + json.dumps(groups, separators=(",", ":")) +
              ';\nconst ALL_PING = ' + json.dumps(wall, separators=(",", ":")) +
              ';\nconst ALL_PING_SYNC = ' + json.dumps(wall4, separators=(",", ":")) + ';\n</script>')

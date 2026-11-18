@@ -98,7 +98,7 @@ if __name__ == "__main__" and "--embed" not in sys.argv:
 
 
 NAMES = {"[13][24][31][42]": "Scarf Sync", "[14][23][41][32]": "Mobius Sync", "[12][34][21][43]": "Loop de Loop Sync",
-         "[12][34]": "Paired Loops", "[14][32]": "Criss Cross", "[14][23][14][32]": "Hot Cross Buns"}
+         "[12][34]": "Paired Loops", "[14][32]": "Criss Cross", "[14][23]": "In & Out", "[14][23][14][32]": "Hot Cross Buns"}
 
 def embed(path="index.html"):
     """Rewrite the two-person pair lists inside index.html."""
@@ -109,7 +109,9 @@ def embed(path="index.html"):
     five = defaultdict(list)
     for d in search(5, 4).values():
         five[len(d)].append(show(d))
-    short = [{"group": f"Two at once, {2 * n} rolls", "items": [[NAMES.get(t, ""), t] for t in sorted(v)]} for n, v in sorted(four.items())]
+    # the list only shows the named ones; the rest stay on All patterns
+    short = [{"group": f"Two at once, {2 * n} rolls", "items": [[NAMES[t], t] for t in sorted(v) if t in NAMES]} for n, v in sorted(four.items())]
+    short = [g for g in short if g["items"]]
     everything = {"4": {str(2 * n): " ".join(sorted(v)) for n, v in sorted(four.items())},
                   "5": {str(2 * n): " ".join(sorted(v)) for n, v in sorted(five.items())}}
     block = ('<script id="pair-patterns">\nconst PAIR_LIST = ' + json.dumps(short, separators=(",", ":")) +

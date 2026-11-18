@@ -299,6 +299,7 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   select { font-size: 15px; }
 }
 
+.hidebtn { display: none; }   /* only on a phone on its side */
 /* phones on their side: little height, so no title, phone-style buttons and every control on one row */
 @media (orientation: landscape) and (max-height: 500px) {
   h1 { display: none; }
@@ -341,6 +342,11 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   .infobtn { display: flex; position: absolute; right: 0; top: 50%; margin: 0; transform: translateY(-50%); }
   .infobtn:active:not(:disabled) { transform: translateY(-50%); }
   body:not(.info-open) .info:not(.bad) { display: none; }
+  .hidebtn { right: auto; left: 0; }
+  .hidebtn svg { width: 16px; height: 16px; transition: transform .15s; }
+  body.controls-hidden .hidebtn svg { transform: rotate(180deg); }
+  body.controls-hidden .hidebtn { background: var(--sun); }
+  body.controls-hidden .controls { display: none; }
 }
 dialog {
   width: min(94vw, 760px); max-height: 92vh;
@@ -1731,8 +1737,20 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const open = document.body.classList.toggle('info-open');
     infoBtn.setAttribute('aria-expanded', String(open));
   });
+  /* On a phone on its side, a down arrow at the other end of the numbers tucks the controls away to give the
+     lanes more room; it turns into an up arrow that brings them back. */
+  const hideBtn = document.createElement('button');
+  hideBtn.type = 'button'; hideBtn.className = 'infobtn hidebtn';
+  hideBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#2d2a4a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9.5l6 6 6-6"/></svg>';
+  hideBtn.setAttribute('aria-label', 'Hide the controls'); hideBtn.setAttribute('aria-expanded', 'true');
+  hideBtn.addEventListener('click', function () {
+    const hidden = document.body.classList.toggle('controls-hidden');
+    hideBtn.setAttribute('aria-label', hidden ? 'Show the controls' : 'Hide the controls');
+    hideBtn.setAttribute('aria-expanded', String(!hidden));
+  });
   function buildStrip() {
     buildStripTiles();
+    strip.appendChild(hideBtn);
     strip.classList.toggle('long', strip.querySelectorAll('.tile').length > 8);   // phones shrink long patterns to fit one line
     strip.classList.toggle('xlong', strip.querySelectorAll('.tile').length > 16);  // and the longest (the 6-lane wave) a bit more
     strip.appendChild(infoBtn);

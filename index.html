@@ -1857,6 +1857,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       t.className = 'tile ' + (!lane ? 'z' : pat.rev ? 'n' : sideOf(i % 2) === RIGHT ? 'r' : 'b');
       t.textContent = lane || (pat.self && pat.self[i] ? 's' : 'z');
       t.dataset.b = i;
+      // whose roll or zip it is, for the voices (in Reverses that can change from one time round to the next)
+      if (!pat.rev) t.dataset.who = sideOf(i % 2) === RIGHT ? 'r' : 'b';
       return t;
     }
     function withBeats(t, beats) {                            // a tile with its beat count underneath
@@ -1873,6 +1875,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         const t = document.createElement('span');
         t.className = 'tile ' + (e.kind === 'zip' ? 'z' : e.kind === 'roll' ? (e.hand === 0 ? 'r' : 'b') : 'rest');
         t.textContent = e.kind === 'zip' ? 'z' : e.kind === 'roll' ? e.lane : '–';
+        t.dataset.who = e.hand === 0 ? 'r' : 'b';
         t.dataset.b = splan.sync ? e.t / 2 : e.t;
         const token = splan.sync ? splan.spec.ss[(e.t / 2) % splan.spec.ss.length][e.hand] : String(e.v);
         (splan.sync ? holder : strip).appendChild(withBeats(t, token));
@@ -2813,7 +2816,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       const c = t.classList;
       if (c.contains('rest')) return;
       const w = t.textContent;
-      said[c.contains('r') ? 'r' : c.contains('b') ? 'b' : 'n'].push(w === 'z' ? 'zip' : w === 's' ? 'self' : w);
+      said[t.dataset.who || (c.contains('r') ? 'r' : c.contains('b') ? 'b' : 'n')].push(w === 'z' ? 'zip' : w === 's' ? 'self' : w);
     });
     const parts = ['r', 'b', 'n'].filter(function (k) { return said[k].length; });
     if (!parts.length) return;

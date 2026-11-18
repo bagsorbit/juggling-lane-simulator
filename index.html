@@ -1076,7 +1076,7 @@ const JLS = (function () {
    * lane or the one next to it, and carries it to the lane of its next roll. A ball rolled on beat t is rolled
    * again on beat t + 3. Places on a lane are { pp: lane, d: depth }, depth measured from that hand's end.
    * Time u is in hand cycles, as everywhere: a beat is half a cycle. */
-  const PING_PLACE = 0.25, PING_CATCH = 0.05, PING_GRAB = 0.3;   // where balls are placed and grabbed; how long the grab takes (beats)
+  const PING_PLACE = 0.3, PING_CATCH = 0.02, PING_GRAB = 0.275;   // where balls are placed and grabbed; how long the grab takes (beats)
   const PING_SPEED = (1 - PING_PLACE - PING_CATCH) / (1 + PING_GRAB);   // lane lengths per beat
   function pingBalls(u, pat) {
     const seq = pat.seq, L = seq.length, b = 2 * u, t = Math.floor(b), out = [];
@@ -1322,7 +1322,7 @@ const JLS = (function () {
            mixedPlan: mixedPlan, mixedLaneHands: mixedLaneHands, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths,
            hands2: hands2, pairBalls: pairBalls, pairHands: pairHands,
            solveTiming: solveTiming, zipPlan: zipPlan, zipBalls: zipBalls, zipHands: zipHands, zipHands2: zipHands2, zipPaths: zipPaths, balls: balls, hands: hands, active: active,
-           pingBalls: pingBalls, pingHands: pingHands, pingLaneHands: pingLaneHands, pingOk: pingOk, PING_PLACE: PING_PLACE, PING_CATCH: PING_CATCH };
+           pingBalls: pingBalls, pingHands: pingHands, pingLaneHands: pingLaneHands, pingOk: pingOk, PING_PLACE: PING_PLACE, PING_CATCH: PING_CATCH, PING_GRAB: PING_GRAB, PING_SPEED: PING_SPEED };
 })();
 </script>
 
@@ -2893,9 +2893,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     return html;
   }
 
-  /* Ping Pong: the hand arcs up and over the ball rolling past it, twice each turn: on the way in to place its
-     ball (the last bit of the carry, as the incoming ball goes by underneath), and on the way back to grab it. */
-  const PING_ARC = 0.35 / (2 - 0.3);                          // the last 0.35 beats of the 1.7-beat carry
+  /* Ping Pong: the hand arcs up and over the ball rolling past it, twice each turn. On the way in to place its
+     ball it comes from above, highest just as the incoming ball goes by underneath, and comes down on the spot once
+     that ball is past; then it hops back over to grab it. */
+  const PING_PASS = (1 - 2 * JLS.PING_PLACE) / JLS.PING_SPEED;           // beats from placing until the incoming ball goes by that spot
+  const PING_ARC = 2 * (1 - PING_PASS) / (2 - JLS.PING_GRAB);            // share of the carry spent arcing in, centred on that moment
   function pingLift(g, holding, p) {
     if (!state.pat.ping) return 0;
     const q = holding ? (p - (1 - PING_ARC)) / PING_ARC : p;

@@ -2894,16 +2894,19 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   }
 
   /* Ping Pong: the hand arcs up and over the ball rolling past it, twice each turn. On the way in to place its
-     ball it comes from above, highest just as the incoming ball goes by underneath, and eases down onto the spot
-     once that ball is past; then it eases up again and hops back over to grab it. Each arc starts and ends level
+     ball it rises in one long curve from the grab, highest just as the incoming ball goes by underneath, and eases
+     down onto the spot once that ball is past; then it eases up again and hops back over to grab it. Each arc starts and ends level
      (sin squared), and the hop is lower so the hand rises and falls at the same even speed throughout. */
   const PING_PASS = 1 - (1 - 2 * JLS.PING_PLACE) / JLS.PING_SPEED;     // beats between the incoming ball going by and the placing
   function pingLift(g, holding, p) {
     if (!state.pat.ping) return 0;
     const up = g.pitch * 0.4;                                            // height of the arc in
     if (holding) {
-      const before = (1 - p) * (2 - JLS.PING_GRAB), q = before / (2 * PING_PASS);   // beats until the placing
-      return q < 1 ? up * Math.pow(Math.sin(Math.PI * q), 2) : 0;
+      // the whole carry is one curve: a long gentle rise from the grab, highest as the incoming ball goes by,
+      // then down onto the placing spot; level at both ends and at the top
+      const carry = 2 - JLS.PING_GRAB, t = clamp(p, 0, 1) * carry, peak = carry - PING_PASS;
+      return t < peak ? up * Math.pow(Math.sin(Math.PI / 2 * t / peak), 2)
+                      : up * Math.pow(Math.cos(Math.PI / 2 * (t - peak) / PING_PASS), 2);
     }
     return up * (JLS.PING_GRAB / 2) / PING_PASS * Math.pow(Math.sin(Math.PI * clamp(p, 0, 1)), 2);
   }

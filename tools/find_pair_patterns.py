@@ -97,7 +97,8 @@ if __name__ == "__main__" and "--embed" not in sys.argv:
                     print(f"  {show(d):<26} paths {p[0]} and {p[1]}{'  (same path, out of step)' if twin else ''}")
 
 
-NAMES = {"[13][24][31][42]": "Scarf for Two", "[14][23][41][32]": "Mobius for Two", "[12][34][21][43]": "Loop de Loop for Two"}
+NAMES = {"[13][24][31][42]": "Scarf for Two", "[14][23][41][32]": "Mobius for Two", "[12][34][21][43]": "Loop de Loop for Two",
+         "[12][34]": "Paired Loops", "[14][32]": "Criss Cross", "[14][23][14][32]": "Hot Cross Buns"}
 
 def embed(path="index.html"):
     """Rewrite the two-person pair lists inside index.html."""

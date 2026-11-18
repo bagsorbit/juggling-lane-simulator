@@ -92,8 +92,8 @@ h1 {
 .lucky { position: absolute; left: 8px; bottom: 10px; z-index: 1; display: flex; align-items: center; gap: 6px; padding: 0 12px 0 8px; background: var(--sun); }
 .lucky svg { width: 20px; height: 20px; flex: none; }
 .lucky.all { left: auto; right: 8px; }
-.stage.slope .lucky { width: 36px; padding: 0; justify-content: center; }
-.stage.slope .lucky span { display: none; }
+.stage.tight .lucky { width: 36px; padding: 0; justify-content: center; }   /* slope: only when the full buttons would cover the lanes */
+.stage.tight .lucky span { display: none; }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
 .strip {
@@ -1426,6 +1426,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   let u = 0;                 // time, in hand cycles
   let error = '';
   let under = [];            // the numbers hidden under zips that were made by tapping
+  let tightKey = '';   // slope: the width the dice buttons were last fitted to
   const last = {};   // the pattern last played in each mode; a mode not yet visited starts on its first top-five pattern
   /* Only one special mode can be on at a time, except that zips can be played by two people ('zip2'). */
   function setMode(name) { state.zipMode = name === 'zip' || name === 'zip2'; state.twoMode = name === 'two' || name === 'mix' || name === 'zip2' || name === 'rev2'; state.revMode = name === 'rev' || name === 'rev2'; state.mixMode = name === 'mix'; state.slopeMode = name === 'slope'; }
@@ -1780,6 +1781,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     mixBtn.setAttribute('aria-pressed', String(state.mixMode));
     slopeBtn.setAttribute('aria-pressed', String(state.slopeMode));
     stage.classList.toggle('slope', state.slopeMode);
+    if (!state.slopeMode) { stage.classList.remove('tight'); tightKey = ''; }
     $('clearMode').hidden = !(state.zipMode || state.revMode || state.mixMode || state.slopeMode);   // the red X: back to plain 1 person or 2 people   // small dice buttons, so they stay clear of the lanes
     mixBtn.disabled = !state.twoMode || state.zipMode || state.revMode;   // mixed patterns are only for two people, on their own
     twoBtn.disabled = state.mixMode || state.slopeMode;
@@ -2355,6 +2357,13 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const trackW = Math.min(pitch - 8, rb * 2 + 12);
     // the lanes run all the way down the blue box; the hands work over the bottom ends of the lanes
     const bw = K * pitch + 16, bx0 = (W - bw) / 2, by0 = top, bh = H - top - 10;
+    // the dice buttons sit either side of the board at the bottom: shrink them to icons only if they would cover it
+    if (tightKey !== W + ':' + bw) {
+      tightKey = W + ':' + bw;
+      stage.classList.remove('tight');
+      const need = Math.max($('lucky').offsetWidth, $('luckyAll').offsetWidth) + 8 + 6;
+      stage.classList.toggle('tight', bx0 < need);
+    }
     const inset = 8 + trackW / 2;
     const yBottom = by0 + bh - Math.max(inset, rb * 2.6 + 4), len = yBottom - by0 - inset, yHands = yBottom;
     const flip = function (x) { return mirror ? W - x : x; };

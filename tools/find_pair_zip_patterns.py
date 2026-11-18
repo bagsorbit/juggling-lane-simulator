@@ -1,13 +1,13 @@
-"""Two-person zip passes two at once: patterns with [zz].
+"""Two-person zip passes two at once: patterns with (pp).
 
-Written like the pair patterns: [12][zz] means the right person rolls lanes 1 and 2
+Written like the pair patterns: (12)(pp) means the right person rolls lanes 1 and 2
 together, then the left person hands both balls back across the middle at once.
 Each position in the brackets traces its own path, which is an ordinary zip pattern
-(z = a pass to the other person). The two paths must have the same timing, so each
+(each zip is a pass to the other person, written p). The two paths must have the same timing, so each
 pair of balls moves together, and where they share a lane a ball on one path must
 never catch up with a ball on the other.
 
-Rules for the search: an even number of brackets; at least one [zz]; each lane is
+Rules for the search: an even number of brackets; at least one (pp); each lane is
 only rolled from one end; every lane 1..K is used; on each path no hand move happens
 twice; not a shorter pattern repeated. Patterns that only differ by starting bracket,
 by being upside down, or by which ball is written first are counted once.
@@ -21,8 +21,12 @@ from find_zip_patterns import timing, Z
 
 BALLS = (1, 2, 3, 4)            # balls on each path, so 2 to 8 in all
 
+def order(s):
+    """Sort the way these lists always have, from when they were written [12][zz]."""
+    return s.replace("(", "[").replace(")", "]").replace("p", "z")
+
 def show(seq):
-    return "".join("[zz]" if x == Z else f"[{x[0]}{x[1]}]" for x in seq)
+    return "".join("(pp)" if x == Z else f"({x[0]}{x[1]})" for x in seq)
 
 def paths(seq):
     return [tuple(Z if x == Z else x[s] for x in seq) for s in (0, 1)]
@@ -128,18 +132,18 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     for k, n in ((2, 2), (2, 4), (3, 4), (4, 4), (2, 6), (3, 6), (4, 6)):
         found = search(k, n)
         if found:
-            wall.setdefault(str(k), {})[str(2 * n)] = " ".join(sorted(show(d) for d, c in found.values()))
+            wall.setdefault(str(k), {})[str(2 * n)] = " ".join(sorted((show(d) for d, c in found.values()), key=order))
     for src, p in picks:                                   # the Sync versions go on the wall too
         k = str(max(int(c) for c in p if c.isdigit()))
-        n = str(2 * p.count("["))
+        n = str(2 * p.count("("))
         have = wall.setdefault(k, {}).get(n, "")
         if p not in have.split():
             wall[k][n] = (have + " " + p).strip()
     # half-zips (one ball of a pair rolls while the other is handed across), named by the user 2026-11-17.
     # Only these go on the wall: the full search finds about 1,800, too many to show.
-    half = ["[1z][z2]", "[13][2z][13][z2]", "[1z][2z][z3][z2]"]
+    half = ["(1p)(p2)", "(13)(2p)(13)(p2)", "(1p)(2p)(p3)(p2)"]
     for p in half:
-        k, n = str(max(int(c) for c in p if c.isdigit())), str(2 * p.count("["))
+        k, n = str(max(int(c) for c in p if c.isdigit())), str(2 * p.count("("))
         wall.setdefault(k, {})[n] = (wall[k].get(n, "") + " " + p).strip()
     block = ('<script id="pair-zip-patterns">\nconst PAIR_ZIP_LIST = ' + json.dumps(picks, separators=(",", ":")) +
              ';\nconst HALF_ZIP_LIST = ' + json.dumps(half) + ';\nconst ALL_PAIR_ZIPS = ' + json.dumps(wall, separators=(",", ":")) + ';\n</script>')
@@ -148,8 +152,7 @@ if __name__ == "__main__" and "--embed" in sys.argv:
         html = re.sub(r'<script id="pair-zip-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     else:
         html = html.replace('<script id="zip2-patterns">', block + '\n<script id="zip2-patterns">', 1)
-    from notation import round_brackets   # the page writes moves at the same moment as (12)(34)
-    open("index.html", "w", encoding="utf-8").write(round_brackets(html))
+    open("index.html", "w", encoding="utf-8").write(html)
     print(len(picks), "in the list,", sum(len(v.split()) for d in wall.values() for v in d.values()), "on the wall")
     for src, p in picks:
         print(f"  {src:<10} {p}")

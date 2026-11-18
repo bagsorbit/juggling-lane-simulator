@@ -76,6 +76,5 @@ if __name__ == "__main__" and "--embed" in sys.argv:
         html = re.sub(r'<script id="ping-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     else:
         html = html.replace('<script id="mixed-patterns">', block + '\n<script id="mixed-patterns">', 1)
-    from notation import round_brackets
-    open("index.html", "w", encoding="utf-8").write(round_brackets(html))
+    open("index.html", "w", encoding="utf-8").write(html)
     print(sum(len(g["items"]) for g in groups), "in the list,", sum(len(v.split()) for d in wall.values() for v in d.values()), "on the wall")

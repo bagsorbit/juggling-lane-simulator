@@ -1,11 +1,11 @@
 """Two-person pair patterns in which lanes change direction.
 
-Written with brackets, like the pair patterns: [12][34][56] means the right
+Written with brackets, like the pair patterns: (12)(34)(56) means the right
 person rolls lanes 1 and 2 together, then the left person rolls 3 and 4, then the
 right person 5 and 6. With an odd number of brackets the second time round each
 bracket is rolled by the other person, so every lane changes direction. With an
 even number, lanes change direction where the same lane turns up at both ends, as
-in [12][34][34][12]: two pairs going back and forth, each on its own two lanes.
+in (12)(34)(34)(12): two pairs going back and forth, each on its own two lanes.
 
 Each position in the brackets traces its own path (a "track"), which is an
 ordinary reversing pattern with half the balls. Rules: some lane is rolled from both ends;
@@ -21,8 +21,12 @@ from collections import defaultdict
 sys.path.insert(0, __import__("os").path.dirname(__import__("os").path.abspath(__file__)))
 from find_reverse_patterns import works, valid as track_valid, MAX_BALLS
 
+def order(s):
+    """Sort the way these lists always have, from when brackets were written [12]."""
+    return s.replace("(", "[").replace(")", "]")
+
 def show(seq):
-    return "".join(f"[{a}{b}]" for a, b in seq)
+    return "".join(f"({a}{b})" for a, b in seq)
 
 def relabel(track):
     m = {l: i + 1 for i, l in enumerate(sorted(set(track)))}
@@ -79,29 +83,29 @@ if __name__ == "__main__" and "--embed" not in sys.argv:
 if __name__ == "__main__" and "--embed" in sys.argv:
     import json, re
     found = search(6, (3,))
-    every = " ".join(sorted(show(d) for d, c in found.values()))
-    picks = ["[12][34][56]", "[12][34][65]", "[14][25][36]", "[13][25][46]",
-             "[16][25][34]", "[16][25][43]", "[16][34][52]", "[16][43][52]"]
+    every = " ".join(sorted((show(d) for d, c in found.values()), key=order))
+    picks = ["(12)(34)(56)", "(12)(34)(65)", "(14)(25)(36)", "(13)(25)(46)",
+             "(16)(25)(34)", "(16)(25)(43)", "(16)(34)(52)", "(16)(43)(52)"]
     assert all(p in every.split() for p in picks), picks
     # even numbers of brackets: lanes reverse where a lane turns up at both ends. On 4 and 5 lanes only the 4-bracket
     # ones that take 4 balls are kept (the rest only work with 2). Each 4-lane one is two pairs going back and forth on
     # their own lanes; the ball order inside the brackets makes no difference there, so one of each is listed.
-    even = {k: sorted(show(d) for d, c in search(k, (4,)).values() if max(c) >= 4) for k in (4, 5)}
-    picks4 = ["[12][34][34][12]", "[13][24][24][13]", "[14][23][23][14]"]
+    even = {k: sorted((show(d) for d, c in search(k, (4,)).values() if max(c) >= 4), key=order) for k in (4, 5)}
+    picks4 = ["(12)(34)(34)(12)", "(13)(24)(24)(13)", "(14)(23)(23)(14)"]
     assert all(p in even[4] for p in picks4), (picks4, even[4])
     # Double loops that change direction, asked for by the user: each ball goes out on one lane and back on the other,
     # then round the other way. They repeat a hand move (each person rolls the same pair twice running), so the search's
     # no-repeat rule leaves them out; they were checked in the app's engine with 2 and 4 balls.
-    loops = ["[12][34][12][34][34][12][34][12]", "[13][24][13][24][24][13][24][13]", "[14][23][14][23][23][14][23][14]"]
+    loops = ["(12)(34)(12)(34)(34)(12)(34)(12)", "(13)(24)(13)(24)(24)(13)(24)(13)", "(14)(23)(14)(23)(23)(14)(23)(14)"]
     # the list keeps only the user's named ones (2026-11-17); everything above stays on the wall
-    groups = [{"group": "Two at once, 4 lanes", "items": ["[12][34][34][12]", "[13][24][24][13]", "[14][23][14][23][23][14][23][14]"]},
-              {"group": "Two at once, 6 lanes", "items": ["[12][34][56]", "[13][25][46]", "[16][25][43]"]}]
+    groups = [{"group": "Two at once, 4 lanes", "items": ["(12)(34)(34)(12)", "(13)(24)(24)(13)", "(14)(23)(14)(23)(23)(14)(23)(14)"]},
+              {"group": "Two at once, 6 lanes", "items": ["(12)(34)(56)", "(13)(25)(46)", "(16)(25)(43)"]}]
     # Hot Dog Sync and Space Invader Sync: the one-person pattern on lanes 1-3, mirrored on 4-6 (kept by the user, 2026-11-17)
-    syncs = ["[16][25][16][34][25][34]", "[16][25][34][16][34][25]"]
+    syncs = ["(16)(25)(16)(34)(25)(34)", "(16)(25)(34)(16)(34)(25)"]
     assert all(max(counts(tuple((int(p[i]), int(p[i + 1])) for i in range(1, len(p), 4)))) == 6 for p in syncs)
     groups[1]["items"] += syncs
     # Twin Dogs: the two paths share lanes (allowed since 2026-11-17, kept by the user)
-    even[4] = sorted(set(even[4]) | {"[14][23][23][41]", "[14][23][32][14]"})   # Twin Dogs, Quarter Pounder
+    even[4] = sorted(set(even[4]) | {"(14)(23)(23)(41)", "(14)(23)(32)(14)"}, key=order)   # Twin Dogs, Quarter Pounder
     wall = {"4": {"4": " ".join(even[4]), "8": " ".join(loops)}, "5": {"4": " ".join(even[5])}, "6": {"3": every, "6": " ".join(syncs)}}
     block = ('<script id="rev-pair-patterns">\nconst REV_PAIR_LIST = ' +
              json.dumps(groups, separators=(",", ":")) +
@@ -111,6 +115,5 @@ if __name__ == "__main__" and "--embed" in sys.argv:
         html = re.sub(r'<script id="rev-pair-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     else:
         html = html.replace('<script id="reverse-patterns">', block + '\n<script id="reverse-patterns">', 1)
-    from notation import round_brackets   # the page writes moves at the same moment as (12)(34)
-    open("index.html", "w", encoding="utf-8").write(round_brackets(html))
+    open("index.html", "w", encoding="utf-8").write(html)
     print(sum(len(v.split()) for d in wall.values() for v in d.values()), "on the wall,", sum(len(g["items"]) for g in groups), "in the list")

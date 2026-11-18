@@ -14,8 +14,12 @@ mirror image are counted once.
 import itertools, sys
 from collections import defaultdict
 
+def order(s):
+    """Sort the way these lists always have, from when brackets were written [12]."""
+    return s.replace("(", "[").replace(")", "]")
+
 def show_row(row):
-    return " ".join("-" if not a else str(a[0]) if len(a) == 1 else f"[{a[0]}{a[1]}]" for a in row)
+    return " ".join("-" if not a else str(a[0]) if len(a) == 1 else f"({a[0]}{a[1]})" for a in row)
 
 def ball_counts(R, L, max_travel=6, max_balls=9):
     """For each travel time D (in beats), the ball count that works, and whether any ball has to wait."""
@@ -105,14 +109,14 @@ def steady(row):
     return True
 
 def text(R, L):
-    row = lambda r: "".join("-" if not a else str(a[0]) if len(a) == 1 else f"[{a[0]}{a[1]}]" for a in r)
+    row = lambda r: "".join("-" if not a else str(a[0]) if len(a) == 1 else f"({a[0]}{a[1]})" for a in r)
     return row(R) + "|" + row(L)
 
 def display(R, L, k):
     """The same pattern written to start on lane 1 with the first person, where possible."""
     def key(im):
         a, b = im
-        return (1 not in {x for act in a for x in act}, a[0] == (), 1 not in a[0], text(a, b))
+        return (1 not in {x for act in a for x in act}, a[0] == (), 1 not in a[0], order(text(a, b)))
     return min(images(R, L, k), key=key)
 
 def symmetric(R, L, k):
@@ -133,8 +137,8 @@ def embed(path="index.html"):
             t = text(*d)
             expected[t] = {str(n): v[0] for n, v in counts.items()}
             rows.append((not symmetric(R, L, k), 5 not in counts, t))
-        rows.sort()
-        everything.setdefault(str(k), {})[str(P)] = " ".join(sorted(r[2] for r in rows))
+        rows.sort(key=lambda r: (r[0], r[1], order(r[2])))
+        everything.setdefault(str(k), {})[str(P)] = " ".join(sorted((r[2] for r in rows), key=order))
         picked[(k, P)] = [r[2] for r in rows]
     groups.append({"group": "3 lanes", "items": picked[(3, 2)] + picked[(3, 3)] + picked[(3, 4)]})
     groups.append({"group": "4 lanes, 2 beats", "items": picked[(4, 2)]})
@@ -145,31 +149,31 @@ def embed(path="index.html"):
     # One rest fewer than lanes on each side (user, 2026-11-18): 123--|--123.
     # Only these go on the All patterns wall, not every reversing pattern the search could find.
     waves = {k: "".join(map(str, range(1, k + 1))) + "-" * (k - 1) + "|" + "-" * (k - 1) + "".join(map(str, range(1, k + 1))) for k in (3, 4, 5)}   # the 6-lane one was dropped at the user's request
-    both_ways = {"3": ["111[12]|3[23]33", "-11[12]|3[23]-3"], "4": ["1234|3412", "1324|2413", "1243|4312", "-124|-431"]}
+    both_ways = {"3": ["111(12)|3(23)33", "-11(12)|3(23)-3"], "4": ["1234|3412", "1324|2413", "1243|4312", "-124|-431"]}
     # The waves (Snakes) and the user's Funnel are written this way but live in 2 people + Reverses, not Mixed
     # (user, 2026-11-17): they go in ROW_REV_WALL for that mode's wall, and stay in the expected counts for the tests.
-    fold = "[15][24]3---|---[15][24]3"
+    fold = "(15)(24)3---|---(15)(24)3"
     for k, w in waves.items():
         expected[w] = {str(k): k}
     expected[fold] = {"5": 3}
     # the Funnel on other lane counts, kept by the user from the 2026-11-17 shortlist (one ball per lane)
-    funnels = {3: "[13]2--|--[13]2", 4: "[14][23]--|--[14][23]", 5: fold, 6: "[16][25][34]---|---[16][25][34]"}
+    funnels = {3: "(13)2--|--(13)2", 4: "(14)(23)--|--(14)(23)", 5: fold, 6: "(16)(25)(34)---|---(16)(25)(34)"}
     for k, f in funnels.items():
         expected[f] = {str(k): 3 if k > 4 else 2}
     row_rev_wall = {"3": {"6": waves[3] + " " + funnels[3]}, "4": {"8": waves[4] + " " + funnels[4]},
                     "5": {"10": waves[5] + " " + fold}, "6": {"12": funnels[6]}}
     for k, ps in both_ways.items():
         everything[k]["4"] = everything[k]["4"] + " " + " ".join(ps)
-    expected.update({"111[12]|3[23]33": {"3": 1, "5": 2}, "-11[12]|3[23]-3": {"4": 2},
+    expected.update({"111(12)|3(23)33": {"3": 1, "5": 2}, "-11(12)|3(23)-3": {"4": 2},
                      "1234|3412": {"2": 1, "4": 2}, "1324|2413": {"2": 1, "4": 2}, "1243|4312": {"2": 1, "4": 2}, "-124|-431": {"2": 1, "4": 2}})
     # The list only shows the named patterns (user, 2026-11-17), one group per number of lanes; the rest stay on the wall.
     groups = [
-        {"group": "3 lanes", "items": ["[13]-|22", "11|-[23]", "111[12]|3[23]33"]},
-        {"group": "4 lanes", "items": ["12|-[34]", "13|-[24]", "[14]-|23", "1[12]-|4[34]-", "111|-2[34]"]},
+        {"group": "3 lanes", "items": ["(13)-|22", "11|-(23)", "111(12)|3(23)33"]},
+        {"group": "4 lanes", "items": ["12|-(34)", "13|-(24)", "(14)-|23", "1(12)-|4(34)-", "111|-2(34)"]},
     ]
     on_wall = {p for d in everything.values() for v in d.values() for p in v.split()}
     assert all(p in on_wall for g in groups for p in g["items"]), [p for g in groups for p in g["items"] if p not in on_wall]
-    top = ["[13]-|22", "111|-2[34]", "111[12]|3[23]33", "1[12]-|4[34]-", "12|-[34]"]   # the user's picks, 2026-11-17
+    top = ["(13)-|22", "111|-2(34)", "111(12)|3(23)33", "1(12)-|4(34)-", "12|-(34)"]   # the user's picks, 2026-11-17
     assert all(any(p in g["items"] for g in groups) for p in top), top
     block = ('<script id="mixed-patterns">\nconst MIX_LIST = ' + json.dumps(groups, separators=(",", ":")) +
              ';\nconst MIX_TOP = ' + json.dumps(top) + ';\nconst ALL_MIX = ' + json.dumps(everything, separators=(",", ":")) +
@@ -177,8 +181,7 @@ def embed(path="index.html"):
     html = open(path, encoding="utf-8").read()
     html, n = re.subn(r'<script id="mixed-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     assert n == 1
-    from notation import round_brackets   # the page writes moves at the same moment as (12)(34)
-    open(path, "w", encoding="utf-8").write(round_brackets(html))
+    open(path, "w", encoding="utf-8").write(html)
     json.dump(expected, open("tests/rhythm-counts.json", "w"), separators=(",", ":"))
     print("rhythm:", {k: {b: len(v.split()) for b, v in d.items()} for k, d in everything.items()})
     print("top:", top)

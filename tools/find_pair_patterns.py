@@ -1,6 +1,6 @@
 """Find two-person patterns where each person rolls two balls at once.
 
-Written with brackets: [14][23] means the right person rolls lanes 1 and 4
+Written with brackets: (14)(23) means the right person rolls lanes 1 and 4
 together, then the left person rolls lanes 2 and 3 together. The order inside
 the brackets says which ball goes where: the first ball of one bracket becomes
 the first ball of the next, so each position in the brackets traces its own path.
@@ -14,8 +14,12 @@ first are counted once.
 import itertools, sys
 from collections import defaultdict
 
+def order(s):
+    """Sort the way these lists always have, from when brackets were written [12]."""
+    return s.replace("(", "[").replace(")", "]")
+
 def show(seq):
-    return "".join(f"[{a}{b}]" for a, b in seq)
+    return "".join(f"({a}{b})" for a, b in seq)
 
 def valid(seq, k):
     n = len(seq)
@@ -97,8 +101,8 @@ if __name__ == "__main__" and "--embed" not in sys.argv:
                     print(f"  {show(d):<26} paths {p[0]} and {p[1]}{'  (same path, out of step)' if twin else ''}")
 
 
-NAMES = {"[13][24][31][42]": "Scarf Sync", "[14][23][41][32]": "Mobius Sync", "[12][34][21][43]": "Loop de Loop Sync",
-         "[12][34]": "Paired Loops", "[14][32]": "Criss Cross", "[14][23]": "In & Out", "[14][23][14][32]": "Hot Cross Buns"}
+NAMES = {"(13)(24)(31)(42)": "Scarf Sync", "(14)(23)(41)(32)": "Mobius Sync", "(12)(34)(21)(43)": "Loop de Loop Sync",
+         "(12)(34)": "Paired Loops", "(14)(32)": "Criss Cross", "(14)(23)": "In & Out", "(14)(23)(14)(32)": "Hot Cross Buns"}
 
 def embed(path="index.html"):
     """Rewrite the two-person pair lists inside index.html."""
@@ -110,17 +114,16 @@ def embed(path="index.html"):
     for d in search(5, 4).values():
         five[len(d)].append(show(d))
     # the list only shows the named ones; the rest stay on All patterns
-    short = [{"group": f"Two at once, {2 * n} rolls", "items": [[NAMES[t], t] for t in sorted(v) if t in NAMES]} for n, v in sorted(four.items())]
+    short = [{"group": f"Two at once, {2 * n} rolls", "items": [[NAMES[t], t] for t in sorted(v, key=order) if t in NAMES]} for n, v in sorted(four.items())]
     short = [g for g in short if g["items"]]
-    everything = {"4": {str(2 * n): " ".join(sorted(v)) for n, v in sorted(four.items())},
-                  "5": {str(2 * n): " ".join(sorted(v)) for n, v in sorted(five.items())}}
+    everything = {"4": {str(2 * n): " ".join(sorted(v, key=order)) for n, v in sorted(four.items())},
+                  "5": {str(2 * n): " ".join(sorted(v, key=order)) for n, v in sorted(five.items())}}
     block = ('<script id="pair-patterns">\nconst PAIR_LIST = ' + json.dumps(short, separators=(",", ":")) +
              ';\nconst ALL_PAIRS = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')
     html = open(path, encoding="utf-8").read()
     html, n = re.subn(r'<script id="pair-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     assert n == 1
-    from notation import round_brackets   # the page writes moves at the same moment as (12)(34)
-    open(path, "w", encoding="utf-8").write(round_brackets(html))
+    open(path, "w", encoding="utf-8").write(html)
     print("pairs:", {k: {b: len(v.split()) for b, v in d.items()} for k, d in everything.items()})
 
 if __name__ == "__main__" and "--embed" in sys.argv:

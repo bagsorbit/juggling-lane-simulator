@@ -2,8 +2,9 @@
 
 Beats alternate between the two people; each person uses their hands in turn.
 - a lane number: a roll to the other person (odd number of beats, at least 3 with 2+ balls)
-- z: pass zip, handed to the other person in the middle, rolled on the next beat (1)
-- s: self zip, handed to that person's own other hand, rolled on their next turn (2)
+- p: a pass, handed to the other person in the middle, rolled on the next beat (1)
+- z: a zip, handed to that person's own other hand, rolled on their next turn (2)
+(Inside the search Z is a pass and S a zip to yourself; show() writes them p and z.)
 Same shape rules as solo zips: every lane 1..K used, a lane is always rolled from the
 same end, no move happens twice in a loop, most even timing kept.
 """
@@ -12,7 +13,7 @@ from collections import defaultdict
 
 Z, S = 0, -1
 VAL = {Z: 1, S: 2}
-def show(seq): return "".join("z" if x == Z else "s" if x == S else str(x) for x in seq)
+def show(seq): return "".join("p" if x == Z else "z" if x == S else str(x) for x in seq)   # p a pass, z a zip to your own other hand
 def key(seq): return tuple(9 if x == Z else 8 if x == S else x for x in seq)
 
 def valid_shape(seq, k):
@@ -107,7 +108,7 @@ def pick():
                 self_only[k].append(show(disp))
             if all(x in disp[p::2] for x in (Z, S) for p in (0, 1)) and even:
                 both.append(show(disp))
-    both += ["1234zzss", "1243zzss"]
+    both += ["1234ppzz", "1243ppzz"]
     return self_only, both
 
 if __name__ == "__main__" and "--embed" in sys.argv:
@@ -116,9 +117,9 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     html = open("index.html", encoding="utf-8").read()
     # the list keeps only the named ones (2026-11-17); the page groups them by lanes along with the pass zips
     found = {p for v in self_only.values() for p in v} | set(both)
-    keep = ["1zs2zs", "1z3zs2zs", "12s21s", "12s43s", "1s34s2"]
+    keep = ["1pz2pz", "1p3pz2pz", "12z21z", "12z43z", "1z34z2"]
     assert all(p in found for p in keep), [p for p in keep if p not in found]
-    groups = ["14z3241z"] + keep
+    groups = ["14p3241p"] + keep
     # every pattern the search finds, for the All patterns page: {lanes: {beats: "p p p"}}
     walls = {"self": defaultdict(dict), "both": defaultdict(dict)}
     for k in range(1, 5):
@@ -134,6 +135,5 @@ if __name__ == "__main__" and "--embed" in sys.argv:
         html = re.sub(r'<script id="zip2-patterns">.*?</script>', lambda m: block, html, flags=re.S)
     else:
         html = html.replace('<script id="zip-patterns">', block + '\n<script id="zip-patterns">', 1)
-    from notation import round_brackets   # the page writes moves at the same moment as (12)(34)
-    open("index.html", "w", encoding="utf-8").write(round_brackets(html))
+    open("index.html", "w", encoding="utf-8").write(html)
     print({kind: sum(len(x.split()) for d in w.values() for x in d.values()) for kind, w in walls.items()})

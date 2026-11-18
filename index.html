@@ -343,6 +343,15 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
   .infobtn { display: flex; position: absolute; right: 0; top: 50%; margin: 0; transform: translateY(-50%); }
   .infobtn:active:not(:disabled) { transform: translateY(-50%); }
   body:not(.info-open) .info:not(.bad) { display: none; }
+  /* the numbers always fit on one line: long patterns shrink, and the two people's rows sit side by side */
+  .strip { flex-wrap: nowrap; }
+  .strip.long { gap: 3px; }
+  .strip.long .tile { width: 24px; height: 28px; font-size: 15px; }
+  .strip.long .pair.br .tile { width: 18px; height: 26px; font-size: 13px; }
+  .strip.xlong .tile { width: 20px; height: 26px; font-size: 13px; }
+  .strip.xlong .pair.br .tile { width: 16px; }
+  .strip .rows { display: flex; align-items: center; gap: 4px; }
+  .strip .rows > small ~ small { margin-left: 12px; }
   .hidebtn { right: auto; left: 0; }
   .hidebtn svg { width: 16px; height: 16px; transition: transform .15s; }
   body.controls-hidden .hidebtn svg { transform: rotate(180deg); }

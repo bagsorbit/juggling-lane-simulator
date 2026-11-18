@@ -458,7 +458,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
     <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="6" width="21" height="12" rx="4" fill="#fffdf5" stroke="#2d2a4a" stroke-width="2.2"/><rect x="2.6" y="7.1" width="9.4" height="9.8" rx="3" fill="#ffd43b"/><path d="M12 6v12" stroke="#2d2a4a" stroke-width="2.2"/></svg><span><b>Right / Left</b>: which hand (or person) rolls first, in lane 1. Swaps the pattern for its mirror image.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.6" stroke-linecap="round" fill="none"><path d="M3 12h18"/><circle cx="10" cy="12" r="4" fill="#8f8aa8" stroke-width="2.2"/></svg><span><b>Speed</b>: slide to slow the balls down or speed them up.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" fill="#2d2a4a"><rect x="6" y="5" width="4.2" height="14" rx="1.4"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.4"/></svg><span><b>Pause / Play</b>: stops and starts the balls.</span></li>
-    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="#2d2a4a"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg><span><b>Beat sound</b>: tap to go from off, to a click on every roll (higher for the right hand, lower for the left), to the numbers said out loud.</span></li>
+    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="#2d2a4a"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg><span><b>Beat sound</b>: tap to go from off, to a click on every roll (higher for the right hand, lower for the left), to the numbers said out loud, in one voice for the right hand (or person) and another for the left.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linejoin="round" fill="none"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg><span><b>Favourites</b>: save the pattern you are watching, or open the ones you saved.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M11 4.5H7.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3V15" stroke-width="2.6"/><path d="M9 15.5c0-4 2.5-6.2 7-6.2" stroke-width="3.4"/><path d="M15.2 4.2l6.3 5.1-6.3 5.1z" fill="#2d2a4a" stroke-width="1.4"/></svg><span><b>Share</b>: makes a link that opens this exact pattern.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#fffdf5" stroke="#2d2a4a" stroke-width="2.2"/><text x="12" y="17" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-weight="700" font-size="14" fill="#2d2a4a">i</text></svg><span><b>(i)</b>: shows what the numbers and colours mean.</span></li>
@@ -2807,19 +2807,48 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* Say the numbers just rolled. Each one cuts off the last, so the voice never falls behind the balls;
      it speaks faster when the pattern does. Zips are said as "zip", self zips as "self". */
   function sayBeat() {
-    const words = [];
+    // the tiles are coloured by who rolls them: a hand with one person, a person with two
+    const said = { r: [], b: [], n: [] };
     strip.querySelectorAll('.tile.on').forEach(function (t) {
-      if (t.classList.contains('rest')) return;
+      const c = t.classList;
+      if (c.contains('rest')) return;
       const w = t.textContent;
-      words.push(w === 'z' ? 'zip' : w === 's' ? 'self' : w);
+      said[c.contains('r') ? 'r' : c.contains('b') ? 'b' : 'n'].push(w === 'z' ? 'zip' : w === 's' ? 'self' : w);
     });
-    if (!words.length) return;
+    const parts = ['r', 'b', 'n'].filter(function (k) { return said[k].length; });
+    if (!parts.length) return;
     const beatSecs = 0.5 * tm.cycle / (state.speed * BASE_SPEED);
-    const say = new SpeechSynthesisUtterance(words.join(' '));
-    say.rate = clamp((0.4 * words.length) / beatSecs, 1, 3);
+    const words = parts.reduce(function (s, k) { return s + said[k].length; }, 0);
+    const rate = clamp((0.4 * words) / beatSecs, 1, 3);
     window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(say);
+    for (const k of parts) {                                  // both at once: the right side's numbers first, then the left's
+      const say = new SpeechSynthesisUtterance(said[k].join(' '));
+      say.rate = rate;
+      const v = voices()[k];
+      if (v) { say.voice = v; say.lang = v.lang; }
+      say.pitch = k === 'r' ? 1.3 : k === 'b' ? 0.8 : 1;      // set apart by pitch too, in case there is only one voice
+      window.speechSynthesis.speak(say);
+    }
   }
+  /* Two different voices for right and left, chosen from the ones this phone or computer has,
+     in the page's language if possible (English otherwise). */
+  let voicePick = null;
+  function voices() {
+    if (voicePick) return voicePick;
+    const all = canSay ? window.speechSynthesis.getVoices() : [];
+    if (!all.length) return {};
+    const lang = (navigator.language || 'en').slice(0, 2).toLowerCase();
+    let pool = all.filter(function (v) { return v.lang.slice(0, 2).toLowerCase() === lang; });
+    if (pool.length < 2) pool = all.filter(function (v) { return v.lang.slice(0, 2).toLowerCase() === 'en'; });
+    if (!pool.length) pool = all;
+    // voices on the device itself answer straight away; online ones can lag behind the balls
+    pool = pool.filter(function (v) { return v.localService; }).concat(pool.filter(function (v) { return !v.localService; }));
+    const first = pool.find(function (v) { return v.default; }) || pool[0];
+    const second = pool.find(function (v) { return v !== first; }) || first;
+    voicePick = { r: first, b: second, n: first };
+    return voicePick;
+  }
+  if (canSay && window.speechSynthesis.addEventListener) window.speechSynthesis.addEventListener('voiceschanged', function () { voicePick = null; });
   function showSound() {
     $('sound').setAttribute('aria-pressed', String(!!sound.mode));
     $('sound').dataset.mode = sound.mode;

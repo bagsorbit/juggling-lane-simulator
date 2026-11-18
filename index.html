@@ -2580,7 +2580,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function diceHeight() { return H - $('lucky').offsetTop + 6; }
   function geometry() {
     const K = state.pat.lanes;
-    const handZone = clamp(W * 0.18, 54, 160);
+    // Ping Pong hands work inside the lanes, so the lanes can run nearly the full width
+    const handZone = state.pat.ping ? clamp(W * 0.05, 20, 48) : clamp(W * 0.18, 54, 160);
     const top = Math.max(H < 330 ? 44 : 50, buttonsTop());   // room for the buttons along the top of the square
     const foot = diceWidth() + 10 > handZone ? diceHeight() : H < 330 ? 8 : 42;   // and the dice buttons at the bottom
     const pitch = Math.min((H - top - foot - 20) / K, 92);

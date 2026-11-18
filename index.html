@@ -457,7 +457,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M3 5.5h10.5V2.5l7.5 5-7.5 5v-3H3z" fill="#ffd9a8" stroke-width="2"/><path d="M21 14.5H10.5v-3L3 16.5l7.5 5v-3H21z" fill="#d9ccff" stroke-width="2"/></svg><span><b>Reverses</b>: patterns in which lanes change direction. Works with 1 or 2 people.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M5 5H2.500v9H5M12 5h2.500v9H12"/><circle cx="6" cy="9.500" r="1.800" fill="#ff922b" stroke-width="1.5"/><circle cx="11" cy="9.500" r="1.800" fill="#22b8cf" stroke-width="1.5"/><circle cx="20" cy="9.500" r="1.800" fill="#f06595" stroke-width="1.5"/><path d="M3 20h18"/></svg><span><b>Mixed</b>: two people, each keeping their own rhythm of single rolls and pairs.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M3 20h18V8z" fill="#74c0fc"/><circle cx="8" cy="11.500" r="2.500" fill="#ffd43b" stroke-width="2"/></svg><span><b>Slope</b>: toss-juggling patterns. You sit at the bottom, place balls up the sloping lanes, and they roll back to you.</span></li>
-    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M14.200 14.700l5 5" stroke-width="5.200"/><path d="M14.200 14.700l5 5" stroke="#e8a85c" stroke-width="2.200"/><circle cx="9.500" cy="10" r="6.800" fill="#ff8787"/><circle cx="20" cy="4.500" r="2.300" fill="#ffd43b" stroke-width="1.800"/></svg><span><b>Ping Pong</b>: three balls. Just after a ball rolls past, the hand places its own ball a little way up the lane, then jumps back to grab the one that went past, so a lane can be used both ways, even one lane on its own. The grab is in the same lane or the next one. Patterns in brackets use four balls with both hands at once: (12) is the right hand in lane 1 and the left in lane 2.</span></li>
+    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M14.200 14.700l5 5" stroke-width="5.200"/><path d="M14.200 14.700l5 5" stroke="#e8a85c" stroke-width="2.200"/><circle cx="9.500" cy="10" r="6.800" fill="#ff8787"/><circle cx="20" cy="4.500" r="2.300" fill="#ffd43b" stroke-width="1.800"/></svg><span><b>Ping Pong</b>: three balls. Just after a ball rolls past, the hand places its own ball a little way up the lane, then jumps back to grab the one that went past, so a lane can be used both ways, even one lane on its own. The grab is in the same lane or the next one. Patterns in brackets use four balls with both hands at once: (12) is the right hand in lane 1 and the left in lane 2. With 2 people on, there is a person at each end, switching hands each turn.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#fff" stroke="#2d2a4a" stroke-width="2.4"/><g fill="#2d2a4a"><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="8" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="8" cy="16" r="1.9"/><circle cx="16" cy="16" r="1.9"/></g></svg><span><b>Random top 5</b>: plays one of the five starred patterns.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="2" width="13.5" height="13.5" rx="3.5" fill="#fff" stroke="#2d2a4a" stroke-width="2.2"/><g fill="#2d2a4a"><circle cx="13" cy="6.500" r="1.400"/><circle cx="17.500" cy="11" r="1.400"/></g><rect x="2" y="8.5" width="13.5" height="13.5" rx="3.5" fill="#fff" stroke="#2d2a4a" stroke-width="2.2"/><g fill="#2d2a4a"><circle cx="6" cy="12.500" r="1.400"/><circle cx="8.750" cy="15.250" r="1.400"/><circle cx="11.500" cy="18" r="1.400"/></g></svg><span><b>Random all modes</b>: plays a starred pattern from any mode, and switches to that mode.</span></li>
   <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#ff7b6e" stroke-width="3.4" stroke-linecap="round" fill="none"><path d="M6 6l12 12M18 6L6 18"/></svg><span><b>Red X</b>: shows while a mode is on. Tap it to go back to plain 1 person or 2 people.</span></li>
@@ -1141,6 +1141,28 @@ const JLS = (function () {
     }
     return out;
   }
+  /* Partner Ping Pong: one person at each end, each switching hands from one placing to the next. The balls move
+   * exactly as for one person. A ball is grabbed by the hand that will place it next, so after placing, a hand
+   * hops back to the lane where its next ball will come in, waits there, grabs it, and carries it to its next
+   * placing. `end` is the person (0 places first), `which` the hand (0 is that person's right hand, used first). */
+  function pingHands2(u, pat) {
+    const b = 2 * u, t = Math.floor(b), out = [];
+    const sync = !!pat.sync, L = pat.seq.length;
+    const lane = function (e, s) { return sync ? pat.ps[e][mod(s, L)] : pat.seq[mod(s, L)]; };   // where person e places on beat s
+    const step = sync ? 1 : 2;                                // beats between one person's placings
+    for (let e = 0; e < 2; e++) for (let q = 0; q < 2; q++) {
+      // this hand places on every other one of its person's beats: beats e + step*q, then every 2*step
+      const first = sync ? q : e + 2 * q, cyc = 2 * step;
+      const r = first + cyc * Math.floor((t - first) / cyc);  // its latest placing
+      const placed = { pp: lane(e, r), d: PING_PLACE };
+      const arrive = r + step + PING_GRAB;                     // the ball for its next placing comes in then...
+      const comes = { pp: lane(1 - e, r + step - 1), d: PING_CATCH };   // ...in the lane the other person used a beat before
+      const next = { pp: lane(e, r + cyc), d: PING_PLACE };
+      if (b < arrive) out.push({ end: e, which: q, holding: false, from: placed, to: comes, p: Math.min(1, (b - r) / PING_GRAB) });
+      else out.push({ end: e, which: q, holding: true, from: comes, to: next, p: (b - arrive) / (r + cyc - arrive) });
+    }
+    return out;
+  }
   /* A pattern works if each hand can reach the ball it grabs: the lane it places in and the lane of the ball
    * that just rolled past are the same or next to each other. */
   function pingOk(pat) {
@@ -1367,7 +1389,7 @@ const JLS = (function () {
            mixedPlan: mixedPlan, mixedLaneHands: mixedLaneHands, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths,
            hands2: hands2, pairBalls: pairBalls, pairHands: pairHands,
            solveTiming: solveTiming, zipPlan: zipPlan, zipBalls: zipBalls, zipHands: zipHands, zipHands2: zipHands2, zipPaths: zipPaths, balls: balls, hands: hands, active: active,
-           pingBalls: pingBalls, pingHands: pingHands, pingLaneHands: pingLaneHands, pingOk: pingOk, PING_PLACE: PING_PLACE, PING_CATCH: PING_CATCH, PING_GRAB: PING_GRAB, PING_SPEED: PING_SPEED };
+           pingBalls: pingBalls, pingHands: pingHands, pingLaneHands: pingLaneHands, pingOk: pingOk, pingHands2: pingHands2, PING_PLACE: PING_PLACE, PING_CATCH: PING_CATCH, PING_GRAB: PING_GRAB, PING_SPEED: PING_SPEED };
 })();
 </script>
 
@@ -1726,7 +1748,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   let tightKey = '';   // slope: the width the dice buttons were last fitted to
   const last = {};   // the pattern last played in each mode; a mode not yet visited starts on its first top-five pattern
   /* Only one special mode can be on at a time, except that zips can be played by two people ('zip2'). */
-  function setMode(name) { state.zipMode = name === 'zip' || name === 'zip2'; state.twoMode = name === 'two' || name === 'mix' || name === 'zip2' || name === 'rev2'; state.revMode = name === 'rev' || name === 'rev2'; state.mixMode = name === 'mix'; state.slopeMode = name === 'slope'; state.pingMode = name === 'ping'; }
+  function setMode(name) { state.zipMode = name === 'zip' || name === 'zip2'; state.twoMode = name === 'two' || name === 'mix' || name === 'zip2' || name === 'rev2' || name === 'ping2'; state.revMode = name === 'rev' || name === 'rev2'; state.mixMode = name === 'mix'; state.slopeMode = name === 'slope'; state.pingMode = name === 'ping' || name === 'ping2'; }
 
   // Slope patterns can't be typed, so they are looked up by the way they are written in the list.
   const SLOPE = {};
@@ -1779,6 +1801,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     rev2: ['(13)(24)(24)(13)', '(12)(34)(56)', '(13)(25)(46)', '(16)(25)(43)', '(14)(23)(14)(23)(23)(14)(23)(14)'],
     mix: MIX_TOP,
     ping: ['1', '1122', '111222', '(12)(21)', '(14)(32)(23)(41)'],
+    ping2: ['1', '1122', '111222', '(12)(21)', '(14)(32)(23)(41)'],
     slope: ['Cascade', 'Async Fountain', '441', 'Boston Mess', 'Splits'].map(function (name) { for (const t in SLOPE) if (SLOPE[t].name === name) return t; })
   };
   // the ball count each top-five pattern starts with, where it has one
@@ -1799,7 +1822,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const m = modeName(), text = startText(m);
     choose(text, startBalls(m, text));
   }
-  function modeName() { return state.pingMode ? 'ping' : state.slopeMode ? 'slope' : state.zipMode && state.twoMode ? 'zip2' : state.zipMode ? 'zip' : state.revMode && state.twoMode ? 'rev2' : state.mixMode ? 'mix' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
+  function modeName() { return state.pingMode ? (state.twoMode ? 'ping2' : 'ping') : state.slopeMode ? 'slope' : state.zipMode && state.twoMode ? 'zip2' : state.zipMode ? 'zip' : state.revMode && state.twoMode ? 'rev2' : state.mixMode ? 'mix' : state.twoMode ? 'two' : state.revMode ? 'rev' : 'one'; }
 
   /* Switch to a pattern and ball count. Returns '' if it worked, or the reason it can't be played. */
   function setPattern(parsed, n) {
@@ -1859,7 +1882,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     }
     const parsed = zip2 ? parseZip2(raw) : JLS.parse(raw);
     let slopeWant = '';
-    if (params.get('ping') === '1') setMode('ping');
+    if (params.get('ping') === '1') setMode(params.get('two') === '1' ? 'ping2' : 'ping');
     else if (params.get('slope')) { setMode('slope'); const want = params.get('slope'); for (const t in SLOPE) if (SLOPE[t].name.toLowerCase().replace('(ish)', '') === want.toLowerCase().replace('(ish)', '')) slopeWant = t; }
     else if (zip2) setMode('zip2');
     else if (params.get('zips') === '1' || (parsed.ok && parsed.zip)) setMode(params.get('two') === '1' || parsed.pairs ? 'zip2' : 'zip');
@@ -2193,11 +2216,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     $('clearMode').hidden = !(state.zipMode || state.revMode || state.mixMode || state.slopeMode || state.pingMode);
     fitModes();   // the red X: back to plain 1 person or 2 people   // small dice buttons, so they stay clear of the lanes
     mixBtn.disabled = !state.twoMode || state.zipMode || state.revMode;   // mixed patterns are only for two people, on their own
-    twoBtn.disabled = state.mixMode || state.slopeMode || state.pingMode;
+    twoBtn.disabled = state.mixMode || state.slopeMode;
     zipBtn.disabled = state.mixMode || state.revMode || state.slopeMode || state.pingMode;
     revBtn.disabled = state.mixMode || state.zipMode || state.slopeMode || state.pingMode;
     slopeBtn.disabled = state.twoMode || state.zipMode || state.revMode || state.pingMode;
-    pingBtn.disabled = state.twoMode || state.zipMode || state.revMode || state.slopeMode;   // one person, on its own
+    pingBtn.disabled = state.mixMode || state.zipMode || state.revMode || state.slopeMode;   // 1 or 2 people, nothing else
     inCustom.disabled = state.slopeMode;         // slope patterns come from the list only
     btnR.disabled = btnL.disabled = state.slopeMode;   // and always start the same way round
     inSpeed.value = state.speed;
@@ -2292,7 +2315,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const known = state.pat.slope ? [state.pat.slope.name] : knownPattern(state.pat.text);
     return known && known[0] ? known[0] : state.pat.text;
   }
-  const MODE_WORDS = { one: '1 person', two: '2 people', zip: 'Zips', zip2: '2 people, zips', rev: 'Reverses', rev2: '2 people, reverses', mix: '2 people, mixed', slope: 'Slope', ping: 'Ping Pong' };
+  const MODE_WORDS = { one: '1 person', two: '2 people', zip: 'Zips', zip2: '2 people, zips', rev: 'Reverses', rev2: '2 people, reverses', mix: '2 people, mixed', slope: 'Slope', ping: 'Ping Pong', ping2: '2 people, Ping Pong' };
   function patternDetails() {
     const bits = [MODE_WORDS[modeName()], state.n + (state.n === 1 ? ' ball' : ' balls')];
     if (!state.pat.slope && patternTitle() !== state.pat.text) bits.unshift(state.pat.text);
@@ -2438,7 +2461,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     choose(pick[1], topBalls(pick[0], pick[1]));
   });
   twoBtn.addEventListener('click', function () {
-    if (state.zipMode) goMode(state.twoMode ? 'zip' : 'zip2');       // zips stay on
+    if (state.pingMode) goMode(state.twoMode ? 'ping' : 'ping2');      // Ping Pong stays on
+    else if (state.zipMode) goMode(state.twoMode ? 'zip' : 'zip2');       // zips stay on
     else if (state.revMode) goMode(state.twoMode ? 'rev' : 'rev2');  // reverses stay on
     else goMode(state.twoMode ? 'one' : 'two');
   });
@@ -2449,7 +2473,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     goMode(state.slopeMode ? 'one' : 'slope');
   });
   pingBtn.addEventListener('click', function () {
-    goMode(state.pingMode ? 'one' : 'ping');
+    goMode(state.pingMode ? (state.twoMode ? 'two' : 'one') : (state.twoMode ? 'ping2' : 'ping'));
   });
   revBtn.addEventListener('click', function () {
     if (state.twoMode) goMode(state.revMode ? 'two' : 'rev2');
@@ -2936,7 +2960,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         if (pat.ping && b.state !== 'roll') return { id: b.id, state: 'held', hand: b.hand, from: b.from, to: b.to, p: b.p };
         return b.state === 'roll' ? b : { id: b.id, state: 'held', hand: b.hand, from: { lane: b.from }, to: { lane: b.to }, p: b.p };
       });
-      if (state.twoMode) {
+      if (state.twoMode && pat.ping) {
+        hs = JLS.pingHands2(u, pat).map(function (h) {
+          const right = h.which === 0, thumbUp = (sideOf(h.end) === RIGHT) !== right;   // each person leads with their right hand
+          return { hand: h.end, holding: h.holding, from: h.from, to: h.to, p: h.p, letter: right ? 'R' : 'L', thumbUp: thumbUp };
+        });
+      } else if (state.twoMode) {
         const fixed = pairs;                                  // rolling pairs, each hand keeps to its own side of the person
         hs = (mplan ? JLS.mixedHands(u, mplan, tm) : pairs ? JLS.pairHands(u, pat, n, tm) : JLS.hands2(u, pat, n, tm)).map(function (h) {
           // Letters are each person's own right and left. Taking turns, a person leads with their right hand.

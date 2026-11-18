@@ -114,8 +114,11 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     import json, re
     self_only, both = pick()
     html = open("index.html", encoding="utf-8").read()
-    groups = [{"group": f"Self zips, {k} lanes", "items": v} for k, v in sorted(self_only.items())]
-    groups.append({"group": "Self and pass zips", "items": both})
+    # the list keeps only the named ones (2026-11-17); the page groups them by lanes along with the pass zips
+    found = {p for v in self_only.values() for p in v} | set(both)
+    keep = ["1zs2zs", "1z3zs2zs", "12s21s", "12s43s", "1s34s2"]
+    assert all(p in found for p in keep), [p for p in keep if p not in found]
+    groups = ["14z3241z"] + keep
     # every pattern the search finds, for the All patterns page: {lanes: {beats: "p p p"}}
     walls = {"self": defaultdict(dict), "both": defaultdict(dict)}
     for k in range(1, 5):

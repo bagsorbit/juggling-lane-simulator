@@ -1101,9 +1101,14 @@ const JLS = (function () {
     }
     return out;
   }
-  function pingLaneHands(u, pat) {                            // the lanes with a ball rolling in them, and which hand rolled it
-    const out = new Array(pat.lanes + 1).fill(-1);
-    for (const b of pingBalls(u, pat)) if (b.state === 'roll') out[b.lane] = b.hand;
+  /* Which hand last placed a ball in each lane, so each lane keeps the colour of the last ball rolled in it and
+   * only changes when a ball goes the other way. */
+  function pingLaneHands(u, pat) {
+    const out = new Array(pat.lanes + 1).fill(-1), t = Math.floor(2 * u), L = pat.seq.length;
+    for (let s = t; s > t - 4 * L - 4; s--) {                  // back through two whole rounds: every lane is used in one
+      if (pat.sync) { for (let h = 0; h < 2; h++) { const lane = pat.ps[h][mod(s, L)]; if (out[lane] === -1) out[lane] = h; } }
+      else { const lane = pat.seq[mod(s, L)]; if (out[lane] === -1) out[lane] = mod(s, 2); }
+    }
     return out;
   }
   /* Ping Pong with four balls, the hands together: on every beat both hands place a ball, (12) meaning the right

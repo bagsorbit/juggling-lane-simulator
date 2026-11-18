@@ -1076,7 +1076,7 @@ const JLS = (function () {
    * lane or the one next to it, and carries it to the lane of its next roll. A ball rolled on beat t is rolled
    * again on beat t + 3. Places on a lane are { pp: lane, d: depth }, depth measured from that hand's end.
    * Time u is in hand cycles, as everywhere: a beat is half a cycle. */
-  const PING_PLACE = 0.22, PING_CATCH = 0.08, PING_GRAB = 0.15;   // where balls are placed and grabbed; how long the grab takes (beats)
+  const PING_PLACE = 0.25, PING_CATCH = 0.05, PING_GRAB = 0.3;   // where balls are placed and grabbed; how long the grab takes (beats)
   const PING_SPEED = (1 - PING_PLACE - PING_CATCH) / (1 + PING_GRAB);   // lane lengths per beat
   function pingBalls(u, pat) {
     const seq = pat.seq, L = seq.length, b = 2 * u, t = Math.floor(b), out = [];
@@ -2912,9 +2912,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     for (const h of hs) {
       const side = sideOf(h.hand);
       const pt = segPoint(g, side, h.from, h.to, h.p, h.holding);
-      if (state.pat.ping) ctx.globalAlpha = 0.6;              // see-through, so the ball rolling underneath shows
+      // in Ping Pong, coming back from a placing the hand hops up in a little arc and down onto the ball that rolled past
+      if (state.pat.ping && !h.holding) pt.y -= Math.sin(Math.PI * clamp(h.p, 0, 1)) * g.pitch * 0.45;
       drawHand(g, pt.x + side * handOffset, pt.y, side, h.letter, h.thumbUp);
-      ctx.globalAlpha = 1;
     }
     for (const b of bs) {
       if (under(b)) continue;

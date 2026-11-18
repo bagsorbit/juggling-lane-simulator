@@ -144,8 +144,8 @@ h1, .strip, .info, .controls { flex: none; }
   line-height: 1.3;
 }
 .info .dot { display: inline-block; width: .7em; height: .7em; border-radius: 50%; border: 2px solid var(--ink); vertical-align: -.02em; margin-right: .15em; }
-.info .dot.r { background: var(--red); }
-.info .dot.b { background: var(--blue); }
+.info .dot.r { background: #ffd9a8; }   /* the lane colours: right hand rolls leftward, left hand rightward */
+.info .dot.b { background: #d9ccff; }
 .info .sep { opacity: .45; margin: 0 .35em; }
 .info .nw { white-space: nowrap; }
 .info { flex-wrap: wrap; }
@@ -1570,6 +1570,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   const INK = '#2d2a4a';
   const RED = '#ff7b6e', RED_SOFT = '#ffc4bd', BLUE = '#4ea8ff', BLUE_SOFT = '#b9ddff';
+  // lanes are coloured by which way their balls travel, in colours kept apart from the red and blue hands and the green zips
+  const LANE_LEFTWARD = '#ffd9a8', LANE_RIGHTWARD = '#d9ccff';
   const BALL_COLOURS = ['#ffd43b', '#f06595', '#22b8cf', '#9775fa', '#ff922b', '#51cf66', '#ffffff', '#fa5252', '#4c6ef5'];
   const RIGHT = 1, LEFT = -1;
   const BASE_SPEED = 0.5;      // how fast the middle of the speed slider plays
@@ -2421,7 +2423,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       const dir = hand === -1 ? 0 : -sideOf(hand);          // which way balls travel: -1 left, +1 right
       const x0 = g.bx0 + 8, x1 = g.bx1 - 8;
       roundRect(x0, y - g.trackH / 2, x1 - x0, g.trackH, g.trackH / 2);
-      ctx.fillStyle = dir === 0 ? '#e9e6dc' : dir < 0 ? RED_SOFT : BLUE_SOFT;
+      ctx.fillStyle = dir === 0 ? '#e9e6dc' : dir < 0 ? LANE_LEFTWARD : LANE_RIGHTWARD;
       ctx.fill();
       ctx.lineWidth = line; ctx.strokeStyle = INK; ctx.stroke();
 

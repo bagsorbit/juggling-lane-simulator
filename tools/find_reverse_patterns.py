@@ -109,7 +109,12 @@ def embed(path="index.html"):
             expected[text(d)] = counts
     short = [
         {"group": "3 lanes", "items": ["123", "121323", "123132"]},
+        # added by hand (2026-11-19): one person with the hands reaching across, or not taking turns (rows; see index.html)
+        {"group": "Waves, hands reaching across", "items": ["123---|---123", "1234----|----1234", "12345-----|-----12345"]},
+        {"group": "3 lanes, hands not taking turns", "items": ["3-31-3--|-2--2-21", "3-32-3--|-1--1-12"]},
+        {"group": "4 lanes, hands not taking turns", "items": ["3--31-34--|-24--2--21", "4-32-3--|-1--1-12", "3-31-3--|-4--2-21"]},
         {"group": "5 lanes", "items": ["12345", "123145", "123543"]},   # trimmed at the user's request (2026-11-17); the rest stay on All patterns
+        {"group": "6 lanes", "items": ["123456214365"]},                # Hex Double Helix, picked 2026-11-19
     ]
     block = ('<script id="reverse-patterns">\nconst REV_LIST = ' + json.dumps(short, separators=(",", ":")) +
              ';\nconst ALL_REVS = ' + json.dumps(everything, separators=(",", ":")) + ';\n</script>')

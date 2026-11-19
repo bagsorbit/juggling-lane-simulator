@@ -3050,9 +3050,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const K = state.pat.lanes;
     // Ping Pong hands work inside the lanes, so on an upright phone (where width is short) the lanes run nearly the full width
     const upright = window.matchMedia && window.matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
-    const handZone = vert ? clamp(W * 0.13, 44, 160) : state.pat.ping && upright ? clamp(W * 0.05, 20, 48) : clamp(W * 0.18, 54, 160);
-    const top = vert ? diceWidth() + 10 : Math.max(H < 330 ? 44 : 50, buttonsTop());   // room for the buttons along the top of the square
-    const foot = vert ? diceWidth() + 10 : diceWidth() + 10 > handZone ? diceHeight() : H < 330 ? 8 : 42;   // and the dice buttons at the bottom
+    const handZone = vert && vert.phone ? clamp(W * 0.13, 44, 160) : state.pat.ping && upright ? clamp(W * 0.05, 20, 48) : clamp(W * 0.18, 54, 160);
+    const top = vert ? (vert.phone ? diceWidth() + 10 : 8) : Math.max(H < 330 ? 44 : 50, buttonsTop());   // room for the buttons along the top of the square
+    const foot = vert ? (vert.phone ? diceWidth() + 10 : 8) : diceWidth() + 10 > handZone ? diceHeight() : H < 330 ? 8 : 42;   // and the dice buttons at the bottom
     const pitch = Math.min((H - top - foot - 20) / K, 92);
     const rb = clamp(Math.min(pitch * 0.3, W * 0.04), 6, 20);
     const trackH = Math.min(pitch - 6, rb * 2 + 12);
@@ -3556,7 +3556,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (state.pat.lanes > 12) {
       // turned a quarter turn: what is drawn left to right comes out top to bottom
       const w = W, h = H;
-      vert = { a: buttonsTop(), b: 0 };     // the board fits between the dice, so the lanes can run right down to them
+      // on a phone on its side the board fits between the dice instead, so the lanes can run right down to them
+      const phone = !!(window.matchMedia && window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches);
+      vert = { a: buttonsTop(), b: phone ? 0 : diceHeight(), phone: phone };
       W = h; H = w;
       ctx.setTransform(0, dpr, -dpr, 0, dpr * w, 0);
       try { drawMain(); } finally { W = w; H = h; vert = null; }

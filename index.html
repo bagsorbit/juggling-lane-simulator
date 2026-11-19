@@ -2043,7 +2043,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       Object.keys(byLanes).sort().forEach(function (k) { out.push(byLanes[k]); });
       return out;
     }
-    if (state.zipMode || state.revMode || state.mixMode) return (state.zipMode ? ZIP_LIST : state.revMode ? (state.twoMode ? revTwoList() : REV_LIST.concat([{ group: '12 lanes', items: [DODECA[0]] }])) : MIX_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [EXTRA_NAMES[t] || '', t]; }) }; });
+    if (state.zipMode || state.revMode || state.mixMode) return (state.zipMode ? ZIP_LIST : state.revMode ? (state.twoMode ? revTwoList() : REV_LIST) : MIX_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [EXTRA_NAMES[t] || '', t]; }) }; });
     return state.twoMode ? twoList() : JLS.CATALOGUE;
   }
   /* 2 people + Reverses: by lanes, with the Snakes and the Funnel (written a row per person) among the others. */

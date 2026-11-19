@@ -1902,7 +1902,7 @@ const ICONS = (function () {
 function iconSvg(name) {
   // a name's own picture first; otherwise the shared one for its family (Helter Skelter Quad, Triple Double Helix, Mobius Sync...)
   // names that borrow another pattern's picture
-  const BORROW = { 'The Quad-dog': 'Hot Dog', 'Bounce Sandwich': 'Sandwich', 'Skelter Bouncer': 'Helter Skelter' };
+  const BORROW = { 'The Quad-dog': 'Hot Dog', 'Bounce Sandwich': 'Sandwich', 'Skelter Bouncer': 'Helter Skelter', 'The Hexa-Dog': 'Hot Dog', 'Hexa Double Dog': 'Double Hot Dog' };
   const n = BORROW[String(name)] || String(name);
   const base = n.replace(/ (Sync|Reverse)$/, '');
   const body = ICONS[n] || ICONS[base] || ICONS[base.replace(/ (\d+|Solo|Double|Triple|Quad|Quin|Hex|Dodeca|Octadeca)$/, '').replace(/^(Double|Sync|Triple|Quad|Quin|Hex|Dodeca|Octadeca|Mixed) /, '')];
@@ -2290,7 +2290,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   // every one-person zip pattern also works for two people with its zips as passes, and keeps its name
   function asPasses(t) { return t.replace(/z/g, 'p'); }
   // names for reversing patterns
-  const REV_NAMES = { '123': 'Triple Double Helix', '12345': 'Quin Double Helix', '12342143': 'Quad Double Helix', '123456789abc21436587a9cb': 'Dodeca Double Helix', '123456789abcdefghi21436587a9cbedgfih': 'Octadeca Double Helix', '121323': 'Hot Dog', '123132': 'Space Invader', '3-31-3--|-2--2-21': 'The Quadvader', '3-32-3--|-1--1-12': 'The Quad-dog', '3--31-34--|-24--2--21': 'Bounce Sandwich', '4-32-3--|-1--1-12': 'Onion Bouncer', '3-31-3--|-4--2-21': 'Skelter Bouncer', '123145': 'Loop de Loop Reverse', '123543': 'Double Hot Dog',
+  const REV_NAMES = { '123': 'Triple Double Helix', '12345': 'Quin Double Helix', '12342143': 'Quad Double Helix', '123456789abc21436587a9cb': 'Dodeca Double Helix', '123456789abcdefghi21436587a9cbedgfih': 'Octadeca Double Helix', '121323': 'Hot Dog', '123132': 'Space Invader', '3-31-3--|-2--2-21': 'The Quadvader', '323-3-|-1-121': 'The Quad-dog', '323-3-3-3-|-1-1-121-1': 'The Hexa-Dog', '3(14)3-3-|-2-2(14)2': 'Bounce Sandwich', '4(23)4-4-|-1-1(23)1': 'Hexa Double Dog', '3-32-3--|-1--1-12': 'The Quad-dog', '3--31-34--|-24--2--21': 'Bounce Sandwich', '4-32-3--|-1--1-12': 'Onion Bouncer', '3-31-3--|-4--2-21': 'Skelter Bouncer', '123145': 'Loop de Loop Reverse', '123543': 'Double Hot Dog',
                       '(12)(34)(34)(12)': 'Double Trouble', '(13)(24)(24)(13)': 'Bibbity Bobbity', '(12)(34)(56)': 'Double Triple Helix', '(13)(25)(46)': '2 by 2',
                       '(16)(25)(43)': 'Double or Quits', '(14)(23)(14)(23)(23)(14)(23)(14)': 'Sandwich',
                       '(16)(25)(16)(34)(25)(34)': 'Hot Dog Sync', '(14)(23)(23)(41)': 'Twin Dogs', '(14)(23)(32)(14)': 'Quarter Pounder', '(16)(25)(34)(16)(34)(25)': 'Space Invader Sync' };

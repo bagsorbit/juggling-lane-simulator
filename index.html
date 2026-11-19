@@ -508,12 +508,12 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
 const JLS = (function () {
   'use strict';
 
-  const MAX_LANES = 6;
+  const MAX_LANES = 12;          // lanes 10, 11 and 12 are written a, b and c
   const MAX_BEATS = 24;
-  const MAX_BALLS = 9;
+  const MAX_BALLS = 12;          // more than 9 only for the 12-lane patterns
   const MAX_ZIP_BEATS = 10;
   const MAX_BRACKETS = 12;
-  const MAX_RHYTHM_BEATS = 12;
+  const MAX_RHYTHM_BEATS = 24;
 
   // [name, pattern]. Versions of one name (Helter Skelter Triple, Quad, Quin, Hex) share one picture.
   const CATALOGUE = [
@@ -551,8 +551,8 @@ const JLS = (function () {
       const row = [];
       for (const tok of tokens) {
         if (tok === '-') row.push([]);
-        else if (/^[1-6]$/.test(tok)) row.push([Number(tok)]);
-        else if (/^\([1-6]{2}\)$/.test(tok) && tok[1] !== tok[2]) row.push([Number(tok[1]), Number(tok[2])]);
+        else if (/^[1-9a-c]$/.test(tok)) row.push([parseInt(tok, 16)]);
+        else if (/^\([1-9a-c]{2}\)$/.test(tok) && tok[1] !== tok[2]) row.push([parseInt(tok[1], 16), parseInt(tok[2], 16)]);
         else return { ok: false, error: 'Each beat is a lane number 1 to ' + MAX_LANES + ', two different ones in brackets like (13), or - for a rest.' };
       }
       rows.push(row);
@@ -583,13 +583,13 @@ const JLS = (function () {
     if (!/^(\([^()]*\))+$/.test(s)) return { ok: false, error: 'To mix single rolls and pairs, write a row for each person with a | between them, like (13)-|22.' };
     const parts = s.slice(1, -1).split(')(');
     for (const part of parts) {
-      if (/^(pp|p[1-6]|[1-6]p)$/.test(part)) continue;      // pp: both balls passed across the middle; 1p, p2: one rolls, one is passed across
+      if (/^(pp|p[1-9a-c]|[1-9a-c]p)$/.test(part)) continue;      // pp: both balls passed across the middle; 1p, p2: one rolls, one is passed across
       if (/z/.test(part)) return { ok: false, error: 'In brackets, write p to pass a ball to the other person, like (pp) or (1p).' };
-      if (!/^[1-6]{2}$/.test(part)) return { ok: false, error: 'Each pair of brackets needs two lane numbers from 1 to ' + MAX_LANES + ', like (14), or (pp) to pass both balls across.' };
+      if (!/^[1-9a-c]{2}$/.test(part)) return { ok: false, error: 'Each pair of brackets needs two lane numbers from 1 to ' + MAX_LANES + ', like (14), or (pp) to pass both balls across.' };
       if (part[0] === part[1]) return { ok: false, error: 'One person cannot roll two balls into lane ' + part[0] + ' at the same moment.' };
     }
     if (parts.length > MAX_BRACKETS) return { ok: false, error: 'That is too long. Keep it to ' + MAX_BRACKETS + ' brackets or fewer.' };
-    const slots = [parts.map(function (x) { return x[0] === 'p' ? 0 : Number(x[0]); }), parts.map(function (x) { return x[1] === 'p' ? 0 : Number(x[1]); })];
+    const slots = [parts.map(function (x) { return x[0] === 'p' ? 0 : parseInt(x[0], 16); }), parts.map(function (x) { return x[1] === 'p' ? 0 : parseInt(x[1], 16); })];
     const lanes = Math.max.apply(null, slots[0].concat(slots[1]));
     if (/p/.test(s)) {
       // Passes two at once: each position in the brackets is an ordinary zip pattern, and the two run in step.
@@ -628,19 +628,19 @@ const JLS = (function () {
    * Zips and passes are stored as lane 0, with `self` marking the zips when two people play. */
   function parse(text, opts) {
     const raw = String(text == null ? '' : text).replace(/\[/g, '(').replace(/\]/g, ')');
-    if (/[|:\/]/.test(raw)) return parseRhythm(raw.replace(/[\s,.]/g, '').replace(/[:\/]/g, '|'));   // a : or / is accepted too
+    if (/[|:\/]/.test(raw)) return parseRhythm(raw.replace(/[\s,.]/g, '').toLowerCase().replace(/[:\/]/g, '|'));   // a : or / is accepted too
     const s = raw.replace(/[\s,.\-]/g, '').toLowerCase();
     if (!s) return { ok: false, error: 'Type some lane numbers, like 1234.' };
     if (/[()]/.test(s)) return parsePairs(s);
     if (/s/.test(s)) return { ok: false, error: 'Write z for a zip to your own other hand and p for a pass to the other person.' };
-    if (/[^1-6zp]/.test(s)) return { ok: false, error: 'Use only the digits 1 to ' + MAX_LANES + ' (and z for a zip, p for a pass), one for each roll.' };
+    if (/[^1-9a-czp]/.test(s)) return { ok: false, error: 'Use only the digits 1 to 9 and a, b, c for lanes 10 to 12 (and z for a zip, p for a pass), one for each roll.' };
     const two = !!(opts && opts.two) || /p/.test(s);
     const zip = /[zp]/.test(s);
     const self = Array.from(s, function (c) { return two && c === 'z'; });
     const most = zip ? MAX_ZIP_BEATS : MAX_BEATS;
     if (s.length > most) return { ok: false, error: 'That is too long. Keep it to ' + most + ' rolls or fewer.' };
     if (zip && s.length % 2) return { ok: false, error: 'A pattern with zips needs an even number of rolls, because the hands take turns.' };
-    const seq = Array.from(s, function (c) { return c === 'z' || c === 'p' ? 0 : Number(c); });
+    const seq = Array.from(s, function (c) { return c === 'z' || c === 'p' ? 0 : parseInt(c, 16); });
     const lanes = Math.max.apply(null, seq);
     if (!lanes) return { ok: false, error: 'A pattern needs at least one roll as well as its zips.' };
     const hand = new Array(lanes + 1).fill(-1);   // hand[lane] = 0 or 1: which hand rolls that lane (the first time)
@@ -1734,7 +1734,7 @@ function iconSvg(name) {
   // a name's own picture first; otherwise the shared one for its family (Helter Skelter Quad, Triple Wave, Mobius Sync...)
   const n = String(name);
   const base = n.replace(/ (Sync|Reverse)$/, '');
-  const body = ICONS[n] || ICONS[base] || ICONS[base.replace(/ (\d+|Solo|Double|Triple|Quad|Quin|Hex)$/, '').replace(/^(Double|Sync|Triple|Quad|Quin|Hex|Mixed) /, '')];
+  const body = ICONS[n] || ICONS[base] || ICONS[base.replace(/ (\d+|Solo|Double|Triple|Quad|Quin|Hex|Dozen)$/, '').replace(/^(Double|Sync|Triple|Quad|Quin|Hex|Dozen|Mixed) /, '')];
   if (!body) return '';
   return '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><g stroke="#2d2a4a" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">' + body + '</g></svg>';
 }
@@ -1795,7 +1795,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   const RED = '#ff7b6e', RED_SOFT = '#ffc4bd', BLUE = '#4ea8ff', BLUE_SOFT = '#b9ddff';
   // lanes are coloured by which way their balls travel, in colours kept apart from the red and blue hands and the green zips
   const LANE_LEFTWARD = '#ffd9a8', LANE_RIGHTWARD = '#d9ccff';
-  const BALL_COLOURS = ['#ffd43b', '#f06595', '#22b8cf', '#9775fa', '#ff922b', '#51cf66', '#ffffff', '#fa5252', '#4c6ef5'];
+  const BALL_COLOURS = ['#ffd43b', '#f06595', '#22b8cf', '#9775fa', '#ff922b', '#51cf66', '#ffffff', '#fa5252', '#4c6ef5', '#94d82d', '#e599f7', '#868e96'];
   const RIGHT = 1, LEFT = -1;
   const BASE_SPEED = 0.5;      // how fast the middle of the speed slider plays
   // Ping Pong plays 30% faster at the same slider position (user, 2026-11-18), whichever way it was reached
@@ -2030,7 +2030,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       Object.keys(byLanes).sort().forEach(function (k) { out.push(byLanes[k]); });
       return out;
     }
-    if (state.zipMode || state.revMode || state.mixMode) return (state.zipMode ? ZIP_LIST : state.revMode ? (state.twoMode ? revTwoList() : REV_LIST) : MIX_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [EXTRA_NAMES[t] || '', t]; }) }; });
+    if (state.zipMode || state.revMode || state.mixMode) return (state.zipMode ? ZIP_LIST : state.revMode ? (state.twoMode ? revTwoList() : REV_LIST.concat([{ group: '12 lanes', items: [DOZEN[0]] }])) : MIX_LIST).map(function (g) { return { group: g.group, items: g.items.map(function (t) { return [EXTRA_NAMES[t] || '', t]; }) }; });
     return state.twoMode ? twoList() : JLS.CATALOGUE;
   }
   /* 2 people + Reverses: by lanes, with the Snakes and the Funnel (written a row per person) among the others. */
@@ -2041,7 +2041,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     return [{ group: '3 lanes', items: ['123--|--123', '(13)2--|--(13)2'] },
             { group: '4 lanes', items: ['1234---|---1234', '(14)(23)--|--(14)(23)'].concat(pairs['Two at once, 4 lanes'], ['(14)(23)(23)(41)', '(14)(23)(32)(14)']) },
             { group: '5 lanes', items: ['12345', '(15)(24)3---|---(15)(24)3', '12345----|----12345'] },
-            { group: '6 lanes', items: ['(16)(25)(34)---|---(16)(25)(34)'].concat(pairs['Two at once, 6 lanes']) }];
+            { group: '6 lanes', items: ['(16)(25)(34)---|---(16)(25)(34)'].concat(pairs['Two at once, 6 lanes']) },
+            { group: '12 lanes', items: DOZEN.slice() }];
   }
   /* Two people: one group per lane count, with the patterns that roll two at once straight after the others. */
   function twoList() {
@@ -2074,7 +2075,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         const o = document.createElement('option');
         o.value = it[1];
         if (g.top && topBalls(modeName(), it[1])) o.dataset.b = topBalls(modeName(), it[1]);
-        o.textContent = (top.indexOf(it[1]) !== -1 ? '\u2605 ' : '') + (it[0] ? it[0] + '  ·  ' + shortText(it[1]) : shortText(it[1]));
+        o.textContent = (top.indexOf(it[1]) !== -1 ? '\u2605 ' : '') + (it[0] && DOZEN.indexOf(it[1]) !== -1 ? it[0] : it[0] ? it[0] + '  ·  ' + shortText(it[1]) : shortText(it[1]));
         og.appendChild(o);
       });
       selPattern.appendChild(og);
@@ -2099,14 +2100,17 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   // every one-person zip pattern also works for two people with its zips as passes, and keeps its name
   function asPasses(t) { return t.replace(/z/g, 'p'); }
   // names for reversing patterns
-  const REV_NAMES = { '123': 'Triple Wave', '12345': 'Quin Wave', '12342143': 'Quad Wave', '121323': 'Hot Dog', '123132': 'Space Invader', '123145': 'Loop de Loop Reverse', '123543': 'Double Hot Dog',
+  const REV_NAMES = { '123': 'Triple Wave', '12345': 'Quin Wave', '12342143': 'Quad Wave', '123456789abc214365879acb': 'Dozen Wave', '121323': 'Hot Dog', '123132': 'Space Invader', '123145': 'Loop de Loop Reverse', '123543': 'Double Hot Dog',
                       '(12)(34)(34)(12)': 'Double Trouble', '(13)(24)(24)(13)': 'Bibbity Bobbity', '(12)(34)(56)': 'Double Triple Wave', '(13)(25)(46)': '2 by 2',
                       '(16)(25)(43)': 'Double or Quits', '(14)(23)(14)(23)(23)(14)(23)(14)': 'Sandwich',
                       '(16)(25)(16)(34)(25)(34)': 'Hot Dog Sync', '(14)(23)(23)(41)': 'Twin Dogs', '(14)(23)(32)(14)': 'Quarter Pounder', '(16)(25)(34)(16)(34)(25)': 'Space Invader Sync' };
   const MIX_NAMES = { '11|-(23)': 'Mixed Baby Onion', '12|-(34)': 'Mixed Loop de Loop', '13|-(24)': 'Mixed Scarf', '(14)-|23': 'Mixed Mobius',
                       '(13)-|22': 'Mixed Helter Skelter', '111|-2(34)': 'Mixed Onion', '111(12)|3(23)33': 'No Eyed Deer',
                       '123--|--123': 'Snake Triple', '1234---|---1234': 'Snake Quad', '12345----|----12345': 'Snake Quin', '1(12)-|4(34)-': 'Shoe Buckle', '(15)(24)3---|---(15)(24)3': 'Funnel Quin',
-                      '(13)2--|--(13)2': 'Funnel Triple', '(14)(23)--|--(14)(23)': 'Funnel Quad', '(16)(25)(34)---|---(16)(25)(34)': 'Funnel Hex' };
+                      '(13)2--|--(13)2': 'Funnel Triple', '(14)(23)--|--(14)(23)': 'Funnel Quad', '(16)(25)(34)---|---(16)(25)(34)': 'Funnel Hex',
+                      '123456789abc-----------|-----------123456789abc': 'Snake Dozen', '(1c)(2b)(3a)(49)(58)(67)------|------(1c)(2b)(3a)(49)(58)(67)': 'Funnel Dozen' };
+  // the 12-lane patterns: the list shows their names only, as their numbers are so long
+  const DOZEN = ['123456789abc214365879acb', '123456789abc-----------|-----------123456789abc', '(1c)(2b)(3a)(49)(58)(67)------|------(1c)(2b)(3a)(49)(58)(67)'];
   for (const t in ZIP_NAMES) if (!ZIP2_NAMES[asPasses(t)]) ZIP2_NAMES[asPasses(t)] = ZIP_NAMES[t];
   // passes two at once: each is a named zip pattern played by both hands, "... Sync"
   PAIR_ZIP_LIST.forEach(function (x) { if (ZIP_NAMES[x[0]]) ZIP2_NAMES[x[1]] = ZIP_NAMES[x[0]] + ' Sync'; });
@@ -2330,7 +2334,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     }
     return 0;
   }
-  function ballLimits() { return state.pat.pairs ? [2, 8] : [1, JLS.MAX_BALLS]; }
+  function ballLimits() { return state.pat.pairs ? [2, 8] : [1, state.pat.lanes > 6 ? JLS.MAX_BALLS : 9]; }
 
   function refresh(restart) {
     if (restart) u = 0;

@@ -3538,7 +3538,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   }
 
   /* A cartoon glove, seen from above. `side` is the side of the board it works on; its fingers point at the board. */
-  function drawHand(g, x, y, side, letter, thumbUp, upright) {
+  function drawHand(g, x, y, side, letter, thumbUp, upright, red) {
+    if (red === undefined) red = side === RIGHT;               // the right hand is red, the left blue
     const r = g.rb * 1.25;
     const line = clamp(r * 0.13, 1.5, 2.6);
     const fat = r * 0.54;
@@ -3550,7 +3551,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     // cuff
     roundRect(r * 0.6, -r * 0.62, r * 1.1, r * 1.24, r * 0.3);
-    ctx.fillStyle = side === RIGHT ? RED : BLUE; ctx.fill();
+    ctx.fillStyle = red ? RED : BLUE; ctx.fill();
     ctx.lineWidth = line; ctx.strokeStyle = INK; ctx.stroke();
     // outline of the whole glove first, then the white on top, so it reads as one shape
     for (const pass of [0, 1]) {
@@ -3867,7 +3868,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         side = h.p < 0.5 ? s0 : s1;
       } else pt = segPoint(g, side, h.from, h.to, h.p, h.holding);
       pt.y -= pingLift(g, h.holding, h.p, h.from, h.to);
-      drawHand(g, pt.x + side * handOffset, pt.y, side, h.letter, h.thumbUp);
+      drawHand(g, pt.x + side * handOffset, pt.y, side, h.letter, h.thumbUp, false, h.cross !== undefined ? h.letter === 'R' : undefined);   // hands that reach across keep their colour
     }
     for (const b of bs) {
       if (under(b)) continue;

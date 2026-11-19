@@ -209,7 +209,7 @@ select {
 }
 input[type="text"] { font-size: 18px; font-weight: 600; letter-spacing: .08em; }
 input[type="text"]::placeholder { font-size: 15px; font-weight: 400; letter-spacing: 0; color: rgba(45, 42, 74, .5); }
-/* eight underlines show where the numbers go; they stay put while you type */
+/* underlines show where the numbers go, as many whole ones as fit the box (set in fitUnderlines); they stay put while you type */
 #custom {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 18px; font-weight: 700; letter-spacing: .4ch;
@@ -4053,8 +4053,26 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     key.style.order = '';
     if (!x.hidden && x.offsetTop > twoBtn.offsetTop) key.style.order = '1';
   }
+  /* As many whole underlines as fit along the type-your-own box: one per character (1ch wide, 1.4ch apart). */
+  const chProbe = document.createElement('span');
+  chProbe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;letter-spacing:0';
+  chProbe.textContent = '0000000000';
+  function fitUnderlines() {
+    const cs = getComputedStyle(inCustom);
+    chProbe.style.font = cs.font;
+    document.body.appendChild(chProbe);
+    const ch = chProbe.getBoundingClientRect().width / 10;
+    chProbe.remove();
+    if (!ch) return;
+    const left = parseFloat(cs.paddingLeft) || 0, room = inCustom.clientWidth - left - 10;
+    const n = Math.max(1, Math.floor((room / ch + 0.4) / 1.4));
+    const h = (cs.backgroundSize.split(' ')[1]) || '2.5px';
+    inCustom.style.backgroundSize = (n * 1.4 - 0.4).toFixed(2) + 'ch ' + h;
+  }
   function resize() {
     fitModes();
+    inCustom.style.backgroundSize = '';
+    fitUnderlines();
     const box = stage.getBoundingClientRect();
     W = Math.max(1, Math.round(box.width)); H = Math.max(1, Math.round(box.height));
     dpr = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -4063,6 +4081,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     kick();
   }
   if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+  if (window.ResizeObserver) new ResizeObserver(function () { inCustom.style.backgroundSize = ''; fitUnderlines(); }).observe(inCustom);   // the box can change width on its own
   else window.addEventListener('resize', resize);
   if (window.IntersectionObserver) {
     new IntersectionObserver(function (entries) { onScreen = entries[entries.length - 1].isIntersecting; if (onScreen) kick(); }).observe(stage);

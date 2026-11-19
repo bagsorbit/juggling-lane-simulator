@@ -861,7 +861,7 @@ const JLS = (function () {
 
   /* ================= two people, each keeping their own rhythm =================
    * Every ball rolls at the same speed: it can be rolled back `D` beats after it was rolled. A ball
-   * that arrives before it is needed waits at the end of its lane (or in a hand), and a person can hold at most two. Each person
+   * that would arrive before it is needed rolls a little slower (or waits in a hand), and a person can hold at most two. Each person
    * always rolls the ball that reached them first. Time here is counted in beats (two per cycle).
    */
   function mixedPlan(pat, n) {
@@ -1020,8 +1020,8 @@ const JLS = (function () {
   function rhBeat(plan, x, m) { return Math.floor(m / plan.r) * plan.P + plan.slots[x][mod(m, plan.r)].beat; }
   function rhLane(plan, x, m) { return plan.slots[x][mod(m, plan.r)].lane; }
   function rhHold(tm) { return Math.min(0.9, 2 * tm.hold); }                // beats a ball spends in the hand at the least
-  /* When the ball from person x's m-th roll is caught. A ball that arrives early waits at the end of its lane and is
-   * picked up just in time, so both people's hands move alike, unless it would be in another ball's way there. */
+  /* When the ball from person x's m-th roll is caught. A ball that would arrive early rolls a little slower and is
+   * picked up just in time, so both people's hands move alike, unless it would be in another ball's way. */
   /* A ball going back and forth in its own lane (one person, pat.keep) is batted straight back, barely held. */
   function rhTouch(plan, x, m, h) { return plan.keep && plan.cl[plan.ofSlot[x][mod(m, plan.r)]].lane ? Math.min(h, 0.15) : h; }
   function rhCatch(plan, x, m, h) {
@@ -1047,7 +1047,7 @@ const JLS = (function () {
         if (b >= again) { if (plan.keep) continue; break; }   // (with queues the balls do not go back in order)
         const t0 = rhBeat(plan, x, m), arrive = rhCatch(plan, x, m, h), lane = rhLane(plan, x, m);
         const id = rhId(plan, x, m);
-        if (b < arrive) out.push({ id: id, state: 'roll', lane: lane, hand: x, p: Math.min(1, (b - t0) / (plan.D - rhTouch(plan, x, m, h))) });
+        if (b < arrive) out.push({ id: id, state: 'roll', lane: lane, hand: x, p: Math.min(1, (b - t0) / (arrive - t0)) });   // rolls all the way until it is picked up, never resting at the end
         else out.push({ id: id, state: 'carry', hand: y, from: lane, to: rhLane(plan, y, rhDst(plan, x, m)), p: Math.min(1, (b - arrive) / (again - arrive)) });
       }
     }
@@ -3158,7 +3158,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       add(ALL_ZIPS, '');
     } else if (state.mixMode) {
       wallTitle.textContent = 'All mixed patterns';
-      wallNote.textContent = 'Two-person patterns where each person keeps their own rhythm. Each one is two rows with a | between them, the first person then the second. On each beat a person rolls one lane, rolls two lanes together (in brackets), or rests (-). Every ball rolls at the same speed, and a ball that arrives early waits at the end of its lane. Most work with 3, 5, 7 or 9 balls. A few at the end of each section have lanes rolled from both ends, so those lanes change direction, like the Double Helixes. Tap one to play it.' + same;
+      wallNote.textContent = 'Two-person patterns where each person keeps their own rhythm. Each one is two rows with a | between them, the first person then the second. On each beat a person rolls one lane, rolls two lanes together (in brackets), or rests (-). Every ball rolls at the same speed, and a ball that would arrive early rolls a little slower. Most work with 3, 5, 7 or 9 balls. A few at the end of each section have lanes rolled from both ends, so those lanes change direction, like the Double Helixes. Tap one to play it.' + same;
       add(ALL_MIX, '');
     } else if (state.revMode) {
       wallTitle.textContent = 'All reversing patterns';

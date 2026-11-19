@@ -1068,6 +1068,59 @@ const JLS = (function () {
     }
     return out;
   }
+  /* One person whose hands take turns but work at one end and then the other (pat.cross): the rows are the two ends,
+   * as for two people, and the rolls, in time order, go right hand, left hand, right hand... A hand sweeps across
+   * over the lanes when its next catch is at the far end. `hand` here is 0 for the hand that makes the first roll. */
+  function crossOrder(plan) {
+    if (plan.order) return plan.order;
+    const ev = [];
+    for (let x = 0; x < 2; x++) plan.slots[x].forEach(function (q, i) { ev.push({ x: x, i: i, beat: q.beat }); });
+    ev.sort(function (a, c) { return a.beat - c.beat || a.x - c.x; });
+    const who = [[], []];
+    ev.forEach(function (e, j) { who[e.x][e.i] = j % 2; });
+    plan.order = who;
+    return who;
+  }
+  function crossEvents(plan, tm, q, b) {
+    const h = rhHold(tm), who = crossOrder(plan), ev = [];
+    for (let x = 0; x < 2; x++) {
+      const first = plan.thrown(x, Math.floor(b));
+      for (let m = first - 2 * plan.r - 3; m <= first + 2 * plan.r + 3; m++) {
+        if (who[x][mod(m, plan.r)] !== q) continue;
+        const src = rhSrc(plan, x, m), got = rhCatch(plan, 1 - x, src, h), T = rhBeat(plan, x, m);
+        ev.push({ t: got, end: x, lane: rhLane(plan, 1 - x, src), d: 1, T: T }, { t: T, end: x, lane: rhLane(plan, x, m), d: -1 });
+      }
+    }
+    ev.sort(function (a, c) { return a.t - c.t || c.d - a.d; });
+    return ev;
+  }
+  function crossHands(u, plan, tm) {
+    const b = 2 * u, out = [];
+    for (let q = 0; q < 2; q++) {
+      const ev = crossEvents(plan, tm, q, b);
+      let held = 0;
+      for (const e of ev) if (e.d === 1 && e.t <= b && b < e.T) held++;
+      let k = 0;
+      while (k + 1 < ev.length && ev[k + 1].t <= b) k++;
+      const e0 = ev[k], e1 = ev[Math.min(k + 1, ev.length - 1)];
+      const p = e1.t > e0.t ? (b - e0.t) / (e1.t - e0.t) : 1;
+      out.push({ hand: q, holding: held > 0, end0: e0.end, end1: e1.end, from: e0.lane, to: e1.lane, p: clamp01(p) });
+    }
+    return out;
+  }
+  /* Whether the hands have time to get across: at least `beats` between a roll at one end and the next catch at the
+   * other, and never carrying a ball across. */
+  function crossOk(plan, tm, beats) {
+    for (let q = 0; q < 2; q++) {
+      const ev = crossEvents(plan, tm, q, plan.P * 2);
+      let held = 0;
+      for (let k = 0; k + 1 < ev.length; k++) {
+        held += ev[k].d;
+        if (ev[k].end !== ev[k + 1].end && (held > 0 || ev[k + 1].t - ev[k].t < beats)) return false;
+      }
+    }
+    return true;
+  }
   /* One person, a hand at each end: it moves from one catch or roll to the next, and may hold two balls at once. */
   function soloHands(u, plan, tm) {
     const b = 2 * u, h = rhHold(tm), out = [];
@@ -1613,7 +1666,7 @@ const JLS = (function () {
            parse: parse, timing: timing, nextRoll: nextRoll,
            SLOPE_PATTERNS: SLOPE_PATTERNS, slopeText: slopeText, slopePlan: slopePlan, slopeHands: slopeHands, slopeBalls: slopeBalls,
            revOk: revOk, laneHands: laneHands,
-           mixedPlan: mixedPlan, mixedLaneHands: mixedLaneHands, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths, soloHands: soloHands,
+           mixedPlan: mixedPlan, mixedLaneHands: mixedLaneHands, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths, soloHands: soloHands, crossHands: crossHands, crossOk: crossOk,
            hands2: hands2, pairBalls: pairBalls, pairHands: pairHands,
            solveTiming: solveTiming, zipPlan: zipPlan, zipBalls: zipBalls, zipHands: zipHands, zipHands2: zipHands2, zipPaths: zipPaths, balls: balls, hands: hands, active: active,
            pingBalls: pingBalls, pingHands: pingHands, pingLaneHands: pingLaneHands, pingOk: pingOk, pingGap: pingGap, pingHands2: pingHands2, pingDuoHands: pingDuoHands, pingDuoPaths: pingDuoPaths, duoGrab: duoGrab, PING_PLACE: PING_PLACE, PING_CATCH: PING_CATCH, PING_GRAB: PING_GRAB, PING_SPEED: PING_SPEED };
@@ -1930,7 +1983,7 @@ const REV_PAIR_LIST = [{"group":"Two at once, 4 lanes","items":["(12)(34)(34)(12
 const ALL_REV_PAIRS = {"4":{"4":"(12)(34)(34)(12) (12)(43)(43)(12) (13)(24)(24)(13) (13)(42)(42)(13) (14)(23)(23)(14) (14)(23)(23)(41) (14)(23)(32)(14) (14)(32)(32)(14)","8":"(12)(34)(12)(34)(34)(12)(34)(12) (13)(24)(13)(24)(24)(13)(24)(13) (14)(23)(14)(23)(23)(14)(23)(14)"},"5":{"4":"(12)(34)(34)(15) (12)(34)(34)(52) (12)(34)(35)(12) (12)(34)(54)(12) (12)(35)(35)(14) (12)(35)(35)(42) (12)(35)(45)(12) (12)(43)(43)(15) (12)(43)(43)(52) (12)(43)(45)(12) (12)(43)(53)(12) (12)(53)(53)(14) (12)(53)(53)(42) (12)(53)(54)(12) (13)(24)(24)(15) (13)(24)(24)(53) (13)(24)(25)(13) (13)(25)(25)(14) (13)(25)(25)(43) (13)(42)(42)(15) (13)(42)(52)(13) (13)(52)(52)(14) (13)(52)(52)(43) (14)(23)(23)(15) (14)(23)(25)(14) (14)(32)(32)(15) (14)(32)(52)(14) (15)(23)(24)(15) (15)(23)(43)(15) (15)(32)(42)(15)"},"6":{"3":"(12)(34)(56) (12)(34)(65) (12)(35)(46) (12)(35)(64) (12)(36)(45) (12)(36)(54) (12)(43)(56) (12)(45)(63) (12)(46)(53) (12)(53)(64) (12)(54)(63) (13)(25)(46) (13)(25)(64) (13)(26)(45) (13)(26)(54) (13)(45)(62) (13)(46)(52) (13)(54)(62) (14)(25)(36) (14)(25)(63) (14)(26)(35) (14)(26)(53) (14)(35)(62) (14)(36)(52) (14)(53)(62) (15)(26)(34) (15)(26)(43) (15)(34)(62) (16)(23)(45) (16)(23)(54) (16)(24)(35) (16)(24)(53) (16)(25)(34) (16)(25)(43) (16)(32)(54) (16)(34)(52) (16)(42)(53) (16)(43)(52)","6":"(16)(25)(16)(34)(25)(34) (16)(25)(34)(16)(34)(25)"}};
 </script>
 <script id="reverse-patterns">
-const REV_LIST = [{"group":"3 lanes","items":["123","121323","123132"]},{"group":"3 lanes, hands not taking turns","items":["3-31-3--|-2--2-21","3-32-3--|-1--1-12"]},{"group":"4 lanes, hands not taking turns","items":["3--31-34--|-24--2--21","4-32-3--|-1--1-12","3-31-3--|-4--2-21"]},{"group":"5 lanes","items":["12345","123145","123543"]}];
+const REV_LIST = [{"group":"3 lanes","items":["123","121323","123132"]},{"group":"Waves, hands reaching across","items":["123---|---123","1234----|----1234","12345-----|-----12345"]},{"group":"3 lanes, hands not taking turns","items":["3-31-3--|-2--2-21","3-32-3--|-1--1-12"]},{"group":"4 lanes, hands not taking turns","items":["3--31-34--|-24--2--21","4-32-3--|-1--1-12","3-31-3--|-4--2-21"]},{"group":"5 lanes","items":["12345","123145","123543"]}];
 const ALL_REVS = {"3":{"3":"123","6":"121323 123132","8":"12132123 12313213"},"4":{"5":"12134 12314 12324 12342 12413 12423","6":"121324 123124 123134 123142 123143 123243 123413 123423 124134 124143","7":"1213234 1213243 1213424 1214234 1231324 1231342 1231424 1231432 1232134 1232413 1234142 1234143 1234213 1241323 1241342 1241423 1242134 1242314","8":"12131424 12131434 12132124 12132134 12132143 12132314 12132343 12132423 12132434 12134124 12134134 12134143 12134234 12134314 12134324 12142134 12142324 12143134 12312314 12312324 12312342 12312343 12312413 12312423 12312432 12313214 12313242 12313243 12313413 12313423 12313424 12313432 12314124 12314132 12314134 12314213 12314214 12314243 12314314 12314323 12314324 12321314 12321324 12321343 12321424 12324124 12324134 12324142 12324143 12324213 12324214 12324314 12324323 12341323 12341342 12341343 12341423 12342142 12342143 12342413 12342432 12343142 12412413 12412423 12413142 12413143 12413413 12413423 12414213 12414314 12421314 12421323 12421324 12423134 12423143"},"5":{"5":"12345 12354 12435 12453 12534 13425 13524 14325","6":"123145 123154 123425 123453 123524 123543 124135 124153 124325 124354 124523 125134 125143 125324 132435 132534 134235 135234","7":"1213145 1213154 1213245 1213254 1213415 1213425 1213435 1213453 1213454 1213514 1213524 1213534 1213545 1214135 1214235 1214315 1214325 1214345 1214354 1214535 1215345 1231345 1231354 1231415 1231425 1231435 1231452 1231454 1231514 1231524 1231534 1231542 1232145 1232415 1232425 1232435 1232452 1232453 1232454 1232514 1232524 1232534 1232542 1232543 1234135 1234145 1234152 1234153 1234215 1234245 1234252 1234253 1234254 1234315 1234325 1234352 1234353 1234354 1234513 1234514 1234524 1234532 1234542 1235134 1235142 1235143 1235154 1235214 1235242 1235243 1235245 1235254 1235314 1235324 1235342 1235343 1235413 1235415 1235424 1235425 1241315 1241325 1241352 1241353 1241435 1241453 1241513 1241523 1241535 1242135 1242315 1242325 1242352 1242353 1242354 1242513 1242523 1242534 1242535 1243135 1243145 1243152 1243154 1243235 1243252 1243253 1243254 1243415 1243425 1243513 1243514 1243523 1243525 1243534 1243542 1245134 1245143 1245153 1245213 1245234 1245253 1245323 1245352 1251314 1251324 1251343 1251354 1251413 1251423 1251434 1251453 1251534 1252134 1252314 1252324 1252343 1252354 1252413 1252423 1252434 1252435 1253134 1253145 1253154 1253234 1253243 1253413 1253415 1253423 1253424 1253435 1253514 1253524 1314235 1314325 1323415 1323425 1323435 1323514 1323524 1323534 1324153 1324235 1324253 1324315 1324353 1325143 1325234 1325243 1325314 1341425 1341525 1342325 1342353 1342415 1342514 1342524 1343235 1343253 1351424 1351524 1352324 1352514 1423415 1424325 1425234"}};
 </script>
 
@@ -1977,6 +2030,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   // patterns that only work with one number of balls
   // two-person patterns with bouncers: a ball batted back and forth keeps to its own lane (filled in below the lists)
   const KEEP2 = ['323-3-|-1-121', '323-3-3-3-|-1-1-121-1', '3(14)3-3-|-2-2(14)2', '4(23)4-4-|-1-1(23)1'];
+  // one-person Waves: the hands take turns but work at one end and then the other, reaching across
+  const CROSS1 = ['123---|---123', '1234----|----1234', '12345-----|-----12345'];
   const FIXED_BALLS = { '3-31-3--|-2--2-21': 4, '3-32-3--|-1--1-12': 4, '3--31-34--|-24--2--21': 5, '4-32-3--|-1--1-12': 4, '3-31-3--|-4--2-21': 4, '323-3-|-1-121': 4, '323-3-3-3-|-1-1-121-1': 6, '3(14)3-3-|-2-2(14)2': 5, '4(23)4-4-|-1-1(23)1': 5 };
   const stage = $('stage'), canvas = $('board'), ctx = canvas.getContext('2d');
   const strip = $('strip'), info = $('info'), badge = $('badge'), zipBtn = $('zipMode'), twoBtn = $('twoMode'), revBtn = $('revMode'), mixBtn = $('mixMode'), slopeBtn = $('slopeMode'), pingBtn = $('pingMode');
@@ -2122,7 +2177,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     let sp = null;
     if (parsed.slope) { sp = JLS.slopePlan(parsed.slope); n = sp.balls; }
     let mp = null;
-    if (parsed.mixed && !state.twoMode) {
+    if (parsed.mixed && !state.twoMode && CROSS1.indexOf(parsed.text) !== -1) parsed.cross = true;
+    else if (parsed.mixed && !state.twoMode) {
       // one person, a row for each hand: a hand rolls one ball at a time, and a ball going back and forth stays in its lane
       if (parsed.rows.some(function (row) { return row.some(function (a) { return a.length > 1; }); })) return 'With one person each row is one hand, which rolls one ball at a time, so no brackets.';
       parsed.keep = true; parsed.solo = true;
@@ -2134,6 +2190,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         for (const c of [n + d, n - d]) if (!mp && c >= 1 && c <= JLS.MAX_BALLS && (mp = JLS.mixedPlan(parsed, c))) n = c;
       }
       if (!mp) return 'No timing works for that pattern, whatever the number of balls.';
+      if (parsed.cross && !JLS.crossOk(mp, JLS.timing(mp.average), 1)) return 'The hands would not have time to get across to the other end.';
     }
     if (parsed.ping && parsed.duo && !JLS.pingOk(parsed)) return 'Two at once: the people take turns, so an even number of brackets; the two lanes in a bracket must differ, and after placing, each hand has to reach one of the two balls coming in (in the same lane as its own placing or the next one).';
     if (parsed.ping && parsed.partner && parsed.sync && !JLS.pingOk(parsed)) return 'Both people place at the same moment, so on each beat their two lanes must differ, or the balls would meet.';
@@ -2290,7 +2347,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   // every one-person zip pattern also works for two people with its zips as passes, and keeps its name
   function asPasses(t) { return t.replace(/z/g, 'p'); }
   // names for reversing patterns
-  const REV_NAMES = { '123': 'Triple Double Helix', '12345': 'Quin Double Helix', '12342143': 'Quad Double Helix', '123456789abc21436587a9cb': 'Dodeca Double Helix', '123456789abcdefghi21436587a9cbedgfih': 'Octadeca Double Helix', '121323': 'Hot Dog', '123132': 'Space Invader', '3-31-3--|-2--2-21': 'The Quadvader', '323-3-|-1-121': 'The Quad-dog', '323-3-3-3-|-1-1-121-1': 'The Hexa-Dog', '3(14)3-3-|-2-2(14)2': 'Bounce Sandwich', '4(23)4-4-|-1-1(23)1': 'Hexa Double Dog', '3-32-3--|-1--1-12': 'The Quad-dog', '3--31-34--|-24--2--21': 'Bounce Sandwich', '4-32-3--|-1--1-12': 'Onion Bouncer', '3-31-3--|-4--2-21': 'Skelter Bouncer', '123145': 'Loop de Loop Reverse', '123543': 'Double Hot Dog',
+  const REV_NAMES = { '123': 'Triple Double Helix', '12345': 'Quin Double Helix', '12342143': 'Quad Double Helix', '123456789abc21436587a9cb': 'Dodeca Double Helix', '123456789abcdefghi21436587a9cbedgfih': 'Octadeca Double Helix', '121323': 'Hot Dog', '123132': 'Space Invader', '3-31-3--|-2--2-21': 'The Quadvader', '123---|---123': 'Wave Triple', '1234----|----1234': 'Wave Quad', '12345-----|-----12345': 'Wave Quin', '323-3-|-1-121': 'The Quad-dog', '323-3-3-3-|-1-1-121-1': 'The Hexa-Dog', '3(14)3-3-|-2-2(14)2': 'Bounce Sandwich', '4(23)4-4-|-1-1(23)1': 'Hexa Double Dog', '3-32-3--|-1--1-12': 'The Quad-dog', '3--31-34--|-24--2--21': 'Bounce Sandwich', '4-32-3--|-1--1-12': 'Onion Bouncer', '3-31-3--|-4--2-21': 'Skelter Bouncer', '123145': 'Loop de Loop Reverse', '123543': 'Double Hot Dog',
                       '(12)(34)(34)(12)': 'Double Trouble', '(13)(24)(24)(13)': 'Bibbity Bobbity', '(12)(34)(56)': 'Double Triple Helix', '(13)(25)(46)': '2 by 2',
                       '(16)(25)(43)': 'Double or Quits', '(14)(23)(14)(23)(23)(14)(23)(14)': 'Sandwich',
                       '(16)(25)(16)(34)(25)(34)': 'Hot Dog Sync', '(14)(23)(23)(41)': 'Twin Dogs', '(14)(23)(32)(14)': 'Quarter Pounder', '(16)(25)(34)(16)(34)(25)': 'Space Invader Sync' };
@@ -2549,7 +2606,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const n = state.n, who = state.twoMode ? 'people' : 'hands';
     const turns = splan ? !splan.sync : state.pat.ping ? !state.pat.sync : plan || mplan ? true : state.pat.pairs ? (n / 2) % 2 === 1 : n % 2 === 1;
     info.className = 'info';
-    let html = '<span class="nw"><b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + (mplan ? (state.twoMode ? 'each person keeps their own rhythm' : 'each hand keeps its own rhythm') : who + (turns ? ' take turns' : ' roll together')) + '</span>';
+    let html = '<span class="nw"><b>' + n + (n === 1 ? ' ball' : ' balls') + '</b>, ' + (mplan ? (state.twoMode ? 'each person keeps their own rhythm' : state.pat.cross ? 'hands take turns, at one end and then the other' : 'each hand keeps its own rhythm') : who + (turns ? ' take turns' : ' roll together')) + '</span>';
     if (splan) {
       html += '<span class="sep">|</span><span class="nw">small numbers are the siteswap</span>';
     } else if (mplan) {
@@ -3602,6 +3659,18 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         });
       } else if (state.twoMode) {
         hs = twoHands(u).map(lettered);
+      } else if (mplan && pat.cross) {
+        // one person whose hands take turns at one end, then the other: a ball held goes where its hand goes
+        const rightFirst = sideOf(0) === RIGHT;
+        hs = JLS.crossHands(u, mplan, tm).map(function (h) {
+          return { hand: h.end0, cross: h.end0 !== h.end1, end0: h.end0, end1: h.end1, holding: h.holding, from: { lane: h.from }, to: { lane: h.to }, p: h.p,
+                   letter: (h.hand === 0) === rightFirst ? 'R' : 'L' };
+        });
+        bs.forEach(function (b) {
+          if (b.state !== 'held') return;
+          const h = hs.find(function (x) { return x.holding && !x.cross && x.end0 === b.hand && x.to.lane === b.to.lane; });
+          if (h) { b.from = h.from; b.to = h.to; b.p = h.p; }
+        });
       } else if (mplan) {
         // one person with a row for each hand: one hand at each end, and the balls it holds go where it goes
         hs = JLS.soloHands(u, mplan, tm).map(function (h) { return { hand: h.hand, holding: h.holding, from: { lane: h.from }, to: { lane: h.to }, p: h.p }; });
@@ -3701,6 +3770,10 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function startInfo() {
     const key = [state.pat.text, state.n, state.startRight, state.twoMode, state.zipMode, state.revMode, state.mixMode, state.slopeMode, state.pingMode].join(' ');
     if (key === startKey) return startHtml;
+    if (state.pat.cross && mplan) {                            // the hands start together at the end that rolls first
+      startKey = key; startHtml = '<span class="nw">start with all ' + state.n + ' balls at the ' + (sideOf(0) === RIGHT ? 'right' : 'left') + ' end</span>';
+      return startHtml;
+    }
     const c = startCounts();
     let html;
     if (!state.twoMode) {
@@ -3786,8 +3859,13 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const drawRolling = function (b) { const side = sideOf(b.hand); drawBall(g, lerp(g.endX(side), g.endX(-side), b.p), g.laneY(b.lane), b.id); };
     for (const b of bs) if (under(b)) drawRolling(b);
     for (const h of hs) {
-      const side = sideOf(h.hand);
-      const pt = segPoint(g, side, h.from, h.to, h.p, h.holding);
+      let side = sideOf(h.hand), pt;
+      if (h.cross) {
+        // reaching across to the other end, over the lanes
+        const s0 = sideOf(h.end0), s1 = sideOf(h.end1), t = smooth(h.p);
+        pt = { x: lerp(g.endX(s0) + s0 * g.minReach * 0.6, g.endX(s1) + s1 * g.minReach * 0.6, t), y: lerp(g.laneY(h.from.lane), g.laneY(h.to.lane), t) };
+        side = h.p < 0.5 ? s0 : s1;
+      } else pt = segPoint(g, side, h.from, h.to, h.p, h.holding);
       pt.y -= pingLift(g, h.holding, h.p, h.from, h.to);
       drawHand(g, pt.x + side * handOffset, pt.y, side, h.letter, h.thumbUp);
     }

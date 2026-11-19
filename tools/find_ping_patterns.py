@@ -101,40 +101,6 @@ def sync_search(k, n):
 #   two at once, people taking turns (6 balls): a person places two balls with both hands, (13); both hands then hop
 #     back and each grabs a ball in the same or next lane as its own placing
 #   both people at the same moment, one ball each (4 balls), written a row per person: 12|21
-# ---- one person, two balls, every grab zipped ----
-# The user's pattern (2026-11-18): a hand places its ball, grabs the one that just rolled past and zips it most of
-# the way down the board to the other hand, which places it on the next beat. So a ball is placed by one hand on
-# beat t and, after a roll and a zip, by the same hand on beat t + 2: two balls. The Ping Pong beat is steady (a
-# hand grabs just after its own placing), so a pattern can't mix zips and ordinary carries: a carried ball comes
-# back 3 beats later and a zipped one 2, and mixing them makes two balls due on one beat. Every placing has a z.
-# A hand move is (hand, lane grabbed, lane the other hand places it in).
-def zip_valid(seq, k):
-    L = len(seq)
-    if any(abs(seq[i] - seq[(i + 1) % L]) > 1 for i in range(L)):
-        return False
-    if set(seq) != set(range(1, k + 1)):
-        return False
-    if any(L % d == 0 and seq == seq[d:] + seq[:d] for d in range(1, L)):
-        return False
-    P = period(seq)
-    hands = {}
-    for i in range(P):
-        hands.setdefault(seq[i % L], set()).add(i % 2)
-    if not any(len(h) == 2 for h in hands.values()):
-        return False
-    moves = [(i % 2, seq[(i - 1) % L], seq[(i + 1) % L]) for i in range(P)]
-    return len(set(moves)) == len(moves)
-
-def zip_search(k, L):
-    found = {}
-    for seq in itertools.product(range(1, k + 1), repeat=L):
-        if seq[0] != 1 or not zip_valid(seq, k):
-            continue
-        canon = min(images(seq, k))
-        if canon not in found:
-            found[canon] = min(t for t in images(seq, k) if t[0] == 1)
-    return sorted("".join(f"{x}z" for x in s) for s in found.values())
-
 def partner_valid(seq, k):
     L = len(seq)
     if set(seq) != set(range(1, k + 1)):
@@ -253,7 +219,7 @@ if __name__ == "__main__" and "--embed" not in sys.argv:
 if __name__ == "__main__" and "--embed" in sys.argv:
     import json, re
     # the wall has everything of up to 8 rolls with 3 balls, and of up to 5 beats with 4 balls and the hands together
-    wall, wall4, wallz = {}, {}, {}
+    wall, wall4 = {}, {}
     for k in range(1, 5):
         for L in range(1, 9):
             r = search(k, L)
@@ -264,17 +230,12 @@ if __name__ == "__main__" and "--embed" in sys.argv:
             r = sync_search(k, n)
             if r:
                 wall4.setdefault(str(k), {})[str(2 * n)] = " ".join(r)
-    for k in range(1, 5):
-        for L in range(1, 9):
-            r = zip_search(k, L)
-            if r:
-                wallz.setdefault(str(k), {})[str(L)] = " ".join(r)
     # The list: picked for the user (2026-11-18) and then pruned by them; grouped by lanes, three balls before four.
-    picks = {1: ["1", "1z"],
+    picks = {1: ["1"],
              2: ["1122", "(12)(21)", "(12)(12)(21)"],
              3: ["(12)(21)(13)(31)"],
              4: ["(14)(32)(23)(41)"]}
-    everything = {p for w in (wall, wall4, wallz) for d in w.values() for v in d.values() for p in v.split()}
+    everything = {p for w in (wall, wall4) for d in w.values() for v in d.values() for p in v.split()}
     assert all(p in everything for v in picks.values() for p in v), [p for v in picks.values() for p in v if p not in everything]
     groups = [{"group": str(k) + (" lane" if k == 1 else " lanes"), "items": v} for k, v in picks.items()]
     # Two people. The wall: single placings up to 6 rolls, two at once up to 4 brackets, both at the same moment up to
@@ -306,7 +267,6 @@ if __name__ == "__main__" and "--embed" in sys.argv:
     block = ('<script id="ping-patterns">\nconst PING_LIST = ' + json.dumps(groups, separators=(",", ":")) +
              ';\nconst ALL_PING = ' + json.dumps(wall, separators=(",", ":")) +
              ';\nconst ALL_PING_SYNC = ' + json.dumps(wall4, separators=(",", ":")) +
-             ';\nconst ALL_PING_ZIP = ' + json.dumps(wallz, separators=(",", ":")) +
              ';\nconst PING2_LIST = ' + json.dumps(groups2, separators=(",", ":")) +
              ';\nconst ALL_PING2 = ' + json.dumps(wall2, separators=(",", ":")) + ';\n</script>')
     html = open("index.html", encoding="utf-8").read()

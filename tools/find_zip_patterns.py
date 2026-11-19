@@ -176,6 +176,13 @@ def embed(path="index.html"):
     assert "1z2z3z4z" in timings
     picks.append("1z2z3z4z")
     short.append({"group": "4 lanes, a few to try", "items": picks})
+    # three 5-lane ones picked by the user (2026-11-19): Face, Bird and Bill stretched over five lanes
+    five = ["12345z", "1234z5", "135z24"]
+    for t in five:
+        seq = tuple(Z if c == 'z' else int(c) for c in t)
+        assert valid_shape(seq, 5), t
+        timings[t] = {str(b): list(v) for b in (1, 2, 3, 4, 5) for v in [timing(seq, b)] if v}
+    short.append({"group": "5 lanes", "items": five})
     # taken out of the list at the user's request (2026-11-17); they stay on the All patterns page
     dropped = {"12131z", "1213zz", "121zz3", "1232zz", "123zz2", "1213z3", "12z23z", "12z31z", "12zz13", "131zz2", "1234143z", "1213424z"}
     for g in short:

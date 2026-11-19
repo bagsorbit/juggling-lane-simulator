@@ -1883,6 +1883,11 @@ const ICONS = (function () {
     'Spaghetti': '<path d="M9 27c0-14 30-14 30 0z" fill="#ffd98a"/><path d="M13 24c2-6 7-8 11-4s8 2 11-2M16 19c3-3 6-2 8 0" fill="none" stroke-width="1.6" opacity=".55"/><circle cx="25" cy="15" r="5" fill="#9c5a3c"/><path d="M5 26h38c0 10-8 16-19 16S5 36 5 26z" fill="#fff"/>' + face(24, 32),
     'Ribbon': '<path d="M21 25l-6 16 5.5-3 3.5 4.5 2-13z" fill="#e64980"/><path d="M27 25l6 16-5.5-3-3.5 4.5-2-13z" fill="#e64980"/><path d="M24 22L7 11v22z" fill="#f06595"/><path d="M24 22l17-11v22z" fill="#f06595"/><circle cx="24" cy="22" r="5" fill="#ff8fb5"/>',
     'Zigzag': '<path d="M28 3L10 26h11l-3 19 20-25H26z" fill="#ffd43b"/>',
+    // a purple space invader with four eyes
+    'The Quadvader': ('<path d="M16 9l3 5M32 9l-3 5" stroke-width="2.6"/><circle cx="15" cy="8" r="2.2" fill="#9775fa" stroke-width="1.8"/><circle cx="33" cy="8" r="2.2" fill="#9775fa" stroke-width="1.8"/>' +
+      '<path d="M12 18h24v4h4v10h-4v4h-6v-4h-12v4h-6v-4H8V22h4z" fill="#9775fa"/>' +
+      [13.5, 19.5, 25.5, 31.5].map(function (x) { return '<rect x="' + x + '" y="22" width="3.6" height="4.4" rx="1" fill="#fff" stroke-width="1.4"/>'; }).join('') +
+      '<path d="M20 31h8" stroke-width="2.2"/>'),
     'Slinky': ['#ff7b6e', '#ff922b', '#ffd43b', '#51cf66', '#4ea8ff', '#9775fa'].map(function (c, i) { return rope('M' + (9 + i * 6) + ' 10a5.5 14 0 1 0 .01 0z', c, 2.4); }).join(''),
     'Surf Break': '<path d="M3 42V29C9 11 27 6 35 15c4 5 0 11-5 8 3 8 9 10 15 8v11z" fill="#4ea8ff"/><path d="M8 30c5-11 15-16 23-13" fill="none" stroke="#fff" stroke-width="2.4"/><ellipse cx="17" cy="33" rx="9" ry="2.8" fill="#ffd43b" transform="rotate(-24 17 33)"/><g stroke-width="1.4" fill="#fff"><circle cx="37" cy="12" r="2"/><circle cx="41" cy="18" r="1.6"/></g>'
   });
@@ -1960,6 +1965,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   const FONT = '"Fredoka", ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif';
 
   const $ = function (id) { return document.getElementById(id); };
+  // patterns that only work with one number of balls
+  const FIXED_BALLS = { '3-31-3--|-2--2-21': 4 };
   const stage = $('stage'), canvas = $('board'), ctx = canvas.getContext('2d');
   const strip = $('strip'), info = $('info'), badge = $('badge'), zipBtn = $('zipMode'), twoBtn = $('twoMode'), revBtn = $('revMode'), mixBtn = $('mixMode'), slopeBtn = $('slopeMode'), pingBtn = $('pingMode');
   const wall = $('wall'), wallBody = $('wallBody'), wallNote = $('wallNote'), wallTitle = $('wallTitle');
@@ -2109,6 +2116,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       if (parsed.rows.some(function (row) { return row.some(function (a) { return a.length > 1; }); })) return 'With one person each row is one hand, which rolls one ball at a time, so no brackets.';
       parsed.keep = true; parsed.solo = true;
     }
+    if (parsed.mixed && FIXED_BALLS[parsed.text]) n = FIXED_BALLS[parsed.text];   // only works with that many
     if (parsed.mixed) {
       for (let d = 0; d < JLS.MAX_BALLS && !mp; d++) {
         for (const c of [n + d, n - d]) if (!mp && c >= 1 && c <= JLS.MAX_BALLS && (mp = JLS.mixedPlan(parsed, c))) n = c;
@@ -2241,7 +2249,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         o.value = it[1];
         if (g.top && topBalls(modeName(), it[1])) o.dataset.b = topBalls(modeName(), it[1]);
         if (bigPattern(it[1])) o.dataset.b = DODECA.indexOf(it[1]) !== -1 ? 12 : 18;   // the 12- and 18-lane patterns start with every ball
-        if (it[1] === '3-31-3--|-2--2-21') o.dataset.b = 4;                // one hand rolls twice in a row: made for 4 balls
+        if (FIXED_BALLS[it[1]]) o.dataset.b = FIXED_BALLS[it[1]];
         o.textContent = (top.indexOf(it[1]) !== -1 ? '\u2605 ' : '') + (it[0] && bigPattern(it[1]) ? it[0] : it[0] ? it[0] + '  ·  ' + shortText(it[1]) : shortText(it[1]));
         og.appendChild(o);
       });
@@ -2267,7 +2275,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   // every one-person zip pattern also works for two people with its zips as passes, and keeps its name
   function asPasses(t) { return t.replace(/z/g, 'p'); }
   // names for reversing patterns
-  const REV_NAMES = { '123': 'Triple Double Helix', '12345': 'Quin Double Helix', '12342143': 'Quad Double Helix', '123456789abc21436587a9cb': 'Dodeca Double Helix', '123456789abcdefghi21436587a9cbedgfih': 'Octadeca Double Helix', '121323': 'Hot Dog', '123132': 'Space Invader', '123145': 'Loop de Loop Reverse', '123543': 'Double Hot Dog',
+  const REV_NAMES = { '123': 'Triple Double Helix', '12345': 'Quin Double Helix', '12342143': 'Quad Double Helix', '123456789abc21436587a9cb': 'Dodeca Double Helix', '123456789abcdefghi21436587a9cbedgfih': 'Octadeca Double Helix', '121323': 'Hot Dog', '123132': 'Space Invader', '3-31-3--|-2--2-21': 'The Quadvader', '123145': 'Loop de Loop Reverse', '123543': 'Double Hot Dog',
                       '(12)(34)(34)(12)': 'Double Trouble', '(13)(24)(24)(13)': 'Bibbity Bobbity', '(12)(34)(56)': 'Double Triple Helix', '(13)(25)(46)': '2 by 2',
                       '(16)(25)(43)': 'Double or Quits', '(14)(23)(14)(23)(23)(14)(23)(14)': 'Sandwich',
                       '(16)(25)(16)(34)(25)(34)': 'Hot Dog Sync', '(14)(23)(23)(41)': 'Twin Dogs', '(14)(23)(32)(14)': 'Quarter Pounder', '(16)(25)(34)(16)(34)(25)': 'Space Invader Sync' };
@@ -2557,7 +2565,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     }
     return 0;
   }
-  function ballLimits() { return state.pat.pairs ? [2, 8] : [1, state.pat.lanes > 12 ? 18 : state.pat.lanes > 6 ? 12 : 9]; }
+  function ballLimits() { if (FIXED_BALLS[state.pat.text]) return [FIXED_BALLS[state.pat.text], FIXED_BALLS[state.pat.text]]; return state.pat.pairs ? [2, 8] : [1, state.pat.lanes > 12 ? 18 : state.pat.lanes > 6 ? 12 : 9]; }
 
   function refresh(restart) {
     if (restart) u = 0;

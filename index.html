@@ -1975,6 +1975,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   const $ = function (id) { return document.getElementById(id); };
   // patterns that only work with one number of balls
+  // two-person patterns with bouncers: a ball batted back and forth keeps to its own lane (filled in below the lists)
+  const KEEP2 = ['(31)-3-3-|-2-(21)-2', '313-3-|-2-212', '(32)-3-3-|-1-(12)-1', '323-3-|-1-121', '(31)-3-3-3-|-2-212-2', '3(14)3-3-|-2-2(14)2', '(31)43-3-|-2-(21)42', '4(23)4-4-|-1-1(23)1', '(42)34-4-|-1-(12)31', '4(12)4-4-|-3-3(12)3'];
   const FIXED_BALLS = { '3-31-3--|-2--2-21': 4, '3-32-3--|-1--1-12': 4, '3--31-34--|-24--2--21': 5, '4-32-3--|-1--1-12': 4, '3-31-3--|-4--2-21': 4 };
   const stage = $('stage'), canvas = $('board'), ctx = canvas.getContext('2d');
   const strip = $('strip'), info = $('info'), badge = $('badge'), zipBtn = $('zipMode'), twoBtn = $('twoMode'), revBtn = $('revMode'), mixBtn = $('mixMode'), slopeBtn = $('slopeMode'), pingBtn = $('pingMode');
@@ -2125,6 +2127,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       if (parsed.rows.some(function (row) { return row.some(function (a) { return a.length > 1; }); })) return 'With one person each row is one hand, which rolls one ball at a time, so no brackets.';
       parsed.keep = true; parsed.solo = true;
     }
+    if (parsed.mixed && state.twoMode && KEEP2.indexOf(parsed.text) !== -1) parsed.keep = true;
     if (parsed.mixed && FIXED_BALLS[parsed.text]) n = FIXED_BALLS[parsed.text];   // only works with that many
     if (parsed.mixed) {
       for (let d = 0; d < JLS.MAX_BALLS && !mp; d++) {
@@ -2216,7 +2219,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   }
   /* 2 people + Reverses: by lanes, with the Waves and the Funnel (written a row per person) among the others. */
   // the row-per-person patterns that belong to 2 people + Reverses (the Waves and the Funnel)
-  function rowRev(text) { for (const k in ROW_REV_WALL) for (const b in ROW_REV_WALL[k]) if (ROW_REV_WALL[k][b].split(' ').indexOf(text) !== -1) return true; return false; }
+  function rowRev(text) {
+    if (KEEP2.indexOf(text) !== -1) return true; for (const k in ROW_REV_WALL) for (const b in ROW_REV_WALL[k]) if (ROW_REV_WALL[k][b].split(' ').indexOf(text) !== -1) return true; return false; }
   function revTwoList() {
     const pairs = {}; REV_PAIR_LIST.forEach(function (g) { pairs[g.group] = g.items; });
     return [{ group: '3 lanes', items: ['123', '123--|--123', '(13)2--|--(13)2'] },

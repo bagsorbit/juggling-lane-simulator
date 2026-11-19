@@ -1943,6 +1943,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* Switch to a pattern and ball count. Returns '' if it worked, or the reason it can't be played. */
   function setPattern(parsed, n) {
     if (!parsed.ok) return parsed.error;
+    if (n > 9 && parsed.lanes <= 6) n = 9;                     // more than 9 balls only on the 12-lane patterns
     if (parsed.two && !state.twoMode) return 'A p is a pass to the other person, which needs two people. Turn on 2 people first.';
     if (parsed.zip && parsed.pairs && !state.twoMode) return 'A (pp) passes two balls to the other person, which needs two people. Turn on 2 people first.';
     let p = null;
@@ -2088,6 +2089,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         const o = document.createElement('option');
         o.value = it[1];
         if (g.top && topBalls(modeName(), it[1])) o.dataset.b = topBalls(modeName(), it[1]);
+        if (DODECA.indexOf(it[1]) !== -1) o.dataset.b = 12;           // the 12-lane patterns start with 12 balls
         o.textContent = (top.indexOf(it[1]) !== -1 ? '\u2605 ' : '') + (it[0] && DODECA.indexOf(it[1]) !== -1 ? it[0] : it[0] ? it[0] + '  ·  ' + shortText(it[1]) : shortText(it[1]));
         og.appendChild(o);
       });

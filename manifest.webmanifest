@@ -1,0 +1,15 @@
+{
+  "name": "Juggling Lane Simulator",
+  "short_name": "Juggling Lanes",
+  "description": "Watch rolling-ball juggling patterns play out across lanes.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fff4d6",
+  "theme_color": "#fff4d6",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

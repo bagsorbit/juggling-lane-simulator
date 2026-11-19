@@ -177,7 +177,7 @@ def embed(path="index.html"):
     picks.append("1z2z3z4z")
     short.append({"group": "4 lanes, a few to try", "items": picks})
     # three 5-lane ones picked by the user (2026-11-19): Face, Bird and Bill stretched over five lanes
-    five = ["12345z", "1234z5", "135z24"]
+    five = ["345z12", "34z512", "135z24"]   # written so the z sits in the middle (the user's choice)
     for t in five:
         seq = tuple(Z if c == 'z' else int(c) for c in t)
         assert valid_shape(seq, 5), t

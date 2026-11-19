@@ -897,7 +897,7 @@ const JLS = (function () {
       // stock[x] counts every ball person x has been sent and not rolled back, so together they are all the balls
       if (ok && pat.both && rhClash(pat.rows, D)) ok = false;
       if (!ok || stock[0] + stock[1] !== n) continue;
-      const plan = { P: P, r: r, slots: slots, D: D, stock: stock, n: n, lanes: pat.lanes, average: D, thrown: thrown };
+      const plan = { P: P, r: r, slots: slots, D: D, stock: stock, n: n, lanes: pat.lanes, average: D, thrown: thrown, slow: !!pat.both };
       if (!pat.both || !waits) return plan;
       if (!first) first = plan;
     }
@@ -965,7 +965,7 @@ const JLS = (function () {
       if (!ok || stock[0] + stock[1] !== n) continue;
       let off = 0;
       cl.forEach(function (C, c) { C.stock = cs[c]; C.n = cs[c][0] + cs[c][1]; C.off = off; off += C.n; });
-      const plan = { P: P, r: r, slots: slots, D: D, stock: stock, n: n, lanes: pat.lanes, average: D, thrown: thrown, keep: true, cl: cl, ofSlot: ofSlot };
+      const plan = { P: P, r: r, slots: slots, D: D, stock: stock, n: n, lanes: pat.lanes, average: D, thrown: thrown, keep: true, cl: cl, ofSlot: ofSlot, slow: !!pat.both };
       if (!waits) return plan;
       if (!first) first = plan;
     }
@@ -1028,7 +1028,8 @@ const JLS = (function () {
     h = rhTouch(plan, x, m, h);
     const y = 1 - x, lane = rhLane(plan, x, m), end = rhBeat(plan, x, m) + plan.D - h;
     const ym = rhDst(plan, x, m), c = rhBeat(plan, y, ym) - h;
-    if (c <= end + 1e-9) return end;
+    // only where lanes change direction (so both people's hands move alike); elsewhere an early ball waits in the hand
+    if (!plan.slow || c <= end + 1e-9) return end;
     // the next ball into this lane from the same end must stay a beat behind, or it would catch this one up
     for (let k = 1; k <= plan.r; k++) if (rhLane(plan, x, m + k) === lane && rhBeat(plan, x, m + k) + plan.D - h < c + 1) return end;
     for (let k = ym - 2 * plan.r - 2; k < ym; k++) {

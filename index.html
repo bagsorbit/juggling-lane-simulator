@@ -2541,7 +2541,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   }
 
   /* ---------- video: three times through the pattern, recorded from the canvas, no sound ---------- */
-  const rec = { on: false, recorder: null, canvas: null, ctx: null, bg: null, file: null, edges: 0, had0: false, roll: 0, u0: 0, cancelled: false };
+  const rec = { on: false, track: null, recorder: null, canvas: null, ctx: null, bg: null, file: null, edges: 0, had0: false, roll: 0, u0: 0, cancelled: false };
   function videoType() {
     if (!window.MediaRecorder || !canvas.captureStream) return null;
     const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
@@ -2562,6 +2562,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (!rec.on) return;
     rec.ctx.drawImage(rec.bg, 0, 0);
     rec.ctx.drawImage(canvas, 0, 0, rec.canvas.width, rec.canvas.height);
+    if (rec.track && rec.track.requestFrame) rec.track.requestFrame();   // exactly one video frame per drawing
     // count the times the first number under the lanes lights up; the fourth time, three passes are done
     const has0 = lastActive.split(',').indexOf('0') !== -1;
     const roll = Math.floor(2 * u), one = strip.querySelectorAll('.tile').length <= 1;
@@ -2581,7 +2582,13 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     rec.bg = recBackground(w, h, scale * dpr);
     const chunks = [];
     let recorder;
-    try { recorder = new MediaRecorder(rec.canvas.captureStream(30), { mimeType: type, videoBitsPerSecond: 5000000 }); }
+    try {
+      // frames are handed over one at a time where the browser allows it; otherwise it takes up to 60 a second
+      let stream = rec.canvas.captureStream(0);
+      rec.track = stream.getVideoTracks()[0];
+      if (!rec.track || !rec.track.requestFrame) { stream = rec.canvas.captureStream(60); rec.track = null; }
+      recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 6000000 });
+    }
     catch (e) { window.alert('This browser can’t make videos. Try Chrome, Safari or Firefox.'); return; }
     rec.recorder = recorder; rec.cancelled = false;
     recorder.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
@@ -3519,7 +3526,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function frame(stamp) {
     raf = 0;
     if (lastStamp !== null && state.playing) {
-      const dt = Math.min(0.1, (stamp - lastStamp) / 1000);
+      let dt = Math.min(0.1, (stamp - lastStamp) / 1000);
+      // while a video records, move in whole 60ths of a second so every video frame is an even step
+      if (rec.on) dt = Math.max(1, Math.round(dt * 60)) / 60;
       u += dt * playSpeed() / tm.cycle;
     }
     lastStamp = stamp;

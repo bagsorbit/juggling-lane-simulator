@@ -246,6 +246,9 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
 .favrow .play small { font-size: 13px; font-weight: 500; opacity: .75; }
 .favrow .del { flex: none; width: 46px; height: auto; padding: 0; font-size: 20px; }
 .favnone { margin: 8px 0; opacity: .75; }
+#share.rec { background: #ff8787; animation: recpulse 1s ease-in-out infinite alternate; }
+@keyframes recpulse { to { background: #ffc9c9; } }
+#share.ready { background: #c0eb75; }
 #share .i-done, #share.done .i-share { display: none; }
 #share.done .i-done { display: block; }
 
@@ -437,7 +440,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
         <button type="button" id="sound" aria-pressed="false" aria-label="Beat sound" title="Beat sound: off, clicks, or the numbers said out loud"><svg class="i-on" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="#2d2a4a"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg><svg class="i-off" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="#2d2a4a"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg><svg class="i-say" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 11.5C2.5 7.5 6.5 5 12 5s9.5 2.500 9.500 6.500C21.500 16.500 17 20 12 20S2.500 16.500 2.500 11.500z" fill="#ff8787" stroke="#2d2a4a" stroke-width="2"/><path d="M6 11c0-1.700 2.700-3 6-3s6 1.300 6 3c0 3-2.700 5.500-6 5.500S6 14 6 11z" fill="#2d2a4a"/><path d="M7.300 9.600c1.300-.6 2.900-.9 4.700-.9s3.400.3 4.700.9L16.300 11H7.700z" fill="#fff"/><path d="M8.600 14.600c.9-1 2.100-1.500 3.400-1.500s2.500.5 3.400 1.500c-.9.900-2.100 1.400-3.400 1.400s-2.500-.5-3.400-1.400z" fill="#f783ac"/></svg></button>
         <button type="button" id="favBtn" aria-label="Favourites" title="Favourites" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linejoin="round" fill="none"><path class="starfill" d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg></button>
         <div class="keepmenu" id="keepMenu" role="menu" hidden><button type="button" role="menuitem" id="mSave"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linejoin="round" fill="none"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg><span id="mSaveText">Save to favourites</span></button><button type="button" role="menuitem" id="mOpen"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" fill="none"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" stroke-width="3.4"/></svg><span id="mOpenText">Open favourites</span></button></div>
-        <button type="button" id="share" aria-label="Share a link to this pattern" title="Share a link to this pattern"><svg class="i-share" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M11 4.5H7.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3V15" stroke-width="2.6"/><path d="M9 15.5c0-4 2.5-6.2 7-6.2" stroke-width="3.4"/><path d="M15.2 4.2l6.3 5.1-6.3 5.1z" fill="#2d2a4a" stroke-width="1.4"/></svg><svg class="i-done" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4.5 12.5l5 5 10-11"/></svg></button>
+        <div class="keepmenu" id="shareMenu" role="menu" hidden><button type="button" role="menuitem" id="mLink"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg><span id="mLinkText">Share link</span></button><button type="button" role="menuitem" id="mVideo"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M12 4v11M7 10.5l5 5 5-5M4.5 19.5h15"/></svg><span>Download video</span></button></div><button type="button" id="share" aria-label="Share this pattern" title="Share this pattern" aria-haspopup="menu" aria-expanded="false"><svg class="i-share" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M11 4.5H7.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3V15" stroke-width="2.6"/><path d="M9 15.5c0-4 2.5-6.2 7-6.2" stroke-width="3.4"/><path d="M15.2 4.2l6.3 5.1-6.3 5.1z" fill="#2d2a4a" stroke-width="1.4"/></svg><svg class="i-done" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4.5 12.5l5 5 10-11"/></svg></button>
         
       </div>
     </div>
@@ -2510,7 +2513,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function setMenu(open) {
     keepMenu.hidden = !open;
     keepBtn.setAttribute('aria-expanded', String(open));
-    if (open) { showFav(); $('mSave').focus(); }
+    if (open) { if (typeof setShareMenu === 'function') setShareMenu(false); showFav(); $('mSave').focus(); }
   }
   keepBtn.addEventListener('click', function (e) { e.stopPropagation(); setMenu(keepMenu.hidden); });
   keepMenu.addEventListener('click', function (e) { e.stopPropagation(); });
@@ -2518,17 +2521,124 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !keepMenu.hidden) { setMenu(false); keepBtn.focus(); } });
 
   function flashDone() { const b = $('share'); b.classList.add('done'); setTimeout(function () { b.classList.remove('done'); }, 1600); }
-  $('share').addEventListener('click', function () {
+  const shareMenu = $('shareMenu'), shareBtn = $('share');
+  const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;   // phones and tablets
+  $('mLinkText').textContent = touch && navigator.share ? 'Share link' : 'Copy link';
+  function setShareMenu(open) {
+    shareMenu.hidden = !open;
+    shareBtn.setAttribute('aria-expanded', String(open));
+    if (open) { setMenu(false); $('mLink').focus(); }
+  }
+  function shareLink() {
     const url = shareUrl(), title = 'Juggling Lane Simulator: ' + patternTitle();
     function copy() {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(flashDone, function () { window.prompt('Copy this link:', url); });
       else window.prompt('Copy this link:', url);
     }
     // phones and tablets get the share sheet; computers just copy the link
-    const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
     if (touch && navigator.share) navigator.share({ title: title, url: url }).catch(function (e) { if (!e || e.name !== 'AbortError') copy(); });
     else copy();
+  }
+
+  /* ---------- video: three times through the pattern, recorded from the canvas, no sound ---------- */
+  const rec = { on: false, recorder: null, canvas: null, ctx: null, bg: null, file: null, edges: 0, had0: false, roll: 0, u0: 0, cancelled: false };
+  function videoType() {
+    if (!window.MediaRecorder || !canvas.captureStream) return null;
+    const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    for (const t of types) if (!MediaRecorder.isTypeSupported || MediaRecorder.isTypeSupported(t)) return t;
+    return null;
+  }
+  function recBackground(w, h, scale) {
+    // the sky with white dots, as behind the lanes on the page
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d');
+    x.fillStyle = getComputedStyle(stage).backgroundColor || '#a5d8ff'; x.fillRect(0, 0, w, h);
+    x.fillStyle = 'rgba(255, 255, 255, .75)';
+    const step = 26 * scale, r = 2.75 * scale;
+    for (let yy = step / 2; yy < h; yy += step) for (let xx = step / 2; xx < w; xx += step) { x.beginPath(); x.arc(xx, yy, r, 0, 2 * Math.PI); x.fill(); }
+    return c;
+  }
+  function recFrame() {
+    if (!rec.on) return;
+    rec.ctx.drawImage(rec.bg, 0, 0);
+    rec.ctx.drawImage(canvas, 0, 0, rec.canvas.width, rec.canvas.height);
+    // count the times the first number under the lanes lights up; the fourth time, three passes are done
+    const has0 = lastActive.split(',').indexOf('0') !== -1;
+    const roll = Math.floor(2 * u), one = strip.querySelectorAll('.tile').length <= 1;
+    if ((has0 && !rec.had0) || (one && roll !== rec.roll)) rec.edges++;
+    rec.had0 = has0; rec.roll = roll;
+    // three passes, and at least three hand cycles for very short patterns such as Shuffle
+    if (rec.edges >= 4 && u - rec.u0 >= 3) stopVideo(false);
+  }
+  function startVideo() {
+    const type = videoType();
+    if (!type) { window.alert('This browser can’t make videos. Try Chrome, Safari or Firefox.'); return; }
+    // at most 1280 pixels across, with even sizes (some video formats need them)
+    const scale = Math.min(1, 1280 / canvas.width);
+    const w = Math.round(canvas.width * scale / 2) * 2, h = Math.round(canvas.height * scale / 2) * 2;
+    rec.canvas = document.createElement('canvas'); rec.canvas.width = w; rec.canvas.height = h;
+    rec.ctx = rec.canvas.getContext('2d');
+    rec.bg = recBackground(w, h, scale * dpr);
+    const chunks = [];
+    let recorder;
+    try { recorder = new MediaRecorder(rec.canvas.captureStream(30), { mimeType: type, videoBitsPerSecond: 5000000 }); }
+    catch (e) { window.alert('This browser can’t make videos. Try Chrome, Safari or Firefox.'); return; }
+    rec.recorder = recorder; rec.cancelled = false;
+    recorder.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+    recorder.onstop = function () {
+      shareBtn.classList.remove('rec');
+      if (rec.cancelled || !chunks.length) return;
+      const mp4 = /mp4/.test(type), blob = new Blob(chunks, { type: mp4 ? 'video/mp4' : 'video/webm' });
+      const name = patternTitle().replace(/[\\/:*?"<>|]+/g, ' ').trim() + (mp4 ? '.mp4' : '.webm');
+      rec.file = new File([blob], name, { type: blob.type });
+      // a phone only opens the share sheet straight after a tap, so it waits for one; a computer saves it now
+      if (touch && navigator.canShare && navigator.canShare({ files: [rec.file] })) {
+        shareBtn.classList.add('ready');
+        shareBtn.setAttribute('aria-label', 'Video ready: tap to save or send it');
+        shareBtn.title = 'Video ready: tap to save or send it';
+      } else saveVideo();
+    };
+    // start from the beginning of the pattern, playing
+    u = 0; rec.u0 = 0; rec.edges = 0; rec.had0 = false; rec.roll = 0;
+    state.playing = true; showPlay();
+    rec.on = true;
+    shareBtn.classList.add('rec');
+    shareBtn.setAttribute('aria-label', 'Recording a video: tap to stop'); shareBtn.title = 'Recording a video: tap to stop';
+    recorder.start(250);
+    kick();
+  }
+  function stopVideo(cancel) {
+    if (!rec.on) return;
+    rec.on = false; rec.cancelled = cancel;
+    shareBtn.setAttribute('aria-label', 'Share this pattern'); shareBtn.title = 'Share this pattern';
+    try { rec.recorder.stop(); } catch (e) { shareBtn.classList.remove('rec'); }
+  }
+  function saveVideo() {
+    const f = rec.file; rec.file = null;
+    shareBtn.classList.remove('ready');
+    shareBtn.setAttribute('aria-label', 'Share this pattern'); shareBtn.title = 'Share this pattern';
+    if (!f) return;
+    if (touch && navigator.canShare && navigator.canShare({ files: [f] })) {
+      navigator.share({ files: [f], title: patternTitle() }).catch(function (e) { if (!e || e.name !== 'AbortError') download(f); });
+    } else download(f);
+    function download(file) {
+      const a = document.createElement('a'), href = URL.createObjectURL(file);
+      a.href = href; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(href); }, 60000);
+    }
+  }
+
+  shareBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (rec.on) { stopVideo(true); return; }        // tapping while it records cancels the video
+    if (rec.file) { saveVideo(); return; }          // a finished video waiting to be saved
+    setShareMenu(shareMenu.hidden);
   });
+  shareMenu.addEventListener('click', function (e) { e.stopPropagation(); });
+  document.addEventListener('click', function () { if (!shareMenu.hidden) setShareMenu(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !shareMenu.hidden) { setShareMenu(false); shareBtn.focus(); } });
+  $('mLink').addEventListener('click', function () { setShareMenu(false); shareLink(); });
+  $('mVideo').addEventListener('click', function () { setShareMenu(false); startVideo(); });
   $('mSave').addEventListener('click', function () {
     const q = patternQuery(false);
     let list = loadFavs();
@@ -3416,6 +3526,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     draw();
     markStrip();
     beatSound();
+    recFrame();
     if (state.playing && onScreen && !document.hidden) raf = requestAnimationFrame(frame);
     else lastStamp = null;
   }

@@ -981,7 +981,8 @@ const JLS = (function () {
   function gcd(a, b) { return b ? gcd(b, a % b) : a; }
   function slopeText(spec) {
     if (!spec.together) return spec.rolls + ' (siteswap ' + spec.ss + ')';
-    return spec.together.map(function (b) { return '(' + b[1] + b[0] + ')'; }).join('') +
+    // lanes right hand first, as everywhere else on the page; the siteswap keeps its usual left-first order
+    return spec.together.map(function (b) { return '(' + b[0] + b[1] + ')'; }).join('') +
            ' (siteswap ' + spec.ss.map(function (b) { return '(' + b[1] + ',' + b[0] + ')'; }).join('') + ')';
   }
   function slopePlan(spec) {

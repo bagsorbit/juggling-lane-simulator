@@ -2133,13 +2133,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
                       '(1i)(2h)(3g)(4f)(5e)(6d)(7c)(8b)(9a)---------|---------(1i)(2h)(3g)(4f)(5e)(6d)(7c)(8b)(9a)': 'Funnel Octadeca',
                       '(12)(34)(56)(78)(9a)(bc)(de)(fg)(hi)---------|---------(12)(34)(56)(78)(9a)(bc)(de)(fg)(hi)': 'Double Snake',
                       '(5e)(4f)(6d)(3g)(7c)(2h)(8b)(1i)(9a)---------|---------(5e)(4f)(6d)(3g)(7c)(2h)(8b)(1i)(9a)': 'Innie Outie',
-                      '(1i)(3g)(5e)(7c)(9a)(2h)(4f)(6d)(8b)---------|---------(1i)(3g)(5e)(7c)(9a)(2h)(4f)(6d)(8b)': 'Even Odder',
-                      '(14)(25)(36)(7a)(8b)(9c)(dg)(eh)(fi)---------|---------(14)(25)(36)(7a)(8b)(9c)(dg)(eh)(fi)': 'Dancing Serpents' };
+                      '(1i)(3g)(5e)(7c)(9a)(2h)(4f)(6d)(8b)---------|---------(1i)(3g)(5e)(7c)(9a)(2h)(4f)(6d)(8b)': 'Even Odder' };
   // the 12-lane patterns: the list shows their names only, as their numbers are so long
   const DODECA = ['123456789abc21436587a9cb', '123456789abc-----------|-----------123456789abc', '(1c)(2b)(3a)(49)(58)(67)------|------(1c)(2b)(3a)(49)(58)(67)',
                   '(12)(34)(56)(78)(9a)(bc)------|------(12)(34)(56)(78)(9a)(bc)', '(3a)(49)(2b)(58)(1c)(67)------|------(3a)(49)(2b)(58)(1c)(67)', '(1c)(3a)(58)(2b)(49)(67)------|------(1c)(3a)(58)(2b)(49)(67)', '(14)(25)(36)(7a)(8b)(9c)------|------(14)(25)(36)(7a)(8b)(9c)'];
   // the 18-lane patterns: drawn with the lanes running up and down, and 18 balls to start
-  const OCTADECA = ['123456789abcdefghi21436587a9cbedgfih', '123456789abcdefghi-----------------|-----------------123456789abcdefghi', '(1i)(2h)(3g)(4f)(5e)(6d)(7c)(8b)(9a)---------|---------(1i)(2h)(3g)(4f)(5e)(6d)(7c)(8b)(9a)', '(12)(34)(56)(78)(9a)(bc)(de)(fg)(hi)---------|---------(12)(34)(56)(78)(9a)(bc)(de)(fg)(hi)', '(5e)(4f)(6d)(3g)(7c)(2h)(8b)(1i)(9a)---------|---------(5e)(4f)(6d)(3g)(7c)(2h)(8b)(1i)(9a)', '(1i)(3g)(5e)(7c)(9a)(2h)(4f)(6d)(8b)---------|---------(1i)(3g)(5e)(7c)(9a)(2h)(4f)(6d)(8b)', '(14)(25)(36)(7a)(8b)(9c)(dg)(eh)(fi)---------|---------(14)(25)(36)(7a)(8b)(9c)(dg)(eh)(fi)'];
+  const OCTADECA = ['123456789abcdefghi21436587a9cbedgfih', '123456789abcdefghi-----------------|-----------------123456789abcdefghi', '(1i)(2h)(3g)(4f)(5e)(6d)(7c)(8b)(9a)---------|---------(1i)(2h)(3g)(4f)(5e)(6d)(7c)(8b)(9a)', '(12)(34)(56)(78)(9a)(bc)(de)(fg)(hi)---------|---------(12)(34)(56)(78)(9a)(bc)(de)(fg)(hi)', '(5e)(4f)(6d)(3g)(7c)(2h)(8b)(1i)(9a)---------|---------(5e)(4f)(6d)(3g)(7c)(2h)(8b)(1i)(9a)', '(1i)(3g)(5e)(7c)(9a)(2h)(4f)(6d)(8b)---------|---------(1i)(3g)(5e)(7c)(9a)(2h)(4f)(6d)(8b)'];
   function bigPattern(t) { return DODECA.indexOf(t) !== -1 || OCTADECA.indexOf(t) !== -1; }
   for (const t in ZIP_NAMES) if (!ZIP2_NAMES[asPasses(t)]) ZIP2_NAMES[asPasses(t)] = ZIP_NAMES[t];
   // passes two at once: each is a named zip pattern played by both hands, "... Sync"
@@ -3051,9 +3050,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const K = state.pat.lanes;
     // Ping Pong hands work inside the lanes, so on an upright phone (where width is short) the lanes run nearly the full width
     const upright = window.matchMedia && window.matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
-    const handZone = state.pat.ping && upright ? clamp(W * 0.05, 20, 48) : clamp(W * 0.18, 54, 160);
-    const top = vert ? 8 : Math.max(H < 330 ? 44 : 50, buttonsTop());   // room for the buttons along the top of the square
-    const foot = vert ? 8 : diceWidth() + 10 > handZone ? diceHeight() : H < 330 ? 8 : 42;   // and the dice buttons at the bottom
+    const handZone = vert ? clamp(W * 0.13, 44, 160) : state.pat.ping && upright ? clamp(W * 0.05, 20, 48) : clamp(W * 0.18, 54, 160);
+    const top = vert ? diceWidth() + 10 : Math.max(H < 330 ? 44 : 50, buttonsTop());   // room for the buttons along the top of the square
+    const foot = vert ? diceWidth() + 10 : diceWidth() + 10 > handZone ? diceHeight() : H < 330 ? 8 : 42;   // and the dice buttons at the bottom
     const pitch = Math.min((H - top - foot - 20) / K, 92);
     const rb = clamp(Math.min(pitch * 0.3, W * 0.04), 6, 20);
     const trackH = Math.min(pitch - 6, rb * 2 + 12);
@@ -3557,7 +3556,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (state.pat.lanes > 12) {
       // turned a quarter turn: what is drawn left to right comes out top to bottom
       const w = W, h = H;
-      vert = { a: buttonsTop(), b: diceHeight() };
+      vert = { a: buttonsTop(), b: 0 };     // the board fits between the dice, so the lanes can run right down to them
       W = h; H = w;
       ctx.setTransform(0, dpr, -dpr, 0, dpr * w, 0);
       try { drawMain(); } finally { W = w; H = h; vert = null; }

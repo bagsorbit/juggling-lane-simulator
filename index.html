@@ -2076,7 +2076,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function revTwoList() {
     const pairs = {}; REV_PAIR_LIST.forEach(function (g) { pairs[g.group] = g.items; });
     return [{ group: '3 lanes', items: ['123', '123--|--123', '(13)2--|--(13)2'] },
-            { group: '4 lanes', items: ['1234---|---1234', '(14)(23)--|--(14)(23)'].concat(pairs['Two at once, 4 lanes'], ['(14)(23)(23)(41)', '(14)(23)(32)(14)']) },
+            { group: '4 lanes', items: ['12342143', '1234---|---1234', '(14)(23)--|--(14)(23)'].concat(pairs['Two at once, 4 lanes'], ['(14)(23)(23)(41)', '(14)(23)(32)(14)']) },
             { group: '5 lanes', items: ['12345', '(15)(24)3---|---(15)(24)3', '12345----|----12345'] },
             { group: '6 lanes', items: ['(16)(25)(34)---|---(16)(25)(34)'].concat(pairs['Two at once, 6 lanes']) },
             { group: '12 lanes', items: DODECA.slice() },

@@ -2540,11 +2540,17 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     else copy();
   }
 
-  /* ---------- video: three times through the pattern, recorded from the canvas, no sound ---------- */
-  const rec = { on: false, track: null, recorder: null, canvas: null, ctx: null, bg: null, file: null, edges: 0, had0: false, roll: 0, u0: 0, cancelled: false };
+  /* ---------- video, no sound ----------
+     The page first finds how long the pattern takes to come back exactly to how it started, every ball in the
+     same place with the same colour, and makes the video that long, so it loops perfectly (repeated whole to
+     at least 5 seconds). Where the browser has a video encoder, the video is built frame by frame as an MP4
+     (smooth, and quicker than real time), using the small mp4-muxer library to package it. Otherwise it is
+     recorded live, which most browsers save as WebM. */
+  const rec = { on: false, busy: false, track: null, recorder: null, canvas: null, ctx: null, bg: null, file: null, edges: 0, had0: false, roll: 0, u0: 0, loopU: 0, cancelled: false };
+  const VIDEO_FPS = 60, VIDEO_MIN_SECS = 5, VIDEO_MAX_SECS = 60;
   function videoType() {
     if (!window.MediaRecorder || !canvas.captureStream) return null;
-    const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    const types = ['video/mp4;codecs=avc1.42E01E', 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
     for (const t of types) if (!MediaRecorder.isTypeSupported || MediaRecorder.isTypeSupported(t)) return t;
     return null;
   }
@@ -2558,28 +2564,147 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     for (let yy = step / 2; yy < h; yy += step) for (let xx = step / 2; xx < w; xx += step) { x.beginPath(); x.arc(xx, yy, r, 0, 2 * Math.PI); x.fill(); }
     return c;
   }
-  function recFrame() {
-    if (!rec.on) return;
-    rec.ctx.drawImage(rec.bg, 0, 0);
-    rec.ctx.drawImage(canvas, 0, 0, rec.canvas.width, rec.canvas.height);
-    if (rec.track && rec.track.requestFrame) rec.track.requestFrame();   // exactly one video frame per drawing
-    // count the times the first number under the lanes lights up; the fourth time, three passes are done
-    const has0 = lastActive.split(',').indexOf('0') !== -1;
-    const roll = Math.floor(2 * u), one = strip.querySelectorAll('.tile').length <= 1;
-    if ((has0 && !rec.had0) || (one && roll !== rec.roll)) rec.edges++;
-    rec.had0 = has0; rec.roll = roll;
-    // three passes, and at least three hand cycles for very short patterns such as Shuffle
-    if (rec.edges >= 4 && u - rec.u0 >= 3) stopVideo(false);
-  }
-  function startVideo() {
-    const type = videoType();
-    if (!type) { window.alert('This browser can’t make videos. Try Chrome, Safari or Firefox.'); return; }
-    // at most 1280 pixels across, with even sizes (some video formats need them)
+  function setupRecCanvas() {
+    // at most 1280 pixels across, with even sizes (video formats need them)
     const scale = Math.min(1, 1280 / canvas.width);
     const w = Math.round(canvas.width * scale / 2) * 2, h = Math.round(canvas.height * scale / 2) * 2;
     rec.canvas = document.createElement('canvas'); rec.canvas.width = w; rec.canvas.height = h;
     rec.ctx = rec.canvas.getContext('2d');
     rec.bg = recBackground(w, h, scale * dpr);
+  }
+  function paintRec() {
+    rec.ctx.drawImage(rec.bg, 0, 0);
+    rec.ctx.drawImage(canvas, 0, 0, rec.canvas.width, rec.canvas.height);
+  }
+  function uPerSec() { return playSpeed() / tm.cycle; }
+  /* The shortest time after which the picture is exactly as it was: tried in quarter hand cycles, comparing a
+     small copy of the drawing at three moments. Returns 0 if it takes longer than the longest video. */
+  function findLoop() {
+    const sw = 240, sh = Math.max(1, Math.round(sw * canvas.height / canvas.width));
+    const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    function snap(at) { u = at; draw(); x.clearRect(0, 0, sw, sh); x.drawImage(canvas, 0, 0, sw, sh); return x.getImageData(0, 0, sw, sh).data; }
+    function same(a, b) {
+      let off = 0;
+      for (let k = 0; k < a.length; k += 4) {
+        if (Math.abs(a[k] - b[k]) > 48 || Math.abs(a[k + 1] - b[k + 1]) > 48 || Math.abs(a[k + 2] - b[k + 2]) > 48 || Math.abs(a[k + 3] - b[k + 3]) > 48) { if (++off > 3) return false; }
+      }
+      return true;
+    }
+    const at = [0, 0.11, 0.37], ref = at.map(snap), maxU = VIDEO_MAX_SECS * uPerSec();
+    for (let T = 0.25; T <= maxU + 1e-9; T += 0.25) {
+      let ok = true;
+      for (let k = 0; k < at.length && ok; k++) ok = same(ref[k], snap(at[k] + T));
+      if (ok) return T;
+    }
+    return 0;
+  }
+  // three times through the numbers under the lanes, for a pattern that never comes back round in time
+  function passCounter() {
+    const c = { edges: 0, had0: false, roll: 0, u0: u };
+    c.step = function () {
+      const has0 = lastActive.split(',').indexOf('0') !== -1;
+      const roll = Math.floor(2 * u), one = strip.querySelectorAll('.tile').length <= 1;
+      if ((has0 && !c.had0) || (one && roll !== c.roll)) c.edges++;
+      c.had0 = has0; c.roll = roll;
+      return c.edges >= 4 && u - c.u0 >= 3;
+    };
+    return c;
+  }
+  let muxerLoad = null;
+  function loadMuxer() {
+    if (window.Mp4Muxer) return Promise.resolve(window.Mp4Muxer);
+    if (!muxerLoad) muxerLoad = new Promise(function (ok, fail) {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.js';
+      sc.onload = function () { window.Mp4Muxer ? ok(window.Mp4Muxer) : fail(new Error('no muxer')); };
+      sc.onerror = function () { muxerLoad = null; fail(new Error('muxer did not load')); };
+      document.head.appendChild(sc);
+    });
+    return muxerLoad;
+  }
+  function pause(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function encodeMp4(loopU) {
+    const M = await loadMuxer();
+    const w = rec.canvas.width, h = rec.canvas.height, base = { width: w, height: h, bitrate: 6000000, framerate: VIDEO_FPS };
+    let codec = null;
+    for (const c of ['avc1.640028', 'avc1.4d0028', 'avc1.420028', 'avc1.42001f']) {
+      try { const r = await VideoEncoder.isConfigSupported(Object.assign({ codec: c }, base)); if (r && r.supported) { codec = c; break; } } catch (e) { /* try the next */ }
+    }
+    if (!codec) throw new Error('no H.264 encoder');
+    const muxer = new M.Muxer({ target: new M.ArrayBufferTarget(), video: { codec: 'avc', width: w, height: h, frameRate: VIDEO_FPS }, fastStart: 'in-memory' });
+    let failed = null;
+    const enc = new VideoEncoder({ output: function (chunk, meta) { muxer.addVideoChunk(chunk, meta); }, error: function (e) { failed = e; } });
+    enc.configure(Object.assign({ codec: codec, avc: { format: 'avc' } }, base));
+    const perFrame = uPerSec() / VIDEO_FPS;
+    let total = 0, du = perFrame, counter = null;
+    if (loopU) {
+      const reps = Math.max(1, Math.ceil(VIDEO_MIN_SECS * uPerSec() / loopU));
+      total = Math.max(1, Math.round(loopU * reps / perFrame));
+      du = loopU * reps / total;                       // a whole number of frames, so the end meets the start exactly
+    } else { u = 0; markStrip(); counter = passCounter(); }
+    const limit = VIDEO_FPS * (VIDEO_MAX_SECS + 10);
+    for (let i = 0; counter ? i < limit : i < total; i++) {
+      if (rec.cancelled) { try { enc.close(); } catch (e) { /* closed */ } return null; }
+      if (failed) throw failed;
+      u = i * du; draw();
+      if (counter) { markStrip(); if (i > 0 && counter.step()) break; }
+      paintRec();
+      const vf = new VideoFrame(rec.canvas, { timestamp: Math.round(i * 1e6 / VIDEO_FPS), duration: Math.round(1e6 / VIDEO_FPS) });
+      enc.encode(vf, { keyFrame: i % (2 * VIDEO_FPS) === 0 });
+      vf.close();
+      while (enc.encodeQueueSize > 6) await pause(4);
+      if (i % 15 === 14) await pause(0);              // let the page breathe
+    }
+    await enc.flush();
+    if (failed) throw failed;
+    enc.close();
+    muxer.finalize();
+    return new Blob([muxer.target.buffer], { type: 'video/mp4' });
+  }
+  function videoReady(blob, ext) {
+    const name = patternTitle().replace(/[\\/:*?"<>|]+/g, ' ').trim() + '.' + ext;
+    rec.file = new File([blob], name, { type: blob.type });
+    // a phone only opens the share sheet straight after a tap, so it waits for one; a computer saves it now
+    if (touch && navigator.canShare && navigator.canShare({ files: [rec.file] })) {
+      shareBtn.classList.add('ready');
+      shareBtn.setAttribute('aria-label', 'Video ready: tap to save or send it');
+      shareBtn.title = 'Video ready: tap to save or send it';
+    } else saveVideo();
+  }
+  function recBusy(on, label) {
+    shareBtn.classList.toggle('rec', on);
+    shareBtn.setAttribute('aria-label', on ? label : 'Share this pattern'); shareBtn.title = on ? label : 'Share this pattern';
+  }
+  async function startVideo() {
+    const live = videoType(), webcodecs = !!(window.VideoEncoder && window.VideoFrame);
+    if (!live && !webcodecs) { window.alert('This browser can’t make videos. Try Chrome, Safari or Firefox.'); return; }
+    setupRecCanvas();
+    const saved = u;
+    rec.busy = true; rec.cancelled = false;
+    recBusy(true, 'Making a video: tap to stop');
+    await pause(30);                                   // show the red button before the work starts
+    const loopU = findLoop();
+    let done = false;
+    if (webcodecs) {
+      try {
+        const blob = await encodeMp4(loopU);
+        done = true;
+        if (blob) videoReady(blob, 'mp4');
+      } catch (e) { console.warn('MP4 video failed, recording instead:', e); }
+    }
+    u = saved; rec.busy = false; draw(); markStrip();
+    if (done || rec.cancelled) { recBusy(false); kick(); return; }
+    if (!live) { recBusy(false); kick(); window.alert('This browser can’t make videos. Try Chrome, Safari or Firefox.'); return; }
+    recordLive(live, loopU);
+  }
+  function recFrame() {
+    if (!rec.on) return;
+    paintRec();
+    if (rec.track && rec.track.requestFrame) rec.track.requestFrame();   // exactly one video frame per drawing
+    if (rec.loopU ? u - rec.u0 >= rec.loopU : rec.counter.step()) stopVideo(false);
+  }
+  function recordLive(type, loopU) {
     const chunks = [];
     let recorder;
     try {
@@ -2589,36 +2714,29 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       if (!rec.track || !rec.track.requestFrame) { stream = rec.canvas.captureStream(60); rec.track = null; }
       recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 6000000 });
     }
-    catch (e) { window.alert('This browser can’t make videos. Try Chrome, Safari or Firefox.'); return; }
+    catch (e) { recBusy(false); kick(); window.alert('This browser can’t make videos. Try Chrome, Safari or Firefox.'); return; }
     rec.recorder = recorder; rec.cancelled = false;
     recorder.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
     recorder.onstop = function () {
-      shareBtn.classList.remove('rec');
+      recBusy(false);
       if (rec.cancelled || !chunks.length) return;
-      const mp4 = /mp4/.test(type), blob = new Blob(chunks, { type: mp4 ? 'video/mp4' : 'video/webm' });
-      const name = patternTitle().replace(/[\\/:*?"<>|]+/g, ' ').trim() + (mp4 ? '.mp4' : '.webm');
-      rec.file = new File([blob], name, { type: blob.type });
-      // a phone only opens the share sheet straight after a tap, so it waits for one; a computer saves it now
-      if (touch && navigator.canShare && navigator.canShare({ files: [rec.file] })) {
-        shareBtn.classList.add('ready');
-        shareBtn.setAttribute('aria-label', 'Video ready: tap to save or send it');
-        shareBtn.title = 'Video ready: tap to save or send it';
-      } else saveVideo();
+      const mp4 = /mp4/.test(type);
+      videoReady(new Blob(chunks, { type: mp4 ? 'video/mp4' : 'video/webm' }), mp4 ? 'mp4' : 'webm');
     };
-    // start from the beginning of the pattern, playing
-    u = 0; rec.u0 = 0; rec.edges = 0; rec.had0 = false; rec.roll = 0;
+    // from the beginning of the pattern, playing, for a whole number of loops of at least 5 seconds
+    u = 0; rec.u0 = 0;
+    rec.loopU = loopU ? loopU * Math.max(1, Math.ceil(VIDEO_MIN_SECS * uPerSec() / loopU)) : 0;
+    rec.counter = passCounter();
     state.playing = true; showPlay();
     rec.on = true;
-    shareBtn.classList.add('rec');
-    shareBtn.setAttribute('aria-label', 'Recording a video: tap to stop'); shareBtn.title = 'Recording a video: tap to stop';
+    recBusy(true, 'Recording a video: tap to stop');
     recorder.start(250);
     kick();
   }
   function stopVideo(cancel) {
     if (!rec.on) return;
     rec.on = false; rec.cancelled = cancel;
-    shareBtn.setAttribute('aria-label', 'Share this pattern'); shareBtn.title = 'Share this pattern';
-    try { rec.recorder.stop(); } catch (e) { shareBtn.classList.remove('rec'); }
+    try { rec.recorder.stop(); } catch (e) { recBusy(false); }
   }
   function saveVideo() {
     const f = rec.file; rec.file = null;
@@ -2637,7 +2755,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   shareBtn.addEventListener('click', function (e) {
     e.stopPropagation();
-    if (rec.on) { stopVideo(true); return; }        // tapping while it records cancels the video
+    if (rec.busy) { rec.cancelled = true; return; } // tapping while it is made cancels the video
+    if (rec.on) { stopVideo(true); return; }
     if (rec.file) { saveVideo(); return; }          // a finished video waiting to be saved
     setShareMenu(shareMenu.hidden);
   });
@@ -3525,6 +3644,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   function frame(stamp) {
     raf = 0;
+    if (rec.busy) { lastStamp = null; return; }     // a video is being drawn frame by frame
     if (lastStamp !== null && state.playing) {
       let dt = Math.min(0.1, (stamp - lastStamp) / 1000);
       // while a video records, move in whole 60ths of a second so every video frame is an even step

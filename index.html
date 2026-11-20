@@ -3197,11 +3197,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     refresh(true);
   }
 
-  /* ---------- transitions: up to four patterns played one after another ----------
+  /* ---------- transitions: up to five patterns played one after another ----------
      Each plays its number of times, then a few rolls (often none) get the balls from it into the next, found by
      trying the shortest joins until the whole run, round and back to the start, can be juggled. Only plain-number
      patterns with the same number of balls and people, so every ball keeps the same timing throughout. */
-  const MAX_TRANS = 4;
+  const MAX_TRANS = 5;
   function loadTrans() { try { const v = JSON.parse(localStorage.getItem('jls-trans') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
   function saveTrans(list) { try { localStorage.setItem('jls-trans', JSON.stringify(list)); return true; } catch (e) { return false; } }
   function transWhyNot() {

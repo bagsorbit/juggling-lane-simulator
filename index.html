@@ -288,15 +288,16 @@ body.demo-out .app { opacity: 0; }
 #demo b { display: block; font-size: clamp(28px, 7vw, 46px); font-weight: 800; letter-spacing: .05em; text-transform: uppercase; line-height: 1.1; }
 #demo span { display: block; margin-top: 6px; font-size: clamp(17px, 4vw, 22px); font-weight: 700; animation: demoPulse 1.6s ease-in-out infinite; }
 @keyframes demoPulse { 50% { opacity: .4; } }
-/* during the demo only the board plays: no numbers or info line, and the controls are empty boxes. The numbers keep one
-   line's room and the info line one line, so the blue square stays at its big size and nothing moves when it ends */
+/* during the demo only the board changes: no numbers or info line, and the controls keep their words and icons but none
+   of the values that change from one pattern to the next (the speed slider is held at its usual place). The numbers keep
+   one line's room and the info line one line, so the blue square stays at its big size and nothing moves when it ends */
 body.demo .strip, body.demo .info { visibility: hidden; }
 body.demo .strip { max-height: 46px; overflow: hidden; }
 body.demo .info { flex-wrap: nowrap; overflow: hidden; }
 body.demo .info * { white-space: nowrap; }
-body.demo .controls .field > span, body.demo .controls svg, body.demo #speed { visibility: hidden; }
-body.demo .controls select, body.demo .controls input[type="text"], body.demo .controls button, body.demo .controls output { color: transparent; }
-body.demo .controls select, body.demo .controls input[type="text"], body.demo .controls button { background: var(--card) !important; opacity: 1 !important; border-color: var(--ink) !important; }
+body.demo #pattern, body.demo #custom, body.demo #count { color: transparent; }
+body.demo .seg .w { display: none; }                 /* "hand" or "person": just Right and Left */
+body.demo .controls button:disabled, body.demo .controls input:disabled, body.demo .controls .field > span { opacity: 1; }
 @media (orientation: landscape) and (max-height: 500px) { body.demo .strip { max-height: 40px; } }
 @media (prefers-reduced-motion: reduce) { #demo span { animation: none; } }
 /* a transition run's boxes stay on one line, and scroll sideways when they don't fit, following the lit box */
@@ -4657,7 +4658,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     { p: '12345', b: 5 }                                                                       // Quin Double Helix
   ];
   const DEMO_SHOW = 2500, DEMO_FADE = 400;
-  function demoShow(d) { state.speed = 1; openFav(new URLSearchParams(d).toString()); }   // full speed only where it says
+  function demoShow(d) {
+    state.speed = 1;                                         // full speed only where it says
+    openFav(new URLSearchParams(d).toString());
+    inSpeed.max = '2'; inSpeed.value = '1';                  // the slider shows the usual speed throughout
+    $('favBtn').classList.remove('fav');                     // and the star doesn't fill for a pattern someone keeps
+  }
   function startDemo() {
     const keep = { q: patternQuery(false), last: Object.assign({}, last), sound: sound.mode };
     sound.mode = ''; sound.on = false;

@@ -1167,7 +1167,8 @@ const JLS = (function () {
   }
   function mixedPaths(plan) {
     const out = [];
-    for (let x = 0; x < 2; x++) for (let m = 0; m < plan.r; m++) out.push({ hand: x, from: rhLane(plan, 1 - x, rhSrc(plan, x, m)), to: rhLane(plan, x, m) });
+    // beat: when the roll this carry leads up to is made; src: the beat that ball was last rolled on
+    for (let x = 0; x < 2; x++) for (let m = 0; m < plan.r; m++) out.push({ hand: x, from: rhLane(plan, 1 - x, rhSrc(plan, x, m)), to: rhLane(plan, x, m), beat: rhBeat(plan, x, m), src: rhBeat(plan, 1 - x, rhSrc(plan, x, m)) });
     return out;
   }
 
@@ -1785,12 +1786,12 @@ const JLS = (function () {
   function zipPaths(plan) {
     if (plan.pairs) return zipPaths(plan.plans[0]).concat(zipPaths(plan.plans[1]));
     const out = [];
-    for (let t = 0; t < plan.L; t++) out.push({ hand: t % 2, from: zCatchPlace(plan, t), to: zThrowPlace(plan, t) });
+    for (let t = 0; t < plan.L; t++) out.push({ hand: t % 2, from: zCatchPlace(plan, t), to: zThrowPlace(plan, t), beat: t, src: zSrc(plan, t) });
     return out;
   }
 
   return { MAX_LANES: MAX_LANES, MAX_BEATS: MAX_BEATS, MAX_BALLS: MAX_BALLS, CATALOGUE: CATALOGUE,
-           parse: parse, timing: timing, nextRoll: nextRoll,
+           parse: parse, timing: timing, nextRoll: nextRoll, prevRoll: prevRoll,
            SLOPE_PATTERNS: SLOPE_PATTERNS, slopeText: slopeText, slopePlan: slopePlan, slopeHands: slopeHands, slopeBalls: slopeBalls,
            revOk: revOk, laneHands: laneHands,
            mixedPlan: mixedPlan, mixedLaneHands: mixedLaneHands, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths, soloHands: soloHands, crossHands: crossHands, crossOk: crossOk,
@@ -3459,7 +3460,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
         segs.push({ text: x.text, times: x.times, name: x.name, vals: T.patVals[i] });
         segs.push({ text: T.joins[i].map(zipChar).join(''), times: 1, join: true, vals: T.joins[i].map(function (o) { return o.v; }) });
       } else {
-        segs.push({ text: x.text, times: x.times, name: x.name });
+        segs.push({ text: x.text, times: x.times, name: x.name, keep: !!x.keep });
         segs.push({ text: kind === 'rows' ? T[i][0] + '|' + T[i][1] : T[i], times: 1, join: true });
       }
     });
@@ -3473,7 +3474,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     parsed.trans = true;
     const err = setPattern(parsed, list[0].n);
     if (err) { window.alert(err); return; }
-    state.trans = { kind: kind, segs: segs, tileOf: {} };
+    state.trans = { kind: kind, segs: segs, tileOf: {}, two: !!list[0].two };
     fillPatternList();
     error = ''; under = [];
     inCustom.value = '';
@@ -3844,6 +3845,85 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) };
   }
 
+  /* ---------- the lines in a transition run ----------
+     Showing every hand path of the whole run at once is too much, so it goes part by part, as the strip does: while
+     a pattern plays, its own lines (just as it looks on its own); during a join, the real paths of the joining rolls
+     and of the balls they hand on to the next pattern. Hands are 0 or 1 for the run's first time round. */
+  function wrap(a, m) { return ((a % m) + m) % m; }
+  // every carry in the run: the roll it leads up to (at), and the roll that ball came from (src, below 0 if last time round)
+  function runPaths(kind) {
+    const pat = state.pat, L = pat.seq.length, out = [];
+    if (kind === 'zip') JLS.zipPaths(plan).forEach(function (q) {
+      // a ball that was zipped across is handed over where suits the lane it came along before that, so go back one more
+      const b = plan.seq[wrap(q.src, L)] ? q.src : q.src - plan.srcVal[wrap(q.src, L)];
+      out.push({ hand: q.hand, from: q.from, to: q.to, at: q.beat, src: b, till: plan.seq[q.beat] ? q.beat : q.beat + plan.vals[q.beat] });
+    });
+    else if (kind === 'rows') JLS.mixedPaths(mplan).forEach(function (q) { out.push({ hand: q.hand, from: { lane: q.from }, to: { lane: q.to }, at: q.beat, src: q.src }); });
+    else {
+      const tracks = pat.pairs ? pat.slots.map(function (q) { return [q, state.n / 2]; }) : [[pat.seq, state.n]];
+      for (const tr of tracks) for (let a = 0; a < L; a++) {
+        const b = JLS.prevRoll(a, tr[1]);
+        out.push({ hand: a % 2, from: { lane: tr[0][wrap(b, L)] }, to: { lane: tr[0][a] }, at: a, src: b });
+      }
+    }
+    return out;
+  }
+  // a pattern's own lines, for its place in the run (it starts on roll `start`, so the hands may be the other way round)
+  function ownPaths(kind, sg, start, len) {
+    const n = state.n, two = state.trans.two, p = JLS.parse(sg.text, { two: two }), out = [];
+    if (!p.ok) return null;
+    const reps = Math.min(sg.times, 2);                      // an odd length swaps the hands the second time round
+    if (kind === 'zip') {
+      const zp = JLS.zipPlan({ seq: p.seq, self: p.self || null, lanes: Math.max.apply(null, p.seq) }, n);
+      if (!zp) return null;
+      for (let r = 0; r < reps; r++) JLS.zipPaths(zp).forEach(function (q) { out.push({ hand: (q.hand + start + r * len) % 2, from: q.from, to: q.to }); });
+    } else if (kind === 'rows') {
+      if (!two) { p.keep = true; p.solo = true; } else if (sg.keep) p.keep = true;   // as setPattern does
+      const mp = JLS.mixedPlan(p, n);
+      if (!mp) return null;
+      JLS.mixedPaths(mp).forEach(function (q) { out.push({ hand: q.hand, from: { lane: q.from }, to: { lane: q.to } }); });
+    } else {
+      const tracks = p.pairs ? p.slots.map(function (q) { return [q, n / 2]; }) : [[p.seq, n]];
+      for (let r = 0; r < reps; r++) for (const tr of tracks) for (let a = 0; a < len; a++)
+        out.push({ hand: (a + start + r * len) % 2, from: { lane: tr[0][wrap(JLS.prevRoll(a, tr[1]), len)] }, to: { lane: tr[0][a] } });
+    }
+    return out;
+  }
+  /* The run in parts (each pattern, and each join that has rolls), each with its rolls [start, end) and its lines.
+     Near a join some moves in a pattern are not its own: a ball that came from before it, or a zip handed over where
+     suits the join. Those are `extras`, each shown from `lead` rolls before its own roll (or from the join) until made. */
+  function transLines() {
+    const tr = state.trans, kind = tr.kind || 'plain', parts = [], extras = [], L = state.pat.seq.length;
+    const toks = function (row) { return row.match(/\([^()]*\)|[^()]/g) || []; };
+    const units = function (sg) { return kind === 'rows' ? toks(sg.text.split('|')[0] || '').length : kind === 'pairs' ? toks(sg.text).length : sg.text.length; };
+    const key = function (r) { return r.hand + ':' + JSON.stringify(r.from) + '>' + JSON.stringify(r.to); };
+    let idx = 0;
+    tr.segs.forEach(function (sg) {
+      const len = units(sg);
+      if (len) parts.push({ join: !!sg.join, start: idx, end: idx + len * sg.times, paths: sg.join ? null : ownPaths(kind, sg, idx, len) });
+      idx += len * sg.times;
+    });
+    const run = runPaths(kind), inPart = function (r, q) { return r.at >= q.start && r.at < q.end; };
+    parts.forEach(function (q, i) {
+      if (!q.paths) { q.paths = run.filter(function (r) { return inPart(r, q); }); return; }   // a join: its real moves
+      const own = {}, prev = parts[(i + parts.length - 1) % parts.length];
+      q.paths.forEach(function (r) { own[key(r)] = true; });
+      run.forEach(function (r) {
+        if (!inPart(r, q) || own[key(r)]) return;
+        const lead = prev.join && r.src < q.start ? Math.max(2, wrap(r.at - prev.start, L)) : 2;
+        extras.push({ hand: r.hand, from: r.from, to: r.to, at: r.at, lead: lead });
+      });
+    });
+    // the move into a part's first roll is made while the part before it is still showing
+    const m = plan || mplan ? 1 : state.pat.pairs ? state.n / 2 : state.n;
+    const partAt = function (a) { return parts.findIndex(function (q) { return a >= q.start && a < q.end; }); };
+    run.forEach(function (r) {
+      const d = m % 2 || r.at % 2 === 0 ? 1 : 2;              // rolls made before it (two at once with an even count)
+      if (partAt(wrap(r.at - d, L)) !== partAt(r.at)) extras.push({ hand: r.hand, from: r.from, to: r.to, at: r.at, lead: d });
+    });
+    return { parts: parts, extras: extras };
+  }
+
   /* The paths the hands really take with this many balls: one curve for each carry,
      from the lane a ball arrives in to the lane that same ball is rolled into next. */
   function drawLoops(g) {
@@ -3852,7 +3932,17 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     ctx.strokeStyle = 'rgba(45,42,74,.5)';
     ctx.lineWidth = clamp(g.rb * 0.17, 1.6, 3);
     const paths = [];
-    if (plan) {
+    if (state.trans) {
+      // only the part of the run being played: the roll most recently made, as lit up in the strip
+      const tl = state.trans.lines || (state.trans.lines = transLines());
+      const m = plan || mplan ? 1 : state.pat.pairs ? state.n / 2 : state.n, A = m % 2 ? Math.floor(2 * u) : 2 * Math.floor(u) + 1, at = wrap(A, L);
+      // with an odd length the hands swap each time round the run
+      const swapped = function (a) { return state.trans.kind !== 'rows' && L % 2 === 1 && wrap(Math.floor(a / L), 2) === 1; };
+      const show = function (p, a) { paths.push({ side: sideOf(swapped(a) ? 1 - p.hand : p.hand), from: p.from, to: p.to }); };
+      const part = tl.parts.find(function (q) { return at >= q.start && at < q.end; });
+      if (part) for (const p of part.paths) show(p, A);
+      for (const e of tl.extras) { const ahead = wrap(e.at - at, L); if (ahead > 0 && ahead <= e.lead) show(e, A + ahead); }
+    } else if (plan) {
       for (const p of JLS.zipPaths(plan)) paths.push({ side: sideOf(p.hand), from: p.from, to: p.to });
     } else if (state.pat.ping) {
       // the hand that grabs the ball rolled on beat i carries it from near the end of that lane to where it places it next

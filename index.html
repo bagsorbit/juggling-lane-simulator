@@ -3846,11 +3846,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   }
 
   /* ---------- the lines in a transition run ----------
-     Every hand path of the whole run at once is too much, so one part at a time, never mixed: a pattern's own lines
-     (just as it looks on its own), then the transition's lines on their own if it needs any, then the next pattern's.
-     The transition is every move near a join that isn't one of the patterns' own: the joining rolls, a ball still
-     arriving from the pattern before, a zip handed over where suits the join. So it can start a beat before the join
-     and end a few beats into the next pattern. The lines change as the hands start on the next part's moves.
+     Every hand path of the whole run at once is too much, so one part at a time, never mixed, in step with the strip:
+     while a pattern's numbers are lit, its own lines (just as it looks on its own); while a transition's are, its
+     moves. Where patterns join with no rolls in between, straight from one pattern's lines to the next.
      Rolls and hands (0 or 1) are counted from the run's first time round. */
   function wrap(a, m) { return ((a % m) + m) % m; }
   // every carry in the run, with the roll it leads up to (at)
@@ -3889,64 +3887,29 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function transPair() { const m = plan || mplan ? 1 : state.pat.pairs ? state.n / 2 : state.n; return m % 2 === 0; }
   // the roll most recently made at time t, as lit up in the strip; the hands are making the moves into the ones after it
   function lastRoll(t) { return transPair() ? 2 * Math.floor(t) + 1 : Math.floor(2 * t); }
-  /* The run's parts (each pattern, and each join that has rolls) with their rolls [start, end), each pattern with its
-     own lines; and the transitions, each a stretch of moments [x, x + span] with the lines of every move made in it.
-     A moment is the roll last made; the move into roll a is made at moment made(a). */
+  /* The run's parts (each pattern, and each join that has rolls) with their rolls [start, end). A pattern has its own
+     lines; a join the real moves into its rolls and into the first roll after it (made while it is lit), each with
+     `rel`, its roll counted from the join's first. */
   function transLines() {
-    const tr = state.trans, kind = tr.kind || 'plain', L = state.pat.seq.length, pair = transPair(), parts = [];
+    const tr = state.trans, kind = tr.kind || 'plain', L = state.pat.seq.length, parts = [];
     const toks = function (row) { return row.match(/\([^()]*\)|[^()]/g) || []; };
     const units = function (sg) { return kind === 'rows' ? toks(sg.text.split('|')[0] || '').length : kind === 'pairs' ? toks(sg.text).length : sg.text.length; };
-    // which lanes a move goes between; where exactly the hands meet for a zip doesn't count (it shifts with the lanes
-    // around it, so for a beat or two after a join the hands meet half a lane off, which is still the pattern's move)
-    const spot = function (q) { return q.lane ? 'l' + q.lane : q.own !== undefined ? 'own' : q.mid !== undefined ? 'mid' : JSON.stringify(q); };
-    const key = function (r) { return r.hand + ':' + spot(r.from) + '>' + spot(r.to); };
     let idx = 0;
     tr.segs.forEach(function (sg) {
       const len = units(sg);
       if (len) parts.push({ join: !!sg.join, start: idx, end: idx + len * sg.times, paths: sg.join ? null : ownPaths(kind, sg, idx, len) });
       idx += len * sg.times;
     });
+    const run = runPaths(kind);
+    parts.forEach(function (q) {
+      if (q.paths) return;                                     // (or a pattern that can't be timed on its own)
+      q.paths = [];
+      run.forEach(function (r) { const rel = wrap(r.at - q.start, L); if (rel <= q.end - q.start) q.paths.push({ hand: r.hand, from: r.from, to: r.to, rel: rel }); });
+    });
     const partAt = function (a) { a = wrap(a, L); return parts.findIndex(function (q) { return a >= q.start && a < q.end; }); };
-    const made = function (a) { return pair && a % 2 ? a - 2 : a - 1; };
-    const run = runPaths(kind), byMoment = {};
-    run.forEach(function (r) { const c = wrap(made(r.at), L); (byMoment[c] = byMoment[c] || []).push(r); });
-    const own = parts.map(function (q) { if (!q.paths) return null; const k = {}; q.paths.forEach(function (r) { k[key(r)] = true; }); return k; });
-    // the gaps between patterns (a join's rolls, or none), each collecting the moments nearest it that need transition lines
-    const pats = parts.filter(function (q) { return !q.join; });
-    const gaps = pats.map(function (q, i) { return { lo: wrap(q.end, L), len: wrap(pats[(i + 1) % pats.length].start - q.end, L), at: [] }; });
-    for (let c = 0; c < L; c++) {
-      const k = own[partAt(c + 1)];                           // the part the hands are working towards
-      if (k && (byMoment[c] || []).every(function (r) { return k[key(r)]; })) continue;
-      let best = null, bestD = Infinity, bestS = 0;
-      gaps.forEach(function (g) {
-        const off = wrap(c + 1 - g.lo, L), d = off <= g.len ? 0 : Math.min(off - g.len, L - off);
-        if (d < bestD) { bestD = d; best = g; bestS = off <= g.len || off - g.len <= L - off ? off : off - L; }
-      });
-      if (best) best.at.push(bestS);
-    }
-    const windows = [];
-    gaps.forEach(function (g) {
-      if (!g.at.length) return;                                // straight from one pattern into the next
-      // from the join itself (or where it would be) to the last move that needs it, so no pattern flashes up in between
-      const lo = Math.min(0, Math.min.apply(null, g.at)), hi = Math.max(g.len, Math.max.apply(null, g.at));
-      windows.push({ x: wrap(g.lo + lo - 1, L), span: Math.min(L - 1, hi - lo) });
-    });
-    // a pattern that would show for just one moment between two longer transitions would only flicker: the first one runs on
-    const step = pair ? 2 : 1;
-    windows.sort(function (p, q) { return p.x - q.x; });
-    windows.forEach(function (w, i) {
-      const nx = windows[(i + 1) % windows.length];
-      if (windows.length > 1 && wrap(nx.x - w.x - w.span, L) === 2 * step && w.span >= step && nx.span >= step) w.span += step;
-    });
-    windows.forEach(function (w) {
-      w.paths = [];
-      run.forEach(function (r) {
-        const rel = wrap(made(r.at) - w.x, L);
-        if (rel <= w.span) w.paths.push({ hand: r.hand, from: r.from, to: r.to, rel: rel, lag: r.at - made(r.at) });
-      });
-    });
-    return { parts: parts, windows: windows, partAt: partAt };
+    return { parts: parts, partAt: partAt };
   }
+
   /* The paths the hands really take with this many balls: one curve for each carry,
      from the lane a ball arrives in to the lane that same ball is rolled into next. */
   function drawLoops(g) {
@@ -3956,14 +3919,14 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     ctx.lineWidth = clamp(g.rb * 0.17, 1.6, 3);
     const paths = [];
     if (state.trans) {
-      // one part of the run at a time: a transition's lines, or the lines of the pattern the hands are working on
-      const tl = state.trans.lines || (state.trans.lines = transLines()), A = lastRoll(u), c = wrap(A, L);
+      // one part of the run at a time, the one lit up in the strip
+      const tl = state.trans.lines || (state.trans.lines = transLines()), A = lastRoll(u), c = wrap(A, L), q = tl.parts[tl.partAt(c)];
       // with an odd length the hands swap each time round the run
       const swapped = function (a) { return state.trans.kind !== 'rows' && L % 2 === 1 && wrap(Math.floor(a / L), 2) === 1; };
-      const show = function (p, a) { paths.push({ side: sideOf(swapped(a) ? 1 - p.hand : p.hand), from: p.from, to: p.to }); };
-      const w = tl.windows.find(function (q) { return wrap(c - q.x, L) <= q.span; });
-      if (w) { const base = A - wrap(c - w.x, L); for (const p of w.paths) show(p, base + p.rel + p.lag); }
-      else { const q = tl.parts[tl.partAt(c + 1)]; if (q && q.paths) for (const p of q.paths) show(p, A + 1); }
+      if (q) for (const p of q.paths) {
+        const a = p.rel === undefined ? A : A - wrap(c - q.start, L) + p.rel;
+        paths.push({ side: sideOf(swapped(a) ? 1 - p.hand : p.hand), from: p.from, to: p.to });
+      }
     } else if (plan) {
       for (const p of JLS.zipPaths(plan)) paths.push({ side: sideOf(p.hand), from: p.from, to: p.to });
     } else if (state.pat.ping) {

@@ -585,7 +585,7 @@ const JLS = (function () {
   /* Two-person patterns where each person keeps their own rhythm, written as a row for each person
    * with a | between them: (13)-|22. On each beat a person rests (-), rolls one lane, or rolls two
    * lanes together. `rows[0]` is the person who has lane 1 or rolls first. */
-  function parseRhythm(s) {
+  function parseRhythm(s, long) {
     const halves = s.split('|');
     if (halves.length !== 2) return { ok: false, error: 'Write one row for each person with a single | between them, like (13)-|22.' };
     const rows = [];
@@ -602,7 +602,7 @@ const JLS = (function () {
     }
     const P = rows[0].length;
     if (!P || rows[1].length !== P) return { ok: false, error: 'Both rows need the same number of beats. Use - for a beat where that person does not roll.' };
-    if (P > MAX_RHYTHM_BEATS) return { ok: false, error: 'That is too long. Keep it to ' + MAX_RHYTHM_BEATS + ' beats or fewer.' };
+    if (P > (long ? 400 : MAX_RHYTHM_BEATS)) return { ok: false, error: 'That is too long. Keep it to ' + MAX_RHYTHM_BEATS + ' beats or fewer.' };
     let lanes = 0;
     const rolls = [0, 0];
     rows.forEach(function (row, x) { row.forEach(function (act) { rolls[x] += act.length; act.forEach(function (l) { lanes = Math.max(lanes, l); }); }); });
@@ -622,7 +622,7 @@ const JLS = (function () {
   /* Two-person patterns where each person rolls two balls at once, written (14)(23).
    * The first number in each bracket is one ball's path and the second number is the other's,
    * so the pattern is really two ordinary patterns played side by side: `slots`. */
-  function parsePairs(s) {
+  function parsePairs(s, long) {
     if (!/^(\([^()]*\))+$/.test(s)) return { ok: false, error: 'To mix single rolls and pairs, write a row for each person with a | between them, like (13)-|22.' };
     const parts = s.slice(1, -1).split(')(');
     for (const part of parts) {
@@ -631,7 +631,7 @@ const JLS = (function () {
       if (!/^[1-9a-i]{2}$/.test(part)) return { ok: false, error: 'Each pair of brackets needs two lane numbers from 1 to ' + MAX_LANES + ', like (14), or (pp) to pass both balls across.' };
       if (part[0] === part[1]) return { ok: false, error: 'One person cannot roll two balls into lane ' + part[0] + ' at the same moment.' };
     }
-    if (parts.length > MAX_BRACKETS) return { ok: false, error: 'That is too long. Keep it to ' + MAX_BRACKETS + ' brackets or fewer.' };
+    if (parts.length > (long ? 400 : MAX_BRACKETS)) return { ok: false, error: 'That is too long. Keep it to ' + MAX_BRACKETS + ' brackets or fewer.' };
     const slots = [parts.map(function (x) { return x[0] === 'p' ? 0 : parseInt(x[0], 19); }), parts.map(function (x) { return x[1] === 'p' ? 0 : parseInt(x[1], 19); })];
     const lanes = Math.max.apply(null, slots[0].concat(slots[1]));
     if (/p/.test(s)) {
@@ -671,10 +671,10 @@ const JLS = (function () {
    * Zips and passes are stored as lane 0, with `self` marking the zips when two people play. */
   function parse(text, opts) {
     const raw = String(text == null ? '' : text).replace(/\[/g, '(').replace(/\]/g, ')');
-    if (/[|:\/]/.test(raw)) return parseRhythm(raw.replace(/[\s,.]/g, '').toLowerCase().replace(/[:\/]/g, '|'));   // a : or / is accepted too
+    if (/[|:\/]/.test(raw)) return parseRhythm(raw.replace(/[\s,.]/g, '').toLowerCase().replace(/[:\/]/g, '|'), opts && opts.long);   // a : or / is accepted too
     const s = raw.replace(/[\s,.\-]/g, '').toLowerCase();
     if (!s) return { ok: false, error: 'Type some lane numbers, like 1234.' };
-    if (/[()]/.test(s)) return parsePairs(s);
+    if (/[()]/.test(s)) return parsePairs(s, opts && opts.long);
     if (/s/.test(s)) return { ok: false, error: 'Write z for a zip to your own other hand and p for a pass to the other person.' };
     if (/[^1-9a-izp]/.test(s)) return { ok: false, error: 'Use only the digits 1 to 9 and a to i for lanes 10 to 18 (and z for a zip, p for a pass), one for each roll.' };
     const two = !!(opts && opts.two) || /p/.test(s);
@@ -2478,28 +2478,52 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function buildStripTiles() {
     strip.textContent = '';
     if (state.trans) {                                        // each pattern once, named, then the rolls joining it to the next
-      const tr = state.trans, pat = state.pat;
+      const tr = state.trans, pat = state.pat, kind = tr.kind || 'plain';
       tr.tileOf = {};
       let idx = 0, k = 0;
+      const toks = function (row) { return row.match(/\([^()]*\)|[^()]/g) || []; };
+      const laneOf = function (c) { return parseInt(c, 19); };
       tr.segs.forEach(function (sg) {
-        const len = sg.text.length;
+        const rows = kind === 'rows' ? sg.text.split('|') : null;
+        const units = rows ? toks(rows[0] || '') : kind === 'pairs' ? toks(sg.text) : sg.text.split('');
+        const len = units.length;
         if (len) {
           const box = document.createElement('span'); box.className = 'tseg' + (sg.join ? ' tjoin' : '');
-          const row = document.createElement('span'); row.className = 'tseg-tiles';
-          for (let i = 0; i < len; i++) {
-            const t = document.createElement('span');
-            const swaps = pat.rev || (sg.times > 1 && len % 2);    // the hands swap numbers from one time round to the next
-            t.className = 'tile ' + (swaps ? 'n' : sideOf((idx + i) % 2) === RIGHT ? 'r' : 'b');
-            t.textContent = parseInt(sg.text[i], 19);
-            t.dataset.k = k;
-            if (!swaps) t.dataset.who = sideOf((idx + i) % 2) === RIGHT ? 'r' : 'b';
-            for (let r = 0; r < sg.times; r++) tr.tileOf[idx + r * len + i] = k;
-            row.appendChild(t);
-            k++;
+          if (rows) {                                         // a row for each person (or hand), beat by beat
+            for (let x = 0; x < 2; x++) {
+              const line = document.createElement('span'); line.className = 'tseg-tiles';
+              toks(rows[x]).forEach(function (a, i) {
+                const t = document.createElement('span');
+                if (a === '-') { t.className = 'tile rest'; t.textContent = '–'; }
+                else if (a.length > 1) { t.className = 'tile ' + (sideOf(x) === RIGHT ? 'r' : 'b'); t.textContent = laneOf(a[1]) + '' + laneOf(a[2]); }
+                else { t.className = 'tile ' + (sideOf(x) === RIGHT ? 'r' : 'b'); t.textContent = laneOf(a); }
+                t.dataset.k = k + i; t.dataset.who = sideOf(x) === RIGHT ? 'r' : 'b';
+                line.appendChild(t);
+              });
+              box.appendChild(line);
+            }
+          } else {
+            const line = document.createElement('span'); line.className = 'tseg-tiles';
+            units.forEach(function (a, i) {
+              const swaps = pat.rev || (sg.times > 1 && len % 2);   // the hands (or people) swap from one time round to the next
+              const cls = swaps ? 'n' : sideOf((idx + i) % 2) === RIGHT ? 'r' : 'b';
+              const one = function (lane) {
+                const t = document.createElement('span'); t.className = 'tile ' + cls; t.textContent = lane; t.dataset.k = k + i;
+                if (!swaps) t.dataset.who = cls; return t;
+              };
+              if (kind === 'pairs') {
+                const holder = document.createElement('span'); holder.className = 'pair br';
+                holder.appendChild(one(laneOf(a[1]))); holder.appendChild(one(laneOf(a[2])));
+                line.appendChild(holder);
+              } else line.appendChild(one(laneOf(a)));
+            });
+            box.appendChild(line);
           }
+          for (let i = 0; i < len; i++) for (let r = 0; r < sg.times; r++) tr.tileOf[idx + r * len + i] = k + i;
+          k += len;
           const lab = document.createElement('small');
           lab.textContent = sg.join ? 'transition' : sg.name + (sg.times > 1 ? ' ×' + sg.times : '');
-          box.appendChild(row); box.appendChild(lab);
+          box.appendChild(lab);
           strip.appendChild(box);
         }
         idx += len * sg.times;
@@ -2637,7 +2661,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   let lastActive = '';
   function markStrip() {
     if (state.trans) {                                        // a transition run: the tile for each roll being made
-      const act = JLS.active(u, state.pat, state.n), key = 't' + act.join(',');
+      const act = JLS.active(u, state.pat, plan || mplan ? 1 : state.pat.pairs ? state.n / 2 : state.n), key = 't' + act.join(',');
       if (key === lastActive) return;
       lastActive = key;
       const on = act.map(function (a) { return state.trans.tileOf[a]; });
@@ -3204,71 +3228,109 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   const MAX_TRANS = 5;
   function loadTrans() { try { const v = JSON.parse(localStorage.getItem('jls-trans') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
   function saveTrans(list) { try { localStorage.setItem('jls-trans', JSON.stringify(list)); return true; } catch (e) { return false; } }
+  /* What kind of pattern this is for joining: plain numbers, two at once (brackets, two people), or a row each
+     (two people with their own rhythms, or one person with a row for each hand). '' if it can't be joined. */
+  function transKind(p) {
+    if (p.zip || p.slope || p.ping || p.cross || p.keep) return '';   // zips and bouncers: still to come
+    if (p.mixed) return 'rows';
+    if (p.pairs) return 'pairs';
+    return 'plain';
+  }
   function transWhyNot() {
     const p = state.pat;
     if (state.trans) return 'This is already a transition run. Pick a single pattern to add.';
-    if (p.zip || p.mixed || p.pairs || p.slope || p.ping) return 'Transitions work with patterns written as plain numbers, without zips, brackets or rows.';
+    const kind = transKind(p);
+    if (!kind) return p.zip ? 'Transitions with zips are still to come.' : p.keep ? 'Transitions with bouncers (and other patterns where a hand rolls twice in a row) are still to come.' : 'Transitions don’t work with this kind of pattern.';
     const list = loadTrans();
     if (list.length >= MAX_TRANS) return 'Transitions hold up to ' + MAX_TRANS + ' patterns. Remove one first.';
     if (list.length && (list[0].n !== state.n || !!list[0].two !== state.twoMode))
       return 'Every pattern in the transitions needs ' + list[0].n + ' balls and ' + (list[0].two ? '2 people' : '1 person') + ', like the first one.';
+    const first = list.length ? (list[0].kind || 'plain') : kind;
+    if (first !== kind) {
+      const say = { plain: 'plain numbers', pairs: 'two at once (brackets)', rows: 'a row for each person or hand' };
+      return 'The patterns in the transitions are written as ' + say[first] + ', so this one, written as ' + say[kind] + ', can’t join them.';
+    }
     return '';
   }
+  /* The joined run for a list: its pattern text, given a join for each pattern (rows: [row 1, row 2] for each). */
+  function runText(list, T) {
+    const kind = list[0].kind || 'plain';
+    if (kind !== 'rows') { let s = ''; list.forEach(function (x, i) { s += x.text.repeat(x.times) + T[i]; }); return s; }
+    const r = ['', ''];
+    list.forEach(function (x, i) { const rows = x.text.split('|'); for (let k = 0; k < 2; k++) r[k] += rows[k].repeat(x.times) + T[i][k]; });
+    return r[0] + '|' + r[1];
+  }
+  function runParse(list, T) {
+    const p = JLS.parse(runText(list, T), { long: true, two: list[0].two });
+    if (p.ok && (list[0].kind || 'plain') === 'rows' && list.some(function (x) { return x.keep; })) p.keep = true;
+    return p;
+  }
+  function runGood(list, T) {
+    const p = runParse(list, T), n = list[0].n;
+    if (!p.ok) return false;
+    if (p.mixed) { const mp = JLS.mixedPlan(p, n); return !!mp && mp.n === n; }
+    return !p.rev || JLS.revOk(p, n);
+  }
   function joinRun(list) {
-    const n = list[0].n, k = list.length;
-    const lanes = Array.from(new Set(list.map(function (x) { return x.text; }).join('').split(''))).sort();
-    const cand = [''];
-    for (let len = 1; len <= 3; len++) {
-      const prev = cand.filter(function (c) { return c.length === len - 1; });
-      prev.forEach(function (c) { lanes.forEach(function (l) { cand.push(c + l); }); });
+    const k = list.length, kind = list[0].kind || 'plain';
+    const lanes = Array.from(new Set(list.map(function (x) { return x.text; }).join('').replace(/[^0-9a-i]/g, '').split(''))).sort();
+    // the joins to try, shortest first
+    let cand;
+    if (kind === 'plain') {
+      cand = [''];
+      for (let len = 1; len <= 3; len++) cand.filter(function (c) { return c.length === len - 1; }).forEach(function (c) { lanes.forEach(function (l) { cand.push(c + l); }); });
+    } else if (kind === 'pairs') {
+      const one = [];
+      lanes.forEach(function (a) { lanes.forEach(function (b) { if (a !== b) one.push('(' + a + b + ')'); }); });
+      cand = [''].concat(one);
+      one.forEach(function (a) { one.forEach(function (b) { cand.push(a + b); }); });
+    } else {
+      const beat = ['-'].concat(lanes), one = [];
+      beat.forEach(function (a) { beat.forEach(function (b) { one.push([a, b]); }); });
+      cand = [['', '']].concat(one);
+      one.forEach(function (a) { one.forEach(function (b) { cand.push([a[0] + b[0], a[1] + b[1]]); }); });   // up to two beats
     }
-    function text(T) { let s = ''; for (let i = 0; i < k; i++) s += list[i].text.repeat(list[i].times) + T[i]; return s; }
-    function good(T) { const p = JLS.parse(text(T), { long: true }); return p.ok && (!p.rev || JLS.revOk(p, n)); }
-    let T = new Array(k).fill('');
-    if (good(T)) return T;
-    // each join on its own first: the shortest that lets just those two patterns go round together
+    const none = new Array(k).fill(kind === 'rows' ? ['', ''] : '');
+    if (runGood(list, none)) return none;
+    if (k === 1) return null;
+    // each join on its own: the shortest that lets just those two patterns go round together
+    const T = none.slice();
+    let budget = 60000;
     for (let i = 0; i < k; i++) {
-      const a = list[i], b = list[(i + 1) % k];
-      if (k === 1) break;
-      for (const c of cand) {
-        let fits = false;
-        for (const d of cand) {
-          const two = a.text.repeat(a.times) + c + b.text.repeat(b.times) + d, p = JLS.parse(two, { long: true });
-          if (p.ok && (!p.rev || JLS.revOk(p, n))) { fits = true; break; }
-        }
-        if (fits) { T[i] = c; break; }
+      const pair = [list[i], list[(i + 1) % k]];
+      search: for (const c of cand) for (const d of cand) {
+        if (budget-- < 0) break search;
+        if (runGood(pair, [c, d])) { T[i] = c; break search; }
       }
     }
-    if (good(T)) return T;
-    // then all the joins together, shortest first
-    const short = cand.filter(function (c) { return c.length <= 2; });
+    if (runGood(list, T)) return T;
+    // then all the joins together
+    const short = cand.slice(0, kind === 'plain' ? 1 + lanes.length + lanes.length * lanes.length : Math.min(cand.length, 1 + 49));
     let tries = 0;
     const pick = function (i, acc) {
-      if (tries++ > 200000) return null;
-      if (i === k) return good(acc) ? acc.slice() : null;
+      if (tries++ > 100000) return null;
+      if (i === k) return runGood(list, acc) ? acc.slice() : null;
       for (const c of short) { acc[i] = c; const r = pick(i + 1, acc); if (r) return r; }
       return null;
     };
-    return pick(0, new Array(k).fill(''));
+    return pick(0, none.slice());
   }
   function playTrans() {
     const list = loadTrans();
     if (!list.length) return;
     const T = joinRun(list);
     if (!T) { window.alert('No way to join these patterns was found. Try a different order or other patterns.'); return; }
-    const segs = [];
-    let all = '';
+    const kind = list[0].kind || 'plain', segs = [];
     list.forEach(function (x, i) {
       segs.push({ text: x.text, times: x.times, name: x.name });
-      segs.push({ text: T[i], times: 1, join: true });
-      all += x.text.repeat(x.times) + T[i];
+      segs.push({ text: kind === 'rows' ? T[i][0] + '|' + T[i][1] : T[i], times: 1, join: true });
     });
     setMode(list[0].mode === 'one' ? '' : list[0].mode);
-    const parsed = JLS.parse(all, { long: true });
+    const parsed = runParse(list, T);
     parsed.trans = true;
     const err = setPattern(parsed, list[0].n);
     if (err) { window.alert(err); return; }
-    state.trans = { segs: segs, tileOf: {} };
+    state.trans = { kind: kind, segs: segs, tileOf: {} };
     fillPatternList();
     error = ''; under = [];
     inCustom.value = '';
@@ -3316,7 +3378,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const why = transWhyNot();
     if (why) { window.alert(why); return; }
     const list = loadTrans();
-    list.push({ text: state.pat.text, n: state.n, two: state.twoMode, mode: modeName(), name: patternTitle(), details: patternDetails(), times: 2 });
+    list.push({ text: state.pat.text, n: state.n, two: state.twoMode, mode: modeName(), kind: transKind(state.pat), keep: !!state.pat.keep, name: patternTitle(), details: patternDetails(), times: 2 });
     if (!saveTrans(list)) { window.alert('This browser is not letting the page save anything, so transitions can’t be kept here.'); return; }
     showFav();
   });

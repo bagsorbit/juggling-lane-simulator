@@ -277,14 +277,14 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
 .tseg .tseg-tiles { display: flex; gap: 4px; }
 .tseg small { font-size: 11px; font-weight: 600; opacity: .7; white-space: nowrap; }
 .tseg.tjoin .tile { border-style: dashed; }
-.tscroll { display: contents; }                     /* on a computer the run's boxes wrap like any pattern's numbers */
-@media (max-width: 640px), (orientation: landscape) and (max-height: 500px) {
-  /* on a phone they stay on one line and scroll sideways, following the lit box */
-  .tscroll { display: flex; align-items: flex-start; flex: 1 1 auto; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; padding: 2px 0; }
+/* a transition run's boxes stay on one line, and scroll sideways when they don't fit, following the lit box */
+.tscroll { display: flex; align-items: flex-start; flex: 1 1 auto; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding: 2px 0; }
+.tscroll > .tseg { flex: none; }
+.tscroll > .tseg:first-child { margin-left: auto; }   /* centred when it all fits, and every box reachable when not */
+.tscroll > .tseg:last-child { margin-right: auto; }
+@media (pointer: coarse) {                           /* a finger swipes it, so no scrollbar; a mouse gets a thin one */
+  .tscroll { scrollbar-width: none; }
   .tscroll::-webkit-scrollbar { display: none; }
-  .tscroll > .tseg { flex: none; }
-  .tscroll > .tseg:first-child { margin-left: auto; }   /* centred when it all fits, and every box reachable when not */
-  .tscroll > .tseg:last-child { margin-right: auto; }
 }
 #share.rec { background: #ff8787; animation: recpulse 1s ease-in-out infinite alternate; }
 @keyframes recpulse { to { background: #ffc9c9; } }
@@ -2598,6 +2598,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       tr.tileOf = {};
       const roll = document.createElement('div'); roll.className = 'tscroll';
       for (const ev of ['pointerdown', 'touchstart', 'wheel']) roll.addEventListener(ev, holdStrip, { passive: true });
+      roll.addEventListener('wheel', function (e) {               // a mouse wheel scrolls it sideways, until it reaches an end
+        const max = roll.scrollWidth - roll.clientWidth;
+        if (max <= 1 || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+        if ((e.deltaY < 0 && roll.scrollLeft <= 0) || (e.deltaY > 0 && roll.scrollLeft >= max - 1)) return;
+        roll.scrollLeft += e.deltaY; e.preventDefault();
+      }, { passive: false });
       strip.appendChild(roll);
       let idx = 0, k = 0;
       const toks = function (row) { return row.match(/\([^()]*\)|[^()]/g) || []; };
@@ -2783,9 +2789,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   }
 
   let lastActive = '', stripHeld = 0;
-  // someone looking along a run's numbers on a phone: leave the scrolling to them for a few seconds
+  // someone looking along a run's numbers: leave the scrolling to them for a few seconds
   function holdStrip() { stripHeld = performance.now() + 3000; }
-  // a run's numbers on a phone scroll: keep the lit box in view (or just the lit number, if the box is wider than the screen)
+  // a run's numbers scroll when they don't fit: keep the lit box in view (or just the lit number, if the box is wider)
   function followStrip() {
     const roll = strip.querySelector('.tscroll'), on = roll && roll.querySelector('.tile.on');
     if (!on || roll.scrollWidth <= roll.clientWidth + 1 || performance.now() < stripHeld) return;

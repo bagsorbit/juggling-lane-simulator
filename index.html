@@ -300,6 +300,11 @@ body.demo .seg .w { display: none; }                 /* "hand" or "person": just
 body.demo .controls button:disabled, body.demo .controls input:disabled, body.demo .controls .field > span { opacity: 1; }
 @media (orientation: landscape) and (max-height: 500px) { body.demo .strip { max-height: 40px; } }
 @media (prefers-reduced-motion: reduce) { #demo span { animation: none; } }
+@media (max-width: 640px), (orientation: landscape) and (max-height: 500px) {   /* phones: a smaller card */
+  #demo .card { padding: 9px 18px 8px; border-radius: 16px; box-shadow: 0 4px 0 var(--ink); }
+  #demo b { font-size: 24px; }
+  #demo span { margin-top: 3px; font-size: 15px; }
+}
 /* a transition run's boxes stay on one line, and scroll sideways when they don't fit, following the lit box */
 .tscroll { display: flex; align-items: flex-start; flex: 1 1 auto; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding: 2px 0; }
 .tscroll > .tseg { flex: none; }
@@ -4672,6 +4677,16 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     el.innerHTML = '<div class="card"><b>Demo mode</b><span>click to start</span></div>';
     document.body.appendChild(el);
     document.body.classList.add('demo');
+    // in the middle of the screen, unless that would bring it near the blue box's bottom edge (a phone on its side)
+    const card = el.firstChild;
+    const place = function () {
+      card.style.transform = '';
+      const box = stage.getBoundingClientRect(), c = card.getBoundingClientRect(), gap = 10;
+      const top = Math.max(box.top + gap, Math.min(c.top, box.bottom - gap - c.height));
+      card.style.transform = 'translateY(' + Math.round(top - c.top) + 'px)';
+    };
+    place();
+    window.addEventListener('resize', place);
     let i = 0, timer = 0, on = true;
     demoShow(DEMO[0]);
     const next = function () {
@@ -4690,6 +4705,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       on = false;
       clearTimeout(timer);
       window.removeEventListener('keydown', stop, true);
+      window.removeEventListener('resize', place);
       document.body.classList.add('demo-out');
       el.classList.add('gone');
       setTimeout(function () {

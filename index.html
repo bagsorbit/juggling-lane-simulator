@@ -2621,11 +2621,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     } else if (state.zipMode) {
       html += '<span class="sep">|</span><span class="nw">' + (state.twoMode ? 'z zips to your own other hand, p passes to the other person' : 'tap a number to make it a zip') + '</span>';
       if (plan) html += '<span class="sep">|</span><span class="nw">small numbers are beats</span>';
-    } else {
-      const unit = state.twoMode ? ' person ' : ' hand ';
-      html += '<span class="sep">|</span><span class="nw"><span class="dot b"></span>left' + unit + '&rarr;</span>' +
-              '<span class="sep">|</span><span class="nw">&larr; right' + unit + '<span class="dot r"></span></span>';
-    }
+    }   // (which colour is which hand or person is plain from the board, so it isn't spelled out)
     html += '<span class="sep">|</span>' + startInfo();
     info.innerHTML = html.replace(/<span class="sep">/g, ' <span class="sep">');   // a space lets the line wrap on narrow screens
   }

@@ -262,6 +262,21 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
 .favrow .play small { font-size: 13px; font-weight: 500; opacity: .75; }
 .favrow .del { flex: none; width: 46px; height: auto; padding: 0; font-size: 20px; }
 .favnone { margin: 8px 0; opacity: .75; }
+#transBody { overflow-y: auto; padding: 8px 14px 16px; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 8px; }
+.transrow { display: flex; gap: 8px; align-items: stretch; }
+.transrow .name { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; padding: 4px 2px; }
+.transrow .name b { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.transrow .name small { font-size: 13px; opacity: .75; }
+.transrow .times { flex: none; display: flex; align-items: center; gap: 4px; }
+.transrow .times button { width: 38px; height: 38px; padding: 0; font-size: 20px; }
+.transrow .times output { min-width: 26px; text-align: center; font-size: 18px; font-weight: 700; }
+.transrow .del { flex: none; width: 46px; height: auto; padding: 0; font-size: 20px; }
+#transPlay { align-self: center; margin-top: 6px; padding: 0 22px; height: 44px; background: var(--sun); }
+/* a transition run in the strip: each pattern once, named, with the joining rolls after it */
+.tseg { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; margin: 0 5px; }
+.tseg .tseg-tiles { display: flex; gap: 4px; }
+.tseg small { font-size: 11px; font-weight: 600; opacity: .7; white-space: nowrap; }
+.tseg.tjoin .tile { border-style: dashed; }
 #share.rec { background: #ff8787; animation: recpulse 1s ease-in-out infinite alternate; }
 @keyframes recpulse { to { background: #ffc9c9; } }
 #share.ready { background: #c0eb75; }
@@ -460,7 +475,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
         <button type="button" id="play">Pause</button>
         <button type="button" id="sound" aria-pressed="false" aria-label="Beat sound" title="Beat sound: off, clicks, or the numbers said out loud"><svg class="i-on" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="#2d2a4a"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg><svg class="i-off" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="#2d2a4a"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg><svg class="i-say" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 11.5C2.5 7.5 6.5 5 12 5s9.5 2.500 9.500 6.500C21.500 16.500 17 20 12 20S2.500 16.500 2.500 11.500z" fill="#ff8787" stroke="#2d2a4a" stroke-width="2"/><path d="M6 11c0-1.700 2.700-3 6-3s6 1.300 6 3c0 3-2.700 5.500-6 5.500S6 14 6 11z" fill="#2d2a4a"/><path d="M7.300 9.600c1.300-.6 2.900-.9 4.700-.9s3.400.3 4.700.9L16.300 11H7.700z" fill="#fff"/><path d="M8.600 14.600c.9-1 2.100-1.500 3.400-1.500s2.500.5 3.400 1.500c-.9.900-2.100 1.400-3.400 1.400s-2.500-.5-3.400-1.400z" fill="#f783ac"/></svg></button>
         <button type="button" id="favBtn" aria-label="Favourites" title="Favourites" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linejoin="round" fill="none"><path class="starfill" d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg></button>
-        <div class="keepmenu" id="keepMenu" role="menu" hidden><button type="button" role="menuitem" id="mSave"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linejoin="round" fill="none"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg><span id="mSaveText">Save to favourites</span></button><button type="button" role="menuitem" id="mOpen"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" fill="none"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" stroke-width="3.4"/></svg><span id="mOpenText">Open favourites</span></button></div>
+        <div class="keepmenu" id="keepMenu" role="menu" hidden><button type="button" role="menuitem" id="mSave"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linejoin="round" fill="none"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg><span id="mSaveText">Save to favourites</span></button><button type="button" role="menuitem" id="mOpen"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" fill="none"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" stroke-width="3.4"/></svg><span id="mOpenText">Open favourites</span></button><button type="button" role="menuitem" id="mTrans"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M3 8h11M10.5 4.5L14 8l-3.5 3.5"/><path d="M21 16H10M13.5 12.5L10 16l3.5 3.5"/></svg><span id="mTransText">Add to transitions</span></button><button type="button" role="menuitem" id="mTransOpen"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M6 4.5v15l13-7.5z" fill="#ffd43b"/></svg><span id="mTransOpenText">Open transitions</span></button></div>
         <div class="keepmenu" id="shareMenu" role="menu" hidden><button type="button" role="menuitem" id="mLink"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg><span id="mLinkText">Share link</span></button><button type="button" role="menuitem" id="mVideo"><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M12 4v11M7 10.5l5 5 5-5M4.5 19.5h15"/></svg><span>Download video</span></button></div><button type="button" id="share" aria-label="Share this pattern" title="Share this pattern" aria-haspopup="menu" aria-expanded="false"><svg class="i-share" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M11 4.5H7.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3V15" stroke-width="2.6"/><path d="M9 15.5c0-4 2.5-6.2 7-6.2" stroke-width="3.4"/><path d="M15.2 4.2l6.3 5.1-6.3 5.1z" fill="#2d2a4a" stroke-width="1.4"/></svg><svg class="i-done" viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4.5 12.5l5 5 10-11"/></svg></button>
         
       </div>
@@ -492,7 +507,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.6" stroke-linecap="round" fill="none"><path d="M3 12h18"/><circle cx="10" cy="12" r="4" fill="#8f8aa8" stroke-width="2.2"/></svg><span><b>Speed</b>: slide to slow the balls down or speed them up.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" fill="#2d2a4a"><rect x="6" y="5" width="4.2" height="14" rx="1.4"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.4"/></svg><span><b>Pause / Play</b>: stops and starts the balls.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="#2d2a4a"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg><span><b>Beat sound</b>: tap to go from off, to a click on every roll (higher for the right hand, lower for the left), to the numbers said out loud, in one voice for the right hand (or person) and another for the left. Numbers rolled at the same moment are said together as one quick phrase.</span></li>
-    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linejoin="round" fill="none"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg><span><b>Favourites</b>: save the pattern you are watching, or open the ones you saved.</span></li>
+    <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.2" stroke-linejoin="round" fill="none"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg><span><b>Favourites</b>: save the pattern you are watching, or open the ones you saved. Add patterns to transitions to play them one after another, joined smoothly, each as many times as you like.</span></li>
     <li><svg viewBox="0 0 24 24" aria-hidden="true" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M11 4.5H7.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3V15" stroke-width="2.6"/><path d="M9 15.5c0-4 2.5-6.2 7-6.2" stroke-width="3.4"/><path d="M15.2 4.2l6.3 5.1-6.3 5.1z" fill="#2d2a4a" stroke-width="1.4"/></svg><span><b>Share</b>: copy or share a link that opens this exact pattern, or download a video of it that loops.</span></li>
     <li class="phoneonly"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#fffdf5" stroke="#2d2a4a" stroke-width="2.2"/><text x="12" y="17" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-weight="700" font-size="14" fill="#2d2a4a">i</text></svg><span><b>(i)</b>: shows what the numbers and colours mean.</span></li>
     <li class="phoneside"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#2d2a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" fill="#fffdf5" stroke-width="2.2"/><path d="M7.5 10l4.5 4.5 4.5-4.5"/></svg><span><b>Arrow</b>: on a phone on its side: hides the controls to give the lanes more room. Tap again to bring them back.</span></li>
@@ -505,6 +520,12 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
   <div class="wall-head"><h2 id="favsTitle">Favourites</h2><button type="button" id="favsClose">Close</button></div>
   <p class="wall-note">Saved in this browser, on this device only. Tap one to play it.</p>
   <div id="favsBody"></div>
+</dialog>
+
+<dialog id="trans" aria-labelledby="transTitle">
+  <div class="wall-head"><h2 id="transTitle">Transitions</h2><button type="button" id="transClose">Close</button></div>
+  <p class="wall-note">The patterns play one after another, each as many times as its number, joined by the rolls that get the balls from one into the next. They all need the same number of balls. Saved in this browser.</p>
+  <div id="transBody"></div>
 </dialog>
 
 <dialog id="wall" aria-labelledby="wallTitle">
@@ -659,7 +680,7 @@ const JLS = (function () {
     const two = !!(opts && opts.two) || /p/.test(s);
     const zip = /[zp]/.test(s);
     const self = Array.from(s, function (c) { return two && c === 'z'; });
-    const most = zip ? MAX_ZIP_BEATS : MAX_BEATS;
+    const most = zip ? MAX_ZIP_BEATS : opts && opts.long ? 400 : MAX_BEATS;   // long: patterns joined into a transition run
     if (s.length > most) return { ok: false, error: 'That is too long. Keep it to ' + most + ' rolls or fewer.' };
     if (zip && s.length % 2) return { ok: false, error: 'A pattern with zips needs an even number of rolls, because the hands take turns.' };
     const seq = Array.from(s, function (c) { return c === 'z' || c === 'p' ? 0 : parseInt(c, 19); });
@@ -2060,7 +2081,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     revMode: false,
     mixMode: false,          // mixed single rolls and pairs; always with two people
     slopeMode: false,        // toss-juggling patterns on lanes that slope towards one person
-    pingMode: false          // three balls, quick rolls, lanes used both ways
+    pingMode: false,         // three balls, quick rolls, lanes used both ways
+    trans: null              // a transition run being played: its parts, and which tile shows each roll
   };
   let tm = JLS.timing(state.n);
   let plan = null;           // set when the pattern has zips
@@ -2166,6 +2188,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* Switch to a pattern and ball count. Returns '' if it worked, or the reason it can't be played. */
   function setPattern(parsed, n) {
     if (!parsed.ok) return parsed.error;
+    if (!parsed.trans) state.trans = null;                    // any other pattern ends a transition run
     if (n > 9 && parsed.lanes <= 6) n = 9;                     // more than 9 balls only on the 12- and 18-lane patterns
     if (n > 12 && parsed.lanes <= 12) n = 12;
     if (parsed.two && !state.twoMode) return 'A p is a pass to the other person, which needs two people. Turn on 2 people first.';
@@ -2225,7 +2248,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (parsed.pairs) n = Math.max(2, Math.min(8, n % 2 ? n + 1 : n));   // pairs need an even number of balls
     plan = p; mplan = mp; splan = sp; state.pat = parsed; state.n = n;
     tm = sp ? { cycle: 1.5, hold: 0, roll: 0 } : parsed.ping ? { cycle: 1.6, hold: 0, roll: 0 } : JLS.timing(mp ? mp.average : parsed.pairs ? n / 2 : n);
-    last[modeName()] = parsed.text;
+    if (!parsed.trans) last[modeName()] = parsed.text;   // a transition run isn't remembered as the mode's pattern
     return '';
   }
 
@@ -2454,6 +2477,36 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   const FACES = ['\u{1F600}', '\u{1F61C}', '\u{1F60E}', '\u{1F92A}', '\u{1F607}'];
   function buildStripTiles() {
     strip.textContent = '';
+    if (state.trans) {                                        // each pattern once, named, then the rolls joining it to the next
+      const tr = state.trans, pat = state.pat;
+      tr.tileOf = {};
+      let idx = 0, k = 0;
+      tr.segs.forEach(function (sg) {
+        const len = sg.text.length;
+        if (len) {
+          const box = document.createElement('span'); box.className = 'tseg' + (sg.join ? ' tjoin' : '');
+          const row = document.createElement('span'); row.className = 'tseg-tiles';
+          for (let i = 0; i < len; i++) {
+            const t = document.createElement('span');
+            const swaps = pat.rev || (sg.times > 1 && len % 2);    // the hands swap numbers from one time round to the next
+            t.className = 'tile ' + (swaps ? 'n' : sideOf((idx + i) % 2) === RIGHT ? 'r' : 'b');
+            t.textContent = parseInt(sg.text[i], 19);
+            t.dataset.k = k;
+            if (!swaps) t.dataset.who = sideOf((idx + i) % 2) === RIGHT ? 'r' : 'b';
+            for (let r = 0; r < sg.times; r++) tr.tileOf[idx + r * len + i] = k;
+            row.appendChild(t);
+            k++;
+          }
+          const lab = document.createElement('small');
+          lab.textContent = sg.join ? 'transition' : sg.name + (sg.times > 1 ? ' ×' + sg.times : '');
+          box.appendChild(row); box.appendChild(lab);
+          strip.appendChild(box);
+        }
+        idx += len * sg.times;
+      });
+      lastActive = '';
+      return;
+    }
     if (state.pat.lanes > 12) {
       FACES.forEach(function (f, i) {
         const t = document.createElement('span');
@@ -2583,6 +2636,14 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   let lastActive = '';
   function markStrip() {
+    if (state.trans) {                                        // a transition run: the tile for each roll being made
+      const act = JLS.active(u, state.pat, state.n), key = 't' + act.join(',');
+      if (key === lastActive) return;
+      lastActive = key;
+      const on = act.map(function (a) { return state.trans.tileOf[a]; });
+      strip.querySelectorAll('.tile').forEach(function (t) { t.classList.toggle('on', on.indexOf(Number(t.dataset.k)) !== -1); });
+      return;
+    }
     if (state.pat.lanes > 12) {                       // the faces: one a beat, round and round
       const f = ((Math.floor(2 * u) % FACES.length) + FACES.length) % FACES.length;
       if (lastActive === String(f)) return;
@@ -2822,6 +2883,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     $('mSaveText').textContent = fav ? 'Remove from favourites' : 'Save to favourites';
     const n = loadFavs().length;
     $('mOpenText').textContent = 'Open favourites' + (n ? ' (' + n + ')' : '');
+    const t = loadTrans().length;
+    $('mTransOpenText').textContent = 'Open transitions' + (t ? ' (' + t + ')' : '');
   }
 
   const keepMenu = $('keepMenu'), keepBtn = $('favBtn');
@@ -2845,6 +2908,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (open) { setMenu(false); $('mLink').focus(); }
   }
   function shareLink() {
+    if (state.trans) { window.alert('A link can’t hold a transition run, but Download video works: it records the run as it plays.'); return; }
     const url = shareUrl(), title = 'Juggling Lane Simulator: ' + patternTitle();
     function copy() {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(flashDone, function () { window.prompt('Copy this link:', url); });
@@ -3081,6 +3145,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   $('mLink').addEventListener('click', function () { setShareMenu(false); shareLink(); });
   $('mVideo').addEventListener('click', function () { setShareMenu(false); startVideo(); });
   $('mSave').addEventListener('click', function () {
+    if (state.trans) { setMenu(false); window.alert('A transition run can’t be saved as a favourite. Its patterns stay in Open transitions.'); return; }
     const q = patternQuery(false);
     let list = loadFavs();
     if (list.some(function (f) { return f.q === q; })) list = list.filter(function (f) { return f.q !== q; });
@@ -3131,6 +3196,137 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     inCustom.value = inList(state.pat.text) ? '' : state.pat.text;
     refresh(true);
   }
+
+  /* ---------- transitions: up to four patterns played one after another ----------
+     Each plays its number of times, then a few rolls (often none) get the balls from it into the next, found by
+     trying the shortest joins until the whole run, round and back to the start, can be juggled. Only plain-number
+     patterns with the same number of balls and people, so every ball keeps the same timing throughout. */
+  const MAX_TRANS = 4;
+  function loadTrans() { try { const v = JSON.parse(localStorage.getItem('jls-trans') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+  function saveTrans(list) { try { localStorage.setItem('jls-trans', JSON.stringify(list)); return true; } catch (e) { return false; } }
+  function transWhyNot() {
+    const p = state.pat;
+    if (state.trans) return 'This is already a transition run. Pick a single pattern to add.';
+    if (p.zip || p.mixed || p.pairs || p.slope || p.ping) return 'Transitions work with patterns written as plain numbers, without zips, brackets or rows.';
+    const list = loadTrans();
+    if (list.length >= MAX_TRANS) return 'Transitions hold up to ' + MAX_TRANS + ' patterns. Remove one first.';
+    if (list.length && (list[0].n !== state.n || !!list[0].two !== state.twoMode))
+      return 'Every pattern in the transitions needs ' + list[0].n + ' balls and ' + (list[0].two ? '2 people' : '1 person') + ', like the first one.';
+    return '';
+  }
+  function joinRun(list) {
+    const n = list[0].n, k = list.length;
+    const lanes = Array.from(new Set(list.map(function (x) { return x.text; }).join('').split(''))).sort();
+    const cand = [''];
+    for (let len = 1; len <= 3; len++) {
+      const prev = cand.filter(function (c) { return c.length === len - 1; });
+      prev.forEach(function (c) { lanes.forEach(function (l) { cand.push(c + l); }); });
+    }
+    function text(T) { let s = ''; for (let i = 0; i < k; i++) s += list[i].text.repeat(list[i].times) + T[i]; return s; }
+    function good(T) { const p = JLS.parse(text(T), { long: true }); return p.ok && (!p.rev || JLS.revOk(p, n)); }
+    let T = new Array(k).fill('');
+    if (good(T)) return T;
+    // each join on its own first: the shortest that lets just those two patterns go round together
+    for (let i = 0; i < k; i++) {
+      const a = list[i], b = list[(i + 1) % k];
+      if (k === 1) break;
+      for (const c of cand) {
+        let fits = false;
+        for (const d of cand) {
+          const two = a.text.repeat(a.times) + c + b.text.repeat(b.times) + d, p = JLS.parse(two, { long: true });
+          if (p.ok && (!p.rev || JLS.revOk(p, n))) { fits = true; break; }
+        }
+        if (fits) { T[i] = c; break; }
+      }
+    }
+    if (good(T)) return T;
+    // then all the joins together, shortest first
+    const short = cand.filter(function (c) { return c.length <= 2; });
+    let tries = 0;
+    const pick = function (i, acc) {
+      if (tries++ > 200000) return null;
+      if (i === k) return good(acc) ? acc.slice() : null;
+      for (const c of short) { acc[i] = c; const r = pick(i + 1, acc); if (r) return r; }
+      return null;
+    };
+    return pick(0, new Array(k).fill(''));
+  }
+  function playTrans() {
+    const list = loadTrans();
+    if (!list.length) return;
+    const T = joinRun(list);
+    if (!T) { window.alert('No way to join these patterns was found. Try a different order or other patterns.'); return; }
+    const segs = [];
+    let all = '';
+    list.forEach(function (x, i) {
+      segs.push({ text: x.text, times: x.times, name: x.name });
+      segs.push({ text: T[i], times: 1, join: true });
+      all += x.text.repeat(x.times) + T[i];
+    });
+    setMode(list[0].mode === 'one' ? '' : list[0].mode);
+    const parsed = JLS.parse(all, { long: true });
+    parsed.trans = true;
+    const err = setPattern(parsed, list[0].n);
+    if (err) { window.alert(err); return; }
+    state.trans = { segs: segs, tileOf: {} };
+    fillPatternList();
+    error = ''; under = [];
+    inCustom.value = '';
+    refresh(true);
+  }
+  const transDlg = $('trans'), transBody = $('transBody');
+  function closeTrans() { if (transDlg.close) transDlg.close(); else transDlg.removeAttribute('open'); }
+  function fillTrans() {
+    transBody.textContent = '';
+    const list = loadTrans();
+    if (!list.length) {
+      const p = document.createElement('p'); p.className = 'favnone';
+      p.textContent = 'No patterns yet. Pick a pattern and use Add to transitions, then another, and another.';
+      transBody.appendChild(p);
+      return;
+    }
+    list.forEach(function (x, i) {
+      const row = document.createElement('div'); row.className = 'transrow';
+      const name = document.createElement('div'); name.className = 'name';
+      const b = document.createElement('b'); b.textContent = (i + 1) + '. ' + x.name;
+      const small = document.createElement('small'); small.textContent = x.details;
+      name.appendChild(b); name.appendChild(small);
+      const times = document.createElement('div'); times.className = 'times';
+      const down = document.createElement('button'); down.type = 'button'; down.textContent = '−'; down.setAttribute('aria-label', 'Play ' + x.name + ' fewer times');
+      const out = document.createElement('output'); out.textContent = x.times; out.title = 'How many times it plays';
+      const up = document.createElement('button'); up.type = 'button'; up.textContent = '+'; up.setAttribute('aria-label', 'Play ' + x.name + ' more times');
+      function change(by) { const l = loadTrans(); l[i].times = Math.max(1, Math.min(9, l[i].times + by)); saveTrans(l); fillTrans(); }
+      down.addEventListener('click', function () { change(-1); });
+      up.addEventListener('click', function () { change(1); });
+      down.disabled = x.times <= 1; up.disabled = x.times >= 9;
+      times.appendChild(down); times.appendChild(out); times.appendChild(up);
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.textContent = '×';
+      del.setAttribute('aria-label', 'Remove ' + x.name + ' from transitions');
+      del.addEventListener('click', function () { const l = loadTrans(); l.splice(i, 1); saveTrans(l); fillTrans(); showFav(); });
+      row.appendChild(name); row.appendChild(times); row.appendChild(del);
+      transBody.appendChild(row);
+    });
+    const play = document.createElement('button'); play.type = 'button'; play.id = 'transPlay';
+    play.textContent = list.length > 1 ? 'Play' : 'Play (add another pattern to make a transition)';
+    play.addEventListener('click', function () { closeTrans(); playTrans(); });
+    transBody.appendChild(play);
+  }
+  $('mTrans').addEventListener('click', function () {
+    setMenu(false);
+    const why = transWhyNot();
+    if (why) { window.alert(why); return; }
+    const list = loadTrans();
+    list.push({ text: state.pat.text, n: state.n, two: state.twoMode, mode: modeName(), name: patternTitle(), details: patternDetails(), times: 2 });
+    if (!saveTrans(list)) { window.alert('This browser is not letting the page save anything, so transitions can’t be kept here.'); return; }
+    showFav();
+  });
+  $('mTransOpen').addEventListener('click', function () {
+    setMenu(false);
+    fillTrans();
+    if (transDlg.showModal) transDlg.showModal(); else transDlg.setAttribute('open', '');
+  });
+  $('transClose').addEventListener('click', closeTrans);
+  transDlg.addEventListener('click', function (e) { if (e.target === transDlg) closeTrans(); });
 
   $('clearMode').addEventListener('click', function () {
     goMode(state.twoMode && !state.slopeMode ? 'two' : 'one');

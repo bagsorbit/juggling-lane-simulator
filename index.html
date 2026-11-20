@@ -2830,6 +2830,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       return (other > state.n) === (by > 0) ? other : 0;
     }
     if (state.pat.slope) return 0;                           // a slope pattern has one ball count
+    if (state.trans) return 0;                               // so does a transition run: its joins were found for that count
     for (let n = state.n + by * ballStep(); n >= ballLimits()[0] && n <= ballLimits()[1]; n += by * ballStep()) {
       if (state.pat.zip ? JLS.zipPlan(state.pat, n) : state.pat.mixed ? JLS.mixedPlan(state.pat, n) : !state.pat.rev || JLS.revOk(state.pat, n)) return n;
     }

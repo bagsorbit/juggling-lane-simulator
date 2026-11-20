@@ -288,6 +288,16 @@ body.demo-out .app { opacity: 0; }
 #demo b { display: block; font-size: clamp(28px, 7vw, 46px); font-weight: 800; letter-spacing: .05em; text-transform: uppercase; line-height: 1.1; }
 #demo span { display: block; margin-top: 6px; font-size: clamp(17px, 4vw, 22px); font-weight: 700; animation: demoPulse 1.6s ease-in-out infinite; }
 @keyframes demoPulse { 50% { opacity: .4; } }
+/* during the demo only the board plays: no numbers or info line, and the controls are empty boxes. The numbers keep one
+   line's room and the info line one line, so the blue square stays at its big size and nothing moves when it ends */
+body.demo .strip, body.demo .info { visibility: hidden; }
+body.demo .strip { max-height: 46px; overflow: hidden; }
+body.demo .info { flex-wrap: nowrap; overflow: hidden; }
+body.demo .info * { white-space: nowrap; }
+body.demo .controls .field > span, body.demo .controls svg, body.demo #speed { visibility: hidden; }
+body.demo .controls select, body.demo .controls input[type="text"], body.demo .controls button, body.demo .controls output { color: transparent; }
+body.demo .controls select, body.demo .controls input[type="text"], body.demo .controls button { background: var(--card) !important; opacity: 1 !important; border-color: var(--ink) !important; }
+@media (orientation: landscape) and (max-height: 500px) { body.demo .strip { max-height: 40px; } }
 @media (prefers-reduced-motion: reduce) { #demo span { animation: none; } }
 /* a transition run's boxes stay on one line, and scroll sideways when they don't fit, following the lit box */
 .tscroll { display: flex; align-items: flex-start; flex: 1 1 auto; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding: 2px 0; }

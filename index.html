@@ -524,7 +524,7 @@ dialog::backdrop { background: rgba(45, 42, 74, .5); }
 
 <dialog id="trans" aria-labelledby="transTitle">
   <div class="wall-head"><h2 id="transTitle">Transitions</h2><button type="button" id="transClose">Close</button></div>
-  <p class="wall-note">The patterns play one after another, each as many times as its number, joined by the rolls that get the balls from one into the next. They all need the same number of balls. Saved in this browser.</p>
+  <p class="wall-note">The patterns play one after another, each as many times as its number, joined by the rolls that get the balls from one into the next. They all need the same number of balls. In a zip run, h is a ball held for a beat. Saved in this browser.</p>
   <div id="transBody"></div>
 </dialog>
 
@@ -942,7 +942,8 @@ const JLS = (function () {
     const keys = [0], ofSlot = [[], []];
     slots.forEach(function (sl, x) {
       sl.forEach(function (q, i) {
-        const k = by[0][q.lane] && by[1][q.lane] ? q.lane : 0;
+        // a lane rolled from both ends is its own queue; a joined run names its queues itself (pat.classOf: 0 the loop, b0, b1... the bouncers)
+        const k = pat.classOf ? pat.classOf[x][i] : by[0][q.lane] && by[1][q.lane] ? q.lane : 0;
         if (keys.indexOf(k) === -1) keys.push(k);
         ofSlot[x][i] = keys.indexOf(k);
       });
@@ -1582,6 +1583,108 @@ const JLS = (function () {
     const vals = v0.map(function (x, i) { return x === v1[i] ? x : x + '/' + v1[i]; });
     return { pairs: true, plans: plans, seq: pat.seq, L: L, n: n, lanes: pat.lanes, vals: vals };
   }
+  /* ---------- zip transitions ----------
+   * Zip patterns played one after another, each with its own timing, joined by a few throws (often none). After a
+   * whole number of times round a pattern, the balls still on their way are due at fixed beats (its `landings`);
+   * the next pattern expects its own. The joining throws make up the difference, as siteswap transitions do. A lane
+   * may change direction at a join, so a ball coming the other way must have left the lane first.
+   * items: [{ seq, self, times }]; two: two people (z a self zip, 2 beats; p a pass, 1 beat). */
+  function zipRun(items, n, two) {
+    const tm = timing(n), low = n === 1 ? 1 : 3, k = items.length;
+    const plans = items.map(function (it) { return zipPlan({ seq: it.seq, self: it.self, lanes: Math.max.apply(null, it.seq) }, n); });
+    if (plans.some(function (p) { return !p || p.pairs; })) return null;
+    const lanes = [];
+    items.forEach(function (it) { it.seq.forEach(function (l) { if (l && lanes.indexOf(l) === -1) lanes.push(l); }); });
+    lanes.sort(function (a, b) { return a - b; });
+    function block(i) {
+      const it = items[i], p = plans[i], out = [];
+      for (let r = 0; r < it.times; r++) for (let t = 0; t < p.L; t++) out.push({ lane: it.seq[t], self: !!(it.self && it.self[t]), v: p.vals[t] });
+      return out;
+    }
+    // over a line of throws (one a beat): no ball overtakes another, and none meets one coming the other way
+    function lanesOk(line, cyclic) {
+      const L = line.length, rolls = [];
+      for (let t = 0; t < L; t++) if (line[t].lane) rolls.push(t);
+      for (const i of rolls) for (const j0 of rolls) for (const w of (cyclic ? [0, 1] : [0])) {
+        const j = j0 + w * L;
+        if (j <= i) continue;
+        const a = line[i], b = line[j0];
+        if (a.lane !== b.lane) continue;
+        if ((j - i) % 2 === 0) { if (i + a.v >= j + b.v) return false; }                 // the same way: in order
+        else if (j / 2 < i / 2 + a.v / 2 - tm.hold - 1e-9) return false;               // the other way: once it has gone
+      }
+      return true;
+    }
+    // the joining throws from pattern x into pattern y, best first
+    function joins(x, y) {
+      const O = plans[x].landings, B = plans[y].landings, head = block(x), tail = block(y), found = [];
+      for (let m = 0; m <= 6 && !found.length; m++) {
+        const need = [];
+        for (let t = 0; t < m; t++) need.push(t);
+        B.forEach(function (b) { need.push(m + b); });
+        if (!O.every(function (o) { return need.indexOf(o) !== -1; })) continue;
+        const open = need.filter(function (r) { return O.indexOf(r) === -1; });
+        const pick = [], used = {};
+        let leaves = 0;
+        (function go(t) {
+          if (found.length >= 60 || leaves > 40000) return;
+          if (t === m) { leaves++; if (lanesOk(head.concat(pick, tail), false)) found.push(pick.slice()); return; }
+          const opts = [];
+          // two people: a pass (1) or a self zip (2); one person: a zip (1), or holding the ball for a beat (2),
+          // which only a join uses, to move a ball from one hand to the other side's turn
+          opts.push({ lane: 0, self: false, v: 1 }, { lane: 0, self: true, v: 2 });
+          for (const r of open) { const v = r - t; if (v >= low && v % 2 === 1) lanes.forEach(function (l) { opts.push({ lane: l, self: false, v: v }); }); }
+          for (const o of opts) {
+            const r = t + o.v;
+            if (open.indexOf(r) === -1 || used[r]) continue;
+            used[r] = true; pick.push(o); go(t + 1); pick.pop(); used[r] = false;
+          }
+        })(0);
+      }
+      const score = function (j) { let s = 0; j.forEach(function (o) { s += (o.v - n) * (o.v - n) + (o.lane ? 0 : 1) + (o.self && !two ? 50 : 0); }); return s; };
+      return found.sort(function (a, b) { return a.length - b.length || score(a) - score(b); }).slice(0, 8);
+    }
+    const options = [];
+    for (let i = 0; i < k; i++) { const o = joins(i, (i + 1) % k); if (!o.length) return null; options.push(o); }
+    // put it together, trying the next best joins if the whole loop doesn't work
+    const choice = new Array(k).fill(0);
+    let line = null, tries = 0;
+    (function go(i) {
+      if (line || tries++ > 5000) return;
+      if (i === k) {
+        let all = [];
+        for (let x = 0; x < k; x++) all = all.concat(block(x), options[x][choice[x]]);
+        const L = all.length, hit = {};
+        let sum = 0;
+        for (let t = 0; t < L; t++) { const r = (t + all[t].v) % L; if (hit[r]) return; hit[r] = true; sum += all[t].v; }
+        if (sum === n * L && lanesOk(all, true)) line = all;
+        return;
+      }
+      for (let c = 0; c < options[i].length && !line; c++) { choice[i] = c; go(i + 1); }
+    })(0);
+    if (!line) return null;
+    const L = line.length, seq = line.map(function (o) { return o.lane; }), vals = line.map(function (o) { return o.v; });
+    const srcVal = new Array(L);
+    let maxV = 1, turns = false;
+    const by = {};
+    for (let t = 0; t < L; t++) {
+      srcVal[mod(t + vals[t], L)] = vals[t]; maxV = Math.max(maxV, vals[t]);
+      if (seq[t]) { if (by[seq[t]] === undefined) by[seq[t]] = t % 2; else if (by[seq[t]] !== t % 2) turns = true; }
+    }
+    const landings = [];
+    for (let b = -maxV; b < 0; b++) if (b + vals[mod(b, L)] >= 0) landings.push(b + vals[mod(b, L)]);
+    landings.sort(function (x, y) { return x - y; });
+    const self = line.map(function (o) { return o.self; });   // two people: self zips; one person: a ball held for a beat
+    return { seq: seq, self: self.indexOf(true) !== -1 ? self : null, L: L, n: n, lanes: Math.max.apply(null, lanes), vals: vals, srcVal: srcVal,
+             maxV: maxV, landings: landings, ids: new Map(), turns: turns,
+             joins: options.map(function (o, i) { return o[choice[i]]; }), patVals: plans.map(function (p) { return p.vals; }) };
+  }
+  /* For each lane, which hand rolled into it last at time u (zip runs, where a lane can change direction). */
+  function zipLaneHands(u, plan) {
+    const out = new Array(plan.lanes + 1).fill(-1), top = Math.floor(2 * u);
+    for (let t = top; t > top - 2 * plan.L - 2; t--) { const l = zSym(plan, t); if (l && out[l] === -1) out[l] = mod(t, 2); }
+    return out;
+  }
   function zSelf(plan, t) { return !!plan.self && plan.self[mod(t, plan.L)]; }
   function zSym(plan, t) { return plan.seq[mod(t, plan.L)]; }
   function zVal(plan, t) { return plan.vals[mod(t, plan.L)]; }
@@ -1648,8 +1751,9 @@ const JLS = (function () {
     for (let h = 0; h < 2; h++) {
       const t = 2 * (Math.floor(u - h / 2) + 1) + h;          // this hand's next throw
       const T = t / 2;
-      const byZip = !zSym(plan, zSrc(plan, t));
-      const got = byZip ? T - 0.5 : T - tm.hold;              // when the ball for that throw reaches the hand
+      const src = zSrc(plan, t), byZip = !zSym(plan, src);
+      // when the ball for that throw reaches the hand (a ball it held over from its last turn is there all along)
+      const got = byZip ? (zSelf(plan, src) ? src / 2 : T - 0.5) : T - tm.hold;
       if (u < got) out.push({ hand: h, holding: false, from: zThrowPlace(plan, t - 2), to: zCatchPlace(plan, t), p: (u - (T - 1)) / (got - (T - 1)) });
       else out.push({ hand: h, holding: true, from: zCatchPlace(plan, t), to: zThrowPlace(plan, t), p: (u - got) / (T - got) });
     }
@@ -1691,7 +1795,7 @@ const JLS = (function () {
            revOk: revOk, laneHands: laneHands,
            mixedPlan: mixedPlan, mixedLaneHands: mixedLaneHands, mixedBalls: mixedBalls, mixedHands: mixedHands, mixedPaths: mixedPaths, soloHands: soloHands, crossHands: crossHands, crossOk: crossOk,
            hands2: hands2, pairBalls: pairBalls, pairHands: pairHands,
-           solveTiming: solveTiming, zipPlan: zipPlan, zipBalls: zipBalls, zipHands: zipHands, zipHands2: zipHands2, zipPaths: zipPaths, balls: balls, hands: hands, active: active,
+           solveTiming: solveTiming, zipPlan: zipPlan, zipBalls: zipBalls, zipHands: zipHands, zipHands2: zipHands2, zipPaths: zipPaths, zipRun: zipRun, zipLaneHands: zipLaneHands, balls: balls, hands: hands, active: active,
            pingBalls: pingBalls, pingHands: pingHands, pingLaneHands: pingLaneHands, pingOk: pingOk, pingGap: pingGap, pingHands2: pingHands2, pingDuoHands: pingDuoHands, pingDuoPaths: pingDuoPaths, duoGrab: duoGrab, PING_PLACE: PING_PLACE, PING_CATCH: PING_CATCH, PING_GRAB: PING_GRAB, PING_SPEED: PING_SPEED };
 })();
 </script>
@@ -2197,7 +2301,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (parsed.zip) {
       // not every ball count has a timing that works, so settle on the nearest one that does
       const base = parsed.pairs ? n + n % 2 : n;               // (zz) patterns need an even number of balls
-      for (const d of parsed.pairs ? [0, -2, 2, -4, 4, 6] : [0, 1, -1, 2, -2, 3, -3]) {
+      if (parsed.zipRun) { p = parsed.zipRun; n = p.n; }         // a zip transition run: timing already worked out
+      else for (const d of parsed.pairs ? [0, -2, 2, -4, 4, 6] : [0, 1, -1, 2, -2, 3, -3]) {
         const m = base + d;
         if (m >= 1 && m <= JLS.MAX_BALLS && (p = JLS.zipPlan(parsed, m))) { n = m; break; }
       }
@@ -2515,6 +2620,11 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
                 const holder = document.createElement('span'); holder.className = 'pair br';
                 holder.appendChild(one(laneOf(a[1]))); holder.appendChild(one(laneOf(a[2])));
                 line.appendChild(holder);
+              } else if (kind === 'zip') {                       // zips: each throw with its beat count underneath
+                const t = /[zph]/.test(a) ? (function () { const z = document.createElement('span'); z.className = 'tile z'; z.textContent = a; z.dataset.k = k + i; return z; })() : one(laneOf(a));
+                const cell = document.createElement('span'); cell.className = 'cell';
+                const small = document.createElement('small'); small.textContent = sg.vals ? sg.vals[i] : '';
+                cell.appendChild(t); cell.appendChild(small); line.appendChild(cell);
               } else line.appendChild(one(laneOf(a)));
             });
             box.appendChild(line);
@@ -2704,7 +2814,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     } else if (mplan) {
       // the rows under the lanes already say who is who
     } else if (state.zipMode) {
-      html += '<span class="sep">|</span><span class="nw">' + (state.twoMode ? 'z zips to your own other hand, p passes to the other person' : 'tap a number to make it a zip') + '</span>';
+      if (!state.trans) html += '<span class="sep">|</span><span class="nw">' + (state.twoMode ? 'z zips to your own other hand, p passes to the other person' : 'tap a number to make it a zip') + '</span>';
       if (plan) html += '<span class="sep">|</span><span class="nw">small numbers are beats</span>';
     }   // (which colour is which hand or person is plain from the board, so it isn't spelled out)
     html += '<span class="sep">|</span>' + startInfo();
@@ -3231,7 +3341,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   /* What kind of pattern this is for joining: plain numbers, two at once (brackets, two people), or a row each
      (two people with their own rhythms, or one person with a row for each hand). '' if it can't be joined. */
   function transKind(p) {
-    if (p.zip || p.slope || p.ping || p.cross || p.keep) return '';   // zips and bouncers: still to come
+    if (p.slope || p.ping || p.cross) return '';
+    if (p.zip) return p.pairs ? '' : 'zip';                    // zips one at a time (not two at once)
     if (p.mixed) return 'rows';
     if (p.pairs) return 'pairs';
     return 'plain';
@@ -3240,14 +3351,14 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const p = state.pat;
     if (state.trans) return 'This is already a transition run. Pick a single pattern to add.';
     const kind = transKind(p);
-    if (!kind) return p.zip ? 'Transitions with zips are still to come.' : p.keep ? 'Transitions with bouncers (and other patterns where a hand rolls twice in a row) are still to come.' : 'Transitions don’t work with this kind of pattern.';
+    if (!kind) return p.zip ? 'Transitions don’t work with zips two at once, only one at a time.' : 'Transitions don’t work with this kind of pattern.';
     const list = loadTrans();
     if (list.length >= MAX_TRANS) return 'Transitions hold up to ' + MAX_TRANS + ' patterns. Remove one first.';
     if (list.length && (list[0].n !== state.n || !!list[0].two !== state.twoMode))
       return 'Every pattern in the transitions needs ' + list[0].n + ' balls and ' + (list[0].two ? '2 people' : '1 person') + ', like the first one.';
     const first = list.length ? (list[0].kind || 'plain') : kind;
     if (first !== kind) {
-      const say = { plain: 'plain numbers', pairs: 'two at once (brackets)', rows: 'a row for each person or hand' };
+      const say = { plain: 'plain numbers', pairs: 'two at once (brackets)', rows: 'a row for each person or hand', zip: 'zips' };
       return 'The patterns in the transitions are written as ' + say[first] + ', so this one, written as ' + say[kind] + ', can’t join them.';
     }
     return '';
@@ -3260,9 +3371,24 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     list.forEach(function (x, i) { const rows = x.text.split('|'); for (let k = 0; k < 2; k++) r[k] += rows[k].repeat(x.times) + T[i][k]; });
     return r[0] + '|' + r[1];
   }
+  /* A run with bouncers: in each pattern a lane rolled from both ends is a bouncer (b0, b1... from the lowest lane up)
+     and everything else is the loop (0), so a bouncer stays a bouncer even when the next pattern bounces it in
+     another lane. The joining beats are loop rolls. */
+  function runClasses(list, T) {
+    const cls = [[], []], toks = function (row) { return row.match(/\([^()]*\)|[^()]/g) || []; };
+    const lanesIn = function (a) { return a.replace(/[()]/g, '').split('').filter(function (c) { return c !== '-'; }); };
+    list.forEach(function (x, i) {
+      const rows = x.text.split('|'), by = [{}, {}];
+      rows.forEach(function (r, k) { toks(r).forEach(function (a) { lanesIn(a).forEach(function (c) { by[k][c] = true; }); }); });
+      const both = Object.keys(by[0]).filter(function (c) { return by[1][c]; }).sort(function (a, b) { return parseInt(a, 19) - parseInt(b, 19); });
+      for (let r = 0; r < x.times; r++) rows.forEach(function (row, k) { toks(row).forEach(function (a) { lanesIn(a).forEach(function (c) { cls[k].push(both.indexOf(c) === -1 ? 0 : 'b' + both.indexOf(c)); }); }); });
+      T[i].forEach(function (row, k) { toks(row).forEach(function (a) { lanesIn(a).forEach(function () { cls[k].push(0); }); }); });
+    });
+    return cls;
+  }
   function runParse(list, T) {
     const p = JLS.parse(runText(list, T), { long: true, two: list[0].two });
-    if (p.ok && (list[0].kind || 'plain') === 'rows' && list.some(function (x) { return x.keep; })) p.keep = true;
+    if (p.ok && (list[0].kind || 'plain') === 'rows' && list.some(function (x) { return x.keep; })) { p.keep = true; p.classOf = runClasses(list, T); }
     return p;
   }
   function runGood(list, T) {
@@ -3271,8 +3397,12 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (p.mixed) { const mp = JLS.mixedPlan(p, n); return !!mp && mp.n === n; }
     return !p.rev || JLS.revOk(p, n);
   }
+  function zipItems(list) {
+    return list.map(function (x) { const p = JLS.parse(x.text, { two: x.two }); return { seq: p.seq, self: p.self || null, times: x.times }; });
+  }
   function joinRun(list) {
-    const k = list.length, kind = list[0].kind || 'plain';
+    const k = list.length, kind = list[0].kind || 'plain', until = Date.now() + 2500;   // never search for more than a moment
+    if (kind === 'zip') return JLS.zipRun(zipItems(list), list[0].n, !!list[0].two);
     const lanes = Array.from(new Set(list.map(function (x) { return x.text; }).join('').replace(/[^0-9a-i]/g, '').split(''))).sort();
     // the joins to try, shortest first
     let cand;
@@ -3299,7 +3429,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     for (let i = 0; i < k; i++) {
       const pair = [list[i], list[(i + 1) % k]];
       search: for (const c of cand) for (const d of cand) {
-        if (budget-- < 0) break search;
+        if (budget-- < 0 || Date.now() > until) break search;
         if (runGood(pair, [c, d])) { T[i] = c; break search; }
       }
     }
@@ -3308,7 +3438,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const short = cand.slice(0, kind === 'plain' ? 1 + lanes.length + lanes.length * lanes.length : Math.min(cand.length, 1 + 49));
     let tries = 0;
     const pick = function (i, acc) {
-      if (tries++ > 100000) return null;
+      if (tries++ > 100000 || Date.now() > until) return null;
       if (i === k) return runGood(list, acc) ? acc.slice() : null;
       for (const c of short) { acc[i] = c; const r = pick(i + 1, acc); if (r) return r; }
       return null;
@@ -3321,12 +3451,24 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const T = joinRun(list);
     if (!T) { window.alert('No way to join these patterns was found. Try a different order or other patterns.'); return; }
     const kind = list[0].kind || 'plain', segs = [];
+    // how a zip run's throws are written: a lane, z a zip (two people: p a pass, z a self zip), h a ball held for a beat
+    const zipChar = function (o) { return o.lane ? String(o.lane) : list[0].two ? (o.self ? 'z' : 'p') : o.self ? 'h' : 'z'; };
     list.forEach(function (x, i) {
-      segs.push({ text: x.text, times: x.times, name: x.name });
-      segs.push({ text: kind === 'rows' ? T[i][0] + '|' + T[i][1] : T[i], times: 1, join: true });
+      if (kind === 'zip') {
+        segs.push({ text: x.text, times: x.times, name: x.name, vals: T.patVals[i] });
+        segs.push({ text: T.joins[i].map(zipChar).join(''), times: 1, join: true, vals: T.joins[i].map(function (o) { return o.v; }) });
+      } else {
+        segs.push({ text: x.text, times: x.times, name: x.name });
+        segs.push({ text: kind === 'rows' ? T[i][0] + '|' + T[i][1] : T[i], times: 1, join: true });
+      }
     });
     setMode(list[0].mode === 'one' ? '' : list[0].mode);
-    const parsed = runParse(list, T);
+    let parsed;
+    if (kind === 'zip') {
+      const text = T.seq.map(function (l, t) { return zipChar({ lane: l, self: !!(T.self && T.self[t]) }); }).join('');
+      parsed = { ok: true, text: text, seq: T.seq.slice(), self: T.self, lanes: T.lanes, hand: new Array(T.lanes + 1).fill(-1), zip: true, rev: false, zipRun: T, zipTurn: T.turns };
+      if (list[0].two) parsed.two = true;
+    } else parsed = runParse(list, T);
     parsed.trans = true;
     const err = setPattern(parsed, list[0].n);
     if (err) { window.alert(err); return; }
@@ -3626,7 +3768,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   function drawBoard(g) {
     const pat = state.pat;
-    const running = pat.ping ? JLS.pingLaneHands(u, pat) : pat.rev ? JLS.laneHands(u, pat, state.n) : pat.both && mplan ? JLS.mixedLaneHands(u, mplan) : pat.hand;   // which hand each lane is running away from
+    const running = pat.ping ? JLS.pingLaneHands(u, pat) : pat.zipRun && plan ? JLS.zipLaneHands(u, plan) : pat.rev ? JLS.laneHands(u, pat, state.n) : pat.both && mplan ? JLS.mixedLaneHands(u, mplan) : pat.hand;   // which hand each lane is running away from
     const bw = g.bx1 - g.bx0;
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
 

@@ -277,6 +277,15 @@ input[type="range"] { width: 100%; height: 42px; margin: 0 0 3px; accent-color: 
 .tseg .tseg-tiles { display: flex; gap: 4px; }
 .tseg small { font-size: 11px; font-weight: 600; opacity: .7; white-space: nowrap; }
 .tseg.tjoin .tile { border-style: dashed; }
+.tscroll { display: contents; }                     /* on a computer the run's boxes wrap like any pattern's numbers */
+@media (max-width: 640px), (orientation: landscape) and (max-height: 500px) {
+  /* on a phone they stay on one line and scroll sideways, following the lit box */
+  .tscroll { display: flex; align-items: flex-start; flex: 1 1 auto; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; padding: 2px 0; }
+  .tscroll::-webkit-scrollbar { display: none; }
+  .tscroll > .tseg { flex: none; }
+  .tscroll > .tseg:first-child { margin-left: auto; }   /* centred when it all fits, and every box reachable when not */
+  .tscroll > .tseg:last-child { margin-right: auto; }
+}
 #share.rec { background: #ff8787; animation: recpulse 1s ease-in-out infinite alternate; }
 @keyframes recpulse { to { background: #ffc9c9; } }
 #share.ready { background: #c0eb75; }
@@ -2574,8 +2583,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function buildStrip() {
     buildStripTiles();
     strip.appendChild(hideBtn);
-    strip.classList.toggle('long', strip.querySelectorAll('.tile').length > 8);   // phones shrink long patterns to fit one line
-    strip.classList.toggle('xlong', strip.querySelectorAll('.tile').length > 16);  // and the longest (the 6-lane double helix) a bit more
+    const many = state.trans ? 0 : strip.querySelectorAll('.tile').length;        // a transition run scrolls instead
+    strip.classList.toggle('long', many > 8);   // phones shrink long patterns to fit one line
+    strip.classList.toggle('xlong', many > 16);  // and the longest (the 6-lane double helix) a bit more
     strip.appendChild(infoBtn);
     strip.appendChild(fsBtn);
   }
@@ -2586,6 +2596,9 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     if (state.trans) {                                        // each pattern once, named, then the rolls joining it to the next
       const tr = state.trans, pat = state.pat, kind = tr.kind || 'plain';
       tr.tileOf = {};
+      const roll = document.createElement('div'); roll.className = 'tscroll';
+      for (const ev of ['pointerdown', 'touchstart', 'wheel']) roll.addEventListener(ev, holdStrip, { passive: true });
+      strip.appendChild(roll);
       let idx = 0, k = 0;
       const toks = function (row) { return row.match(/\([^()]*\)|[^()]/g) || []; };
       const laneOf = function (c) { return parseInt(c, 19); };
@@ -2635,7 +2648,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
           const lab = document.createElement('small');
           lab.textContent = sg.join ? 'transition' : sg.name + (sg.times > 1 ? ' ×' + sg.times : '');
           box.appendChild(lab);
-          strip.appendChild(box);
+          roll.appendChild(box);
         }
         idx += len * sg.times;
       });
@@ -2769,7 +2782,18 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     lastActive = '';
   }
 
-  let lastActive = '';
+  let lastActive = '', stripHeld = 0;
+  // someone looking along a run's numbers on a phone: leave the scrolling to them for a few seconds
+  function holdStrip() { stripHeld = performance.now() + 3000; }
+  // a run's numbers on a phone scroll: keep the lit box in view (or just the lit number, if the box is wider than the screen)
+  function followStrip() {
+    const roll = strip.querySelector('.tscroll'), on = roll && roll.querySelector('.tile.on');
+    if (!on || roll.scrollWidth <= roll.clientWidth + 1 || performance.now() < stripHeld) return;
+    const view = roll.getBoundingClientRect(), box = on.closest('.tseg').getBoundingClientRect(), pad = 8;
+    const r = box.width <= view.width - 2 * pad ? box : on.getBoundingClientRect();
+    if (r.left >= view.left + pad && r.right <= view.right - pad) return;
+    roll.scrollTo({ left: roll.scrollLeft + (r.left + r.right) / 2 - (view.left + view.right) / 2, behavior: 'smooth' });
+  }
   function markStrip() {
     if (state.trans) {                                        // a transition run: the tile for each roll being made
       const act = JLS.active(u, state.pat, plan || mplan ? 1 : state.pat.pairs ? state.n / 2 : state.n), key = 't' + act.join(',');
@@ -2777,6 +2801,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
       lastActive = key;
       const on = act.map(function (a) { return state.trans.tileOf[a]; });
       strip.querySelectorAll('.tile').forEach(function (t) { t.classList.toggle('on', on.indexOf(Number(t.dataset.k)) !== -1); });
+      followStrip();
       return;
     }
     if (state.pat.lanes > 12) {                       // the faces: one a beat, round and round

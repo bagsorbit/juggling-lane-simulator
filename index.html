@@ -2411,7 +2411,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   function applyParams(params) {
     const b = parseInt(params.get('b'), 10);
     const n = b >= 1 && b <= JLS.MAX_BALLS ? b : state.n;
-    let raw = params.get('p') || '';
+    let raw = params.get('pat') || params.get('p') || '';   // (p in older links)
     const twoParam = params.get('two') === '1';
     let zip2 = false;
     if (params.get('v') === '2') zip2 = /p/i.test(raw) || (twoParam && (params.get('zips') === '1' || /z/i.test(raw)));
@@ -3021,7 +3021,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     const q = new URLSearchParams();
     if (state.slopeMode) q.set('slope', SLOPE[state.pat.text].name);
     else {
-      q.set('p', state.pat.text);
+      q.set('pat', state.pat.text);   // (not p: WordPress takes ?p= as a post number and redirects it away)
       q.set('b', state.n);
       if (state.pingMode) q.set('ping', '1');
       if (state.twoMode) q.set('two', '1');
@@ -4735,7 +4735,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
     el.addEventListener('click', stop);
     window.addEventListener('keydown', stop, true);
   }
-  if (!params.get('p') && !params.get('slope') && !reduceMotion) startDemo();
+  if (!params.get('pat') && !params.get('p') && !params.get('slope') && !reduceMotion) startDemo();
 })();
 </script>
 </body>

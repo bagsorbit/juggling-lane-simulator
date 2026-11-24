@@ -2207,7 +2207,7 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
 
   // Opened straight from GitHub rather than inside the circus website: go to the website, keeping the pattern.
   if (location.hostname === 'bagsorbit.github.io' && window.top === window.self) {
-    location.replace('https://twistedorbitcircus.com/2026/11/19/easy-juggling-simulator-for-kids/' + location.search);
+    location.replace('https://twistedorbitcircus.com/2026/11/19/easy-juggling-simulator-for-kids/' + location.search + '#jls');
   }
   const params = new URLSearchParams(location.search);
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -3024,7 +3024,8 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   // or anywhere else keeps its own address.
   const HOME_PAGE = 'https://twistedorbitcircus.com/2026/11/19/easy-juggling-simulator-for-kids/';
   const ON_PAGES = location.hostname === 'bagsorbit.github.io';
-  function shareUrl() { return (ON_PAGES ? HOME_PAGE : location.origin + location.pathname) + '?' + patternQuery(true); }
+  // (on the website, the link jumps straight to the simulator: #jls is the frame it sits in)
+  function shareUrl() { return (ON_PAGES ? HOME_PAGE : location.origin + location.pathname) + '?' + patternQuery(true) + (ON_PAGES ? '#jls' : ''); }
   function patternTitle() {
     const known = state.pat.slope ? [state.pat.slope.name] : knownPattern(state.pat.text);
     return known && known[0] ? known[0] : state.pat.text;

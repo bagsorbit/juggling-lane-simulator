@@ -2209,7 +2209,19 @@ const ALL_PATTERNS = {"2":{"2":"12"},"3":{"4":"1213 1232"},"4":{"4":"1234 1243 1
   if (location.hostname === 'bagsorbit.github.io' && window.top === window.self) {
     location.replace('https://twistedorbitcircus.com/2026/11/19/easy-juggling-simulator-for-kids/' + location.search + '#jls');
   }
-  const params = new URLSearchParams(location.search);
+  // A shared link opens the website page with the pattern in its address (?p=...). The page's script
+  // hands that on to this frame, but in case that doesn't happen in time (the demo would start), the
+  // frame also reads it from the page's own address, which it is told as its referrer (the iframe has
+  // referrerpolicy=unsafe-url). Only the circus website's address is trusted.
+  function pageQuery() {
+    if (location.search || window.top === window.self) return location.search;
+    try {
+      const r = new URL(document.referrer);
+      if (/(^|\.)twistedorbitcircus\.com$/.test(r.hostname)) return r.search;
+    } catch (e) { /* no referrer */ }
+    return '';
+  }
+  const params = new URLSearchParams(pageQuery());
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const state = {
